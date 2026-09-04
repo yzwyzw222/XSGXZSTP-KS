@@ -1,0 +1,61 @@
+name: aacv-stage8
+
+services:
+  mysql:
+    image: mysql:8.0.42
+    container_name: aacv-stage8-mysql
+    environment:
+      MYSQL_DATABASE: aacv_stage8_capacity_20260903
+      MYSQL_USER: "${AACV_STAGE8_DB_USERNAME:?请在 .env 中设置 AACV_STAGE8_DB_USERNAME}"
+      MYSQL_PASSWORD: "${AACV_STAGE8_DB_PASSWORD:?请在 .env 中设置 AACV_STAGE8_DB_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${AACV_STAGE8_DB_ROOT_PASSWORD:?请在 .env 中设置 AACV_STAGE8_DB_ROOT_PASSWORD}"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports:
+      - "127.0.0.1:13306:3306"
+    volumes:
+      - stage8_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "--host=127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+    mem_limit: 3g
+    cpus: 4
+
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: aacv-stage8-neo4j
+    environment:
+      NEO4J_AUTH: "${AACV_STAGE8_NEO4J_USERNAME:?请在 .env 中设置 AACV_STAGE8_NEO4J_USERNAME}/${AACV_STAGE8_NEO4J_PASSWORD:?请在 .env 中设置 AACV_STAGE8_NEO4J_PASSWORD}"
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 1g
+    ports:
+      - "127.0.0.1:17474:7474"
+      - "127.0.0.1:17687:7687"
+    volumes:
+      - stage8_neo4j_data:/data
+      - stage8_neo4j_logs:/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - timeout 2 bash -c '</dev/tcp/127.0.0.1/7474'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+    mem_limit: 3g
+    cpus: 4
+
+volumes:
+  stage8_mysql_data:
+    name: aacv_stage8_mysql_data
+  stage8_neo4j_data:
+    name: aacv_stage8_neo4j_data
+  stage8_neo4j_logs:
+    name: aacv_stage8_neo4j_logs
