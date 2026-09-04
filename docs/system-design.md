@@ -847,20 +847,73 @@ graph_outbox_event 建议包含：
 
 ### 14.4 阶段6业务前端实现边界
 
+> 说明：本节保留阶段6的历史实现边界。前端已于后续整体改造中将 UI 组件库由 Element Plus 迁移到 shadcn-vue（reka-ui）+ Tailwind CSS，并引入三层设计令牌与深浅双主题；当前权威架构见 14.5。本节中“Element Plus”“`vLoading`”等描述仅作历史参考。
+
 阶段6使用Vue 3、TypeScript、Vue Router、Element Plus、原生fetch、Vitest和Playwright实现业务前端。Element Plus按组件和`vLoading`指令显式引入，不使用自动导入插件；未引入Pinia或Axios。Vite分别将`/api`和`/actuator`原样代理到本机后端，避免业务API路径被改写。
 
 会话只保存在轻量Vue响应式模块中，浏览器负责HttpOnly Cookie。统一API边界设置12秒默认超时、解析`application/problem+json`、对所有非安全HTTP方法获取并附加服务端返回的CSRF请求头；登录成功后清除匿名令牌缓存，使下一次写操作获取认证会话的新令牌。401会使内存会话失效并进入会话过期页，403进入无权限页，409要求刷新后重试；网络和超时错误、加载状态和空结果均在页面明确展示。前端路由权限只隐藏入口和阻止误入，服务端授权仍是最终边界。
 
 阶段6已实现登录、权限菜单、工作台、成果及四类实体目录、成果详情和来源追溯、数据源、采集任务/计划/运行/失败、重复候选治理、字段人工覆盖、质量指标样本和用户管理。阶段7批次7.2至7.7已实现局部知识图谱、MySQL统计分析、异步导出、目录导出下载、运维总览、系统内告警和运行监控页面。
 
-### 14.5 WebUI 视觉与动效基线
+### 14.5 前端设计系统与组件架构（整体改造后）
 
-- 业务界面统一使用深海军蓝驾驶舱视觉：固定左侧权限导航、粘性顶栏、紧凑数据卡片和高对比状态色。工作台只组合当前账号有权读取的统计、采集和运维接口；任何接口失败均按区域降级，不使用虚构指标补位。
+前端在保持路由、权限、服务层与后端 `/api/v1/*` 契约不变的前提下完成了一次整体改造，技术栈与分层如下。
+
+#### 14.5.1 技术栈
+
+| 领域 | 选型 | 说明 |
+| --- | --- | --- |
+| 框架 | Vue 3.5 + TypeScript + Vite | 组合式 API，`<script setup>` |
+| 组件库 | shadcn-vue 模式（reka-ui + Tailwind CSS v4） | 组件源码内置于 `src/components/ui/`，copy-paste 模式，已移除 Element Plus |
+| 样式 | Tailwind CSS v4（`@tailwindcss/vite`）+ CSS 变量令牌 | 无 `tailwind.config.js`，主题经 `@theme inline` 映射 |
+| 数据表 | `@tanstack/vue-table` v8 | 封装为 `DataTable` 业务组件，服务端分页/排序 |
+| 表单校验 | `vee-validate` + `zod`（`@vee-validate/zod`） | 用于数据源等结构化表单 |
+| 图标 | `lucide-vue-next` | 替代 `@element-plus/icons-vue` |
+| 交互工具 | `@vueuse/core` | 主题持久化、v-model 代理等 |
+| 图表/图谱 | ECharts 6、Cytoscape 3 | 经 `EChartCanvas`/`GraphCanvas` 主题化封装 |
+| 通知 | `vue-sonner` | 替代 `ElMessage` |
+| 测试 | Vitest、Playwright | E2E 依赖 ARIA 角色/文本/`label:has-text` 结构，与组件库解耦 |
+
+#### 14.5.2 三层设计令牌
+
+令牌定义于 `src/styles/tokens.css`，全部颜色使用 HSL 分量以便透明度组合：
+
+- Primitive（原始值）：调色板（blue/cyan/emerald/amber/rose/violet/slate）、圆角、间距、字体、字号（`--font-size-*`，独立命名空间避免与 Tailwind `--text-*` 冲突）、行高、字距、阴影、动效曲线；
+- Semantic（语义别名）：`[data-theme='light']` 与 `[data-theme='dark']` 各一套，含 `--background/--foreground/--primary/--muted/--accent/--destructive/--success/--warning/--info/--border/--ring/--sidebar*/--chart-1..6/--graph-*/--table-*/--status-*` 等；
+- Component（组件级）：`--button-*/--card-*/--input-*/--table-*/--dialog-*/--badge-*/--nav-item-*`，均以 `var()` 引用语义层。
+
+`src/styles/index.css` 通过 `@theme inline` 将语义令牌暴露为 Tailwind 工具类（`bg-background`、`text-foreground`、`border-border` 等），并在 `@layer base` 定义全局基础样式、`:focus-visible` 环、滚动条与 `prefers-reduced-motion` 降级。
+
+#### 14.5.3 主题切换
+
+- `src/composables/useTheme.ts` 基于 `@vueuse/core` 的 `useColorMode`，模式 `light|dark|auto`，持久化到 `localStorage['aacv-theme']`，同步 `<html data-theme>`、`.dark` class 与 `color-scheme`；
+- `index.html` 内联防 FOUC 脚本在首帧前应用持久化主题或系统偏好；
+- `src/composables/useChartTheme.ts` 实时解析 CSS 令牌为图表色板，`EChartCanvas`/`GraphCanvas` 监听 `isDark` 变化重渲染，使图表与图谱随主题切换。
+
+#### 14.5.4 组件分层
+
+- `src/components/ui/`：约 30 个 shadcn-vue 风格原语（button、card、input、label、select、dialog、alert-dialog、dropdown-menu、tabs、sheet、tooltip、popover、progress、switch、checkbox、table、form、badge、alert、separator、skeleton、scroll-area、avatar、breadcrumb、collapsible、toggle、toggle-group、radio-group、sonner 等），统一用 `cn()`（`src/lib/utils.ts`）合并类名、`class-variance-authority` 管理变体；
+- `src/components/business/`：约 21 个业务组件（`PageHeader`、`PanelSection`、`DataTable`、`FilterBar`/`FilterField`、`StatCard`、`StatusPill`、`EmptyState`、`ErrorState`、`LoadingSkeleton`、`JsonEvidence`、`EntityLinks`、`LiveLogPanel`、`ConfirmDialog`、`ChartFrame`、`GraphCanvas`、`ThemeToggle`、`CommandPalette`、`Breadcrumb`、`UserMenu`、`AppSidebar`、`AppTopbar`）；
+- `src/config/nav.ts`：集中式导航配置（标签、图标、权限、命令面板关键词），侧栏与命令面板复用同一权限过滤逻辑。
+
+#### 14.5.5 布局外壳与可访问性
+
+- `BusinessLayout` 由可折叠桌面侧栏（宽 240px/折叠 64px，状态持久化）+ 移动端 `sheet` 抽屉 + 粘性顶栏（面包屑、命令面板入口、主题切换、通知、用户菜单）组成；
+- 快捷键：Ctrl+K 命令面板、Ctrl+B 折叠侧栏、Esc 关闭浮层；提供 skip-to-content 链接；
+- `FilterField` 以 `<label>` 包裹控件，保留 E2E 依赖的 `label:has-text("…") input` 结构；状态用 `StatusPill` 的文本+颜色双通道表达，不以颜色为唯一载体；异步区域使用 `aria-live`；全局尊重 `prefers-reduced-motion`。
+
+#### 14.5.6 兼容性边界
+
+改造未修改 `src/router/index.ts`、`src/services/{api,business,session,health}.ts`、`src/types/api.ts` 与 `src/utils/{motion,format,graph,export-filter}.ts` 的公开契约；后端代码、`deploy/` 与 `docs/openapi.yaml` 不受影响。
+
+### 14.6 WebUI 视觉与动效基线
+
+- 业务界面提供深浅双主题（默认跟随系统），统一采用固定左侧权限导航、粘性顶栏、紧凑数据卡片和高对比状态色；颜色均取自语义令牌，两套主题下正文对比度不低于 4.5:1。工作台只组合当前账号有权读取的统计、采集和运维接口；任何接口失败均按区域降级，不使用虚构指标补位。
 - ECharts 图表固定使用 Canvas 渲染，趋势线和条形图首次渲染控制在 600 毫秒内；折线图启用吸附轴指示器与数据点聚焦。Cytoscape.js 继续承担最多 300 个节点的图谱渲染，布局动画在 800 毫秒内完成，并支持一至二度关系聚焦、机构节点平滑缩放和展开节点渐次入场。
 - 统计筛选期间保留旧图形并降至 40% 透明度、增加 1 像素模糊，响应返回后使用更新动画恢复；合作排行通过稳定业务标识和 Vue `TransitionGroup` 执行 FLIP 重排。
 - 数据源初次读取使用轻量 shimmer 骨架；采集运行详情按 1.5 秒串行轮询，连续三次失败后停止，展示脉冲状态、600 毫秒计数过渡和最多 80 行的活动流。页面卸载或弹窗关闭时必须清理轮询、动画帧和图实例。
 - 所有非必要动画遵守 `prefers-reduced-motion: reduce`，关闭图表、图谱、计数、滚动和装饰性过渡；文字、图标和结构信息不能只依赖颜色表达状态。
-- 图标使用与 Element Plus 版本兼容的 `@element-plus/icons-vue`；品牌使用现有 `frontend/public/favicon.svg`。不增加新的 UI 框架、全局状态库或接口层。
+- 图标使用 `lucide-vue-next`；品牌使用现有 `frontend/public/favicon.svg`。UI 层采用 shadcn-vue 模式（reka-ui + Tailwind CSS v4），组件源码内置于仓库；未引入 Pinia 或 Axios，会话仍保存在轻量 Vue 响应式模块中。
 
 ## 15. 安全设计
 
