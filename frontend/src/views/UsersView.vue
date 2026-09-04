@@ -1,23 +1,19 @@
 <script setup lang="ts">
+import type { ColumnDef } from '@tanstack/vue-table'
+import { Plus, UserCog } from 'lucide-vue-next'
 import { onMounted, reactive, ref } from 'vue'
-import {
-  ElAlert,
-  ElButton,
-  ElCheckbox,
-  ElCheckboxGroup,
-  ElDialog,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElMessage,
-  ElMessageBox,
-  ElPagination,
-  ElTable,
-  ElTableColumn,
-  ElTag,
-  vLoading,
-} from 'element-plus'
 
+import { ConfirmDialog, DataTable, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { FormItem, FormLabel } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { toast } from '@/components/ui/sonner'
 import { toErrorMessage } from '@/services/api'
 import { userApi } from '@/services/business'
 import type { PageResponse, RoleCode, UserAccount } from '@/types/api'
@@ -36,9 +32,29 @@ const createVisible = ref(false)
 const rolesVisible = ref(false)
 const passwordVisible = ref(false)
 const selected = ref<UserAccount | null>(null)
+const confirmToggle = ref<UserAccount | null>(null)
 const createForm = reactive({ username: '', password: '', roles: ['RESEARCHER'] as RoleCode[] })
 const roleForm = ref<RoleCode[]>([])
 const newPassword = ref('')
+
+const columns: ColumnDef<UserAccount, any>[] = [
+  { accessorKey: 'username', header: '用户名', enableSorting: false },
+  { id: 'roles', accessorFn: (row) => row.roles.join('，'), header: '角色', enableSorting: false },
+  { id: 'status', accessorFn: (row) => row.status, header: '状态', enableSorting: false, meta: { width: '130px' } },
+  { id: 'credentialsChangedAt', accessorFn: (row) => formatDateTime(row.credentialsChangedAt), header: '凭据更新时间', enableSorting: false, meta: { width: '170px' } },
+  { id: 'updatedAt', accessorFn: (row) => formatDateTime(row.updatedAt), header: '更新时间', enableSorting: false, meta: { width: '170px' } },
+  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '230px' } },
+]
+
+function statusMeta(status: UserAccount['status']): { pill: string; label: string } {
+  if (status === 'ACTIVE') return { pill: 'ACTIVE', label: '启用' }
+  if (status === 'PASSWORD_RESET_REQUIRED') return { pill: 'WARNING', label: '待重置密码' }
+  return { pill: 'DISABLED', label: '停用' }
+}
+
+function toggleRole(list: RoleCode[], role: RoleCode): RoleCode[] {
+  return list.includes(role) ? list.filter((item) => item !== role) : [...list, role]
+}
 
 async function load(page = 0): Promise<void> {
   loading.value = true
@@ -71,7 +87,7 @@ async function createUser(): Promise<void> {
     await userApi.create(createForm.username.trim(), createForm.password, createForm.roles)
     createVisible.value = false
     Object.assign(createForm, { username: '', password: '', roles: ['RESEARCHER'] })
-    ElMessage.success('用户已创建')
+    toast.success('用户已创建')
     await load()
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
@@ -80,18 +96,17 @@ async function createUser(): Promise<void> {
   }
 }
 
-async function toggle(user: UserAccount): Promise<void> {
+async function applyToggle(): Promise<void> {
+  const user = confirmToggle.value
+  if (!user) return
   try {
-    await ElMessageBox.confirm(
-      '确认' + (user.status === 'ACTIVE' ? '停用' : '启用') + '用户 ' + user.username + '？',
-      '账号状态确认',
-      { type: 'warning' },
-    )
     await userApi.setEnabled(user, user.status !== 'ACTIVE')
-    ElMessage.success('用户状态已更新')
+    toast.success('用户状态已更新')
+    confirmToggle.value = null
     await load(users.value.page)
   } catch (error) {
-    if (error !== 'cancel' && error !== 'close') errorMessage.value = toErrorMessage(error)
+    confirmToggle.value = null
+    errorMessage.value = toErrorMessage(error)
   }
 }
 
@@ -110,7 +125,7 @@ async function saveRoles(): Promise<void> {
   try {
     await userApi.replaceRoles(selected.value, roleForm.value)
     rolesVisible.value = false
-    ElMessage.success('用户角色已更新')
+    toast.success('用户角色已更新')
     await load(users.value.page)
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
@@ -131,7 +146,7 @@ async function resetPassword(): Promise<void> {
   try {
     await userApi.resetPassword(selected.value, newPassword.value)
     passwordVisible.value = false
-    ElMessage.success('密码已重置')
+    toast.success('密码已重置')
     await load(users.value.page)
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
@@ -145,62 +160,121 @@ onMounted(() => load())
 
 <template>
   <section class="page-stack">
-    <header class="page-heading">
-      <div>
-        <span class="eyebrow">ADMINISTRATION / USERS</span>
-        <h1>用户管理</h1>
-        <p>创建内部账号、维护角色与启用状态，并在必要时重置登录凭据。</p>
-      </div>
-      <ElButton type="primary" @click="createVisible = true">新增用户</ElButton>
-    </header>
-    <ElAlert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" show-icon />
-    <div class="content-panel">
-      <div class="toolbar"><strong>系统账号</strong><span class="meta-line">共 {{ users.totalElements }} 个</span></div>
-      <ElTable v-loading="loading" :data="users.items" empty-text="暂无用户">
-        <ElTableColumn prop="username" label="用户名" min-width="160" />
-        <ElTableColumn label="角色" min-width="240">
-          <template #default="{ row }"><ElTag v-for="role in row.roles" :key="role" size="small" effect="plain">{{ role }}</ElTag></template>
-        </ElTableColumn>
-        <ElTableColumn label="状态" width="130"><template #default="{ row }"><ElTag :type="row.status === 'ACTIVE' ? 'success' : row.status === 'PASSWORD_RESET_REQUIRED' ? 'warning' : 'info'">{{ row.status === 'ACTIVE' ? '启用' : row.status === 'PASSWORD_RESET_REQUIRED' ? '待重置密码' : '停用' }}</ElTag></template></ElTableColumn>
-        <ElTableColumn label="凭据更新时间" width="180"><template #default="{ row }">{{ formatDateTime(row.credentialsChangedAt) }}</template></ElTableColumn>
-        <ElTableColumn label="更新时间" width="180"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></ElTableColumn>
-        <ElTableColumn label="操作" width="260" fixed="right">
-          <template #default="{ row }">
-            <ElButton link type="primary" @click="openRoles(row as UserAccount)">角色</ElButton>
-            <ElButton link type="primary" @click="openPassword(row as UserAccount)">重置密码</ElButton>
-            <ElButton link :type="row.status === 'ACTIVE' ? 'danger' : 'success'" @click="toggle(row as UserAccount)">{{ row.status === 'ACTIVE' ? '停用' : '启用' }}</ElButton>
-          </template>
-        </ElTableColumn>
-      </ElTable>
-      <div v-if="users.totalPages > 1" class="pagination-row">
-        <ElPagination :current-page="users.page + 1" :page-size="users.size" :total="users.totalElements" layout="prev, pager, next" @current-change="(page: number) => load(page - 1)" />
-      </div>
-    </div>
+    <PageHeader
+      title="用户管理"
+      description="创建内部账号、维护角色与启用状态，并在必要时重置登录凭据。"
+    >
+      <template #actions>
+        <Button @click="createVisible = true"><Plus class="size-4" />新增用户</Button>
+      </template>
+    </PageHeader>
 
-    <ElDialog v-model="createVisible" title="新增用户" width="520px">
-      <ElForm label-position="top">
-        <ElFormItem label="用户名"><ElInput v-model="createForm.username" maxlength="64" /></ElFormItem>
-        <ElFormItem label="初始密码"><ElInput v-model="createForm.password" type="password" maxlength="128" show-password autocomplete="new-password" /></ElFormItem>
-        <ElFormItem label="角色">
-          <ElCheckboxGroup v-model="createForm.roles">
-            <ElCheckbox v-for="role in allRoles" :key="role.value" :value="role.value">{{ role.label }}</ElCheckbox>
-          </ElCheckboxGroup>
-        </ElFormItem>
-      </ElForm>
-      <ElAlert title="初始密码至少 12 个字符，请通过安全渠道交付给用户。" type="warning" :closable="false" />
-      <template #footer><ElButton @click="createVisible = false">取消</ElButton><ElButton type="primary" :loading="saving" @click="createUser">创建用户</ElButton></template>
-    </ElDialog>
+    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
 
-    <ElDialog v-model="rolesVisible" :title="'调整角色 · ' + selected?.username" width="500px">
-      <ElCheckboxGroup v-model="roleForm" class="role-list">
-        <ElCheckbox v-for="role in allRoles" :key="role.value" :value="role.value">{{ role.label }}（{{ role.value }}）</ElCheckbox>
-      </ElCheckboxGroup>
-      <template #footer><ElButton @click="rolesVisible = false">取消</ElButton><ElButton type="primary" :loading="saving" @click="saveRoles">保存角色</ElButton></template>
-    </ElDialog>
+    <PanelSection title="系统账号" :subtitle="`共 ${users.totalElements} 个`">
+      <template #actions><UserCog class="size-4 text-muted-foreground" aria-hidden="true" /></template>
+      <DataTable
+        :columns="columns" :data="users.items" :loading="loading"
+        :page="users.page" :size="users.size" :total="users.totalElements"
+        empty-text="暂无用户" :get-row-id="(row) => String(row.id)" @update:page="load"
+      >
+        <template #cell-roles="{ row }">
+          <div class="flex flex-wrap gap-1">
+            <Badge v-for="role in row.roles" :key="role" variant="subtle">{{ role }}</Badge>
+          </div>
+        </template>
+        <template #cell-status="{ row }">
+          <StatusPill :status="statusMeta(row.status).pill" :label="statusMeta(row.status).label" />
+        </template>
+        <template #cell-actions="{ row }">
+          <div class="flex flex-wrap items-center gap-1">
+            <Button variant="link" size="sm" class="h-auto p-0" @click="openRoles(row)">角色</Button>
+            <Button variant="link" size="sm" class="h-auto p-0" @click="openPassword(row)">重置密码</Button>
+            <Button
+              variant="link" size="sm" class="h-auto p-0"
+              :class="row.status === 'ACTIVE' ? 'text-destructive' : 'text-success'"
+              @click="confirmToggle = row"
+            >{{ row.status === 'ACTIVE' ? '停用' : '启用' }}</Button>
+          </div>
+        </template>
+      </DataTable>
+    </PanelSection>
 
-    <ElDialog v-model="passwordVisible" :title="'重置密码 · ' + selected?.username" width="500px">
-      <ElInput v-model="newPassword" type="password" maxlength="128" show-password autocomplete="new-password" placeholder="输入至少 12 个字符的新密码" />
-      <template #footer><ElButton @click="passwordVisible = false">取消</ElButton><ElButton type="primary" :loading="saving" @click="resetPassword">确认重置</ElButton></template>
-    </ElDialog>
+    <!-- 新增用户 -->
+    <Dialog v-model:open="createVisible">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>新增用户</DialogTitle>
+          <DialogDescription>创建内部账号并分配角色。</DialogDescription>
+        </DialogHeader>
+        <form class="grid gap-4" novalidate @submit.prevent="createUser">
+          <FormItem><FormLabel for="newUsername">用户名</FormLabel><Input id="newUsername" v-model="createForm.username" :maxlength="64" /></FormItem>
+          <FormItem><FormLabel for="newPassword">初始密码</FormLabel><Input id="newPassword" v-model="createForm.password" type="password" :maxlength="128" autocomplete="new-password" /></FormItem>
+          <FormItem>
+            <FormLabel>角色</FormLabel>
+            <div class="flex flex-wrap gap-4">
+              <label v-for="role in allRoles" :key="role.value" class="flex items-center gap-2 text-sm">
+                <Checkbox
+                  :model-value="createForm.roles.includes(role.value)"
+                  @update:model-value="createForm.roles = toggleRole(createForm.roles, role.value)"
+                />
+                {{ role.label }}
+              </label>
+            </div>
+          </FormItem>
+          <Alert variant="warning"><AlertTitle>初始密码至少 12 个字符，请通过安全渠道交付给用户。</AlertTitle></Alert>
+          <DialogFooter>
+            <Button type="button" variant="outline" @click="createVisible = false">取消</Button>
+            <Button type="submit" :loading="saving">创建用户</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 调整角色 -->
+    <Dialog v-model:open="rolesVisible">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader><DialogTitle>调整角色 · {{ selected?.username }}</DialogTitle></DialogHeader>
+        <div class="grid gap-3">
+          <label v-for="role in allRoles" :key="role.value" class="flex items-center gap-2 text-sm">
+            <Checkbox
+              :model-value="roleForm.includes(role.value)"
+              @update:model-value="roleForm = toggleRole(roleForm, role.value)"
+            />
+            {{ role.label }}（{{ role.value }}）
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="rolesVisible = false">取消</Button>
+          <Button :loading="saving" @click="saveRoles">保存角色</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 重置密码 -->
+    <Dialog v-model:open="passwordVisible">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader><DialogTitle>重置密码 · {{ selected?.username }}</DialogTitle></DialogHeader>
+        <FormItem>
+          <FormLabel for="resetPassword">新密码</FormLabel>
+          <Input id="resetPassword" v-model="newPassword" type="password" :maxlength="128" autocomplete="new-password" placeholder="输入至少 12 个字符的新密码" />
+        </FormItem>
+        <DialogFooter>
+          <Button variant="outline" @click="passwordVisible = false">取消</Button>
+          <Button :loading="saving" @click="resetPassword">确认重置</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- 状态确认 -->
+    <ConfirmDialog
+      :open="Boolean(confirmToggle)"
+      title="账号状态确认"
+      :description="confirmToggle ? `确认${confirmToggle.status === 'ACTIVE' ? '停用' : '启用'}用户 ${confirmToggle.username}？` : ''"
+      :confirm-text="confirmToggle?.status === 'ACTIVE' ? '停用' : '启用'"
+      :destructive="confirmToggle?.status === 'ACTIVE'"
+      @update:open="(v) => { if (!v) confirmToggle = null }"
+      @confirm="applyToggle"
+    />
   </section>
 </template>

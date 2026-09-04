@@ -2,6 +2,7 @@
 import { watch } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 
+import { Toaster } from '@/components/ui/sonner'
 import { session } from '@/services/session'
 
 const router = useRouter()
@@ -18,4 +19,5 @@ watch(
 
 <template>
   <RouterView />
+  <Toaster />
 </template>

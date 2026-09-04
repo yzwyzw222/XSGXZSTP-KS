@@ -1,39 +1,22 @@
 <script setup lang="ts">
-import cytoscape, { type Core, type EventObject } from 'cytoscape'
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import {
-  ElAlert,
-  ElButton,
-  ElInput,
-  ElInputNumber,
-  ElOption,
-  ElSelect,
-  ElTable,
-  ElTableColumn,
-  ElTag,
-  vLoading,
-} from 'element-plus'
+import type { ColumnDef } from '@tanstack/vue-table'
+import { Waypoints } from 'lucide-vue-next'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
+import { DataTable, FilterField, GraphCanvas, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { toErrorMessage } from '@/services/api'
 import { graphApi } from '@/services/business'
 import { hasPermission } from '@/services/session'
 import type {
-  GraphEdge,
-  GraphNode,
-  GraphNodeType,
-  GraphRelationshipType,
-  GraphResponse,
-  GraphSyncStatus,
+  GraphEdge, GraphNode, GraphNodeType, GraphRelationshipType, GraphResponse, GraphSyncStatus,
 } from '@/types/api'
-import {
-  GRAPH_NODE_LIMIT,
-  mergeGraph,
-  nodeTarget,
-  relationshipLabel,
-  toCytoscapeElements,
-} from '@/utils/graph'
-import { formatDateTime } from '@/utils/format'
-import { prefersReducedMotion } from '@/utils/motion'
+import { GRAPH_NODE_LIMIT, mergeGraph, nodeTarget, relationshipLabel, toCytoscapeElements } from '@/utils/graph'
+import { formatDateTime, splitValues } from '@/utils/format'
 
 const nodeTypes: Array<{ value: GraphNodeType; label: string }> = [
   { value: 'ACHIEVEMENT', label: '成果' },
@@ -54,91 +37,108 @@ const loading = ref(false)
 const errorMessage = ref('')
 const graph = ref<GraphResponse | null>(null)
 const syncStatus = ref<GraphSyncStatus | null>(null)
-const graphContainer = ref<HTMLDivElement | null>(null)
 const selectedNodeId = ref('')
 const selectedEdgeId = ref('')
 const viewMode = ref<'graph' | 'nodes' | 'edges'>('graph')
-let cy: Core | null = null
-let edgeFlowFrame: number | undefined
-let edgeDashOffset = 0
-const revealTimers: number[] = []
+const addedNodeIds = ref<string[]>([])
 
 const filters = reactive({
   centerType: 'ACHIEVEMENT' as GraphNodeType,
-  centerId: undefined as number | undefined,
-  depth: 1,
-  nodeLimit: 100,
-  publicationYearFrom: undefined as number | undefined,
-  publicationYearTo: undefined as number | undefined,
+  centerId: '',
+  depth: '1',
+  nodeLimit: '100',
+  publicationYearFrom: '',
+  publicationYearTo: '',
   nodeTypes: [] as GraphNodeType[],
   relationshipTypes: [] as GraphRelationshipType[],
   achievementTypes: '',
 })
 const pathQuery = reactive({
   sourceType: 'AUTHOR' as GraphNodeType,
-  sourceId: undefined as number | undefined,
+  sourceId: '',
   targetType: 'TOPIC' as GraphNodeType,
-  targetId: undefined as number | undefined,
-  maxHops: 6,
+  targetId: '',
+  maxHops: '6',
 })
 
 const selectedNode = computed<GraphNode | null>(() =>
-  graph.value?.nodes.find((node) => node.id === selectedNodeId.value) ?? null,
-)
+  graph.value?.nodes.find((node) => node.id === selectedNodeId.value) ?? null)
 const selectedEdge = computed<GraphEdge | null>(() =>
-  graph.value?.edges.find((edge) => edge.id === selectedEdgeId.value) ?? null,
-)
+  graph.value?.edges.find((edge) => edge.id === selectedEdgeId.value) ?? null)
 const selectedNodeTarget = computed(() => selectedNode.value ? nodeTarget(selectedNode.value) : null)
 const propertyRows = computed(() => {
   const properties = selectedNode.value?.properties ?? selectedEdge.value?.properties ?? {}
   return Object.entries(properties).map(([key, value]) => ({
-    key,
-    value: typeof value === 'string' ? value : JSON.stringify(value),
+    key, value: typeof value === 'string' ? value : JSON.stringify(value),
   }))
 })
 const canExpandSelected = computed(() => {
-  if (!selectedNode.value || (graph.value?.nodes.length ?? 0) >= GRAPH_NODE_LIMIT) {
-    return false
-  }
+  if (!selectedNode.value || (graph.value?.nodes.length ?? 0) >= GRAPH_NODE_LIMIT) return false
   const businessId = Number(selectedNode.value.businessId)
   return Number.isSafeInteger(businessId) && businessId > 0
 })
+const syncWarning = computed(() =>
+  Boolean(syncStatus.value && (!syncStatus.value.neo4jAvailable || syncStatus.value.lagThresholdExceeded || syncStatus.value.rebuildInProgress)))
 const syncLabel = computed(() => {
   if (syncStatus.value?.rebuildInProgress) return '图投影正在重建'
   if (syncStatus.value && !syncStatus.value.neo4jAvailable) return 'Neo4j 暂不可用'
   if (syncStatus.value?.lagThresholdExceeded) return '图同步存在积压'
   return graph.value?.syncedAt ? `投影于 ${formatDateTime(graph.value.syncedAt)}` : '等待加载图数据'
 })
+const graphElements = computed(() => graph.value ? toCytoscapeElements(graph.value) : [])
+const graphLabel = computed(() =>
+  `知识图谱，共${graph.value?.nodes.length ?? 0}个节点和${graph.value?.edges.length ?? 0}条关系`)
+
+const nodeColumns: ColumnDef<GraphNode, any>[] = [
+  { id: 'type', accessorFn: (row) => nodeTypeLabel(row.type), header: '类型', enableSorting: false, meta: { width: '120px' } },
+  { accessorKey: 'label', header: '名称', enableSorting: false },
+  { accessorKey: 'businessId', header: '业务ID', enableSorting: false, meta: { width: '140px' } },
+  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '90px' } },
+]
+const edgeColumns: ColumnDef<GraphEdge, any>[] = [
+  { id: 'type', accessorFn: (row) => relationshipLabel(row.type), header: '关系', enableSorting: false, meta: { width: '120px' } },
+  { accessorKey: 'source', header: '起点', enableSorting: false },
+  { accessorKey: 'target', header: '终点', enableSorting: false },
+  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '90px' } },
+]
+
+function numOrUndef(value: string): number | undefined {
+  const trimmed = value.trim()
+  return trimmed === '' ? undefined : Number(trimmed)
+}
 
 async function loadCenter(): Promise<void> {
-  if (!filters.centerId) {
+  const centerId = Number(filters.centerId)
+  if (!filters.centerId.trim() || !Number.isSafeInteger(centerId) || centerId < 1) {
     errorMessage.value = '请输入大于0的中心节点业务ID。'
     return
   }
   await loadGraph(() => graphApi.subgraph({
     centerType: filters.centerType,
-    centerId: filters.centerId!,
-    depth: filters.depth,
-    nodeLimit: filters.nodeLimit,
+    centerId,
+    depth: Number(filters.depth) || 1,
+    nodeLimit: Number(filters.nodeLimit) || 100,
     relationshipTypes: filters.relationshipTypes.length ? filters.relationshipTypes : undefined,
     nodeTypes: filters.nodeTypes.length ? filters.nodeTypes : undefined,
-    publicationYearFrom: filters.publicationYearFrom,
-    publicationYearTo: filters.publicationYearTo,
+    publicationYearFrom: numOrUndef(filters.publicationYearFrom),
+    publicationYearTo: numOrUndef(filters.publicationYearTo),
     achievementTypes: splitAchievementTypes(),
   }), false)
 }
 
 async function loadPath(): Promise<void> {
-  if (!pathQuery.sourceId || !pathQuery.targetId) {
+  const sourceId = Number(pathQuery.sourceId)
+  const targetId = Number(pathQuery.targetId)
+  if (!sourceId || !targetId) {
     errorMessage.value = '请输入路径起点和终点的业务ID。'
     return
   }
   await loadGraph(() => graphApi.path({
     sourceType: pathQuery.sourceType,
-    sourceId: pathQuery.sourceId!,
+    sourceId,
     targetType: pathQuery.targetType,
-    targetId: pathQuery.targetId!,
-    maxHops: pathQuery.maxHops,
+    targetId,
+    maxHops: Number(pathQuery.maxHops) || 6,
   }), false)
 }
 
@@ -149,11 +149,11 @@ async function expandSelected(): Promise<void> {
     centerType: node.type,
     centerId: Number(node.businessId),
     depth: 1,
-    nodeLimit: Math.min(filters.nodeLimit, GRAPH_NODE_LIMIT - (graph.value?.nodes.length ?? 0)),
+    nodeLimit: Math.min(Number(filters.nodeLimit) || 100, GRAPH_NODE_LIMIT - (graph.value?.nodes.length ?? 0)),
     relationshipTypes: filters.relationshipTypes.length ? filters.relationshipTypes : undefined,
     nodeTypes: filters.nodeTypes.length ? filters.nodeTypes : undefined,
-    publicationYearFrom: filters.publicationYearFrom,
-    publicationYearTo: filters.publicationYearTo,
+    publicationYearFrom: numOrUndef(filters.publicationYearFrom),
+    publicationYearTo: numOrUndef(filters.publicationYearTo),
     achievementTypes: splitAchievementTypes(),
   }), true)
 }
@@ -164,12 +164,14 @@ async function loadGraph(request: () => Promise<GraphResponse>, merge: boolean):
   try {
     const response = await request()
     const existingNodeIds = new Set(graph.value?.nodes.map((node) => node.id) ?? [])
+    addedNodeIds.value = merge
+      ? response.nodes.filter((node) => !existingNodeIds.has(node.id)).map((node) => node.id)
+      : []
     graph.value = mergeGraph(merge ? graph.value : null, response)
     selectedNodeId.value = response.rootNodeId
     selectedEdgeId.value = ''
     viewMode.value = 'graph'
     await nextTick()
-    renderGraph(merge ? response.nodes.filter((node) => !existingNodeIds.has(node.id)).map((node) => node.id) : [])
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
   } finally {
@@ -186,161 +188,19 @@ async function loadSyncStatus(): Promise<void> {
   }
 }
 
-function renderGraph(addedNodeIds: string[] = []): void {
-  if (!graphContainer.value || !graph.value || viewMode.value !== 'graph') return
-  if (!cy) {
-    cy = cytoscape({
-      container: graphContainer.value,
-      minZoom: 0.25,
-      maxZoom: 2.5,
-      style: [
-        {
-          selector: 'node',
-          style: {
-            'background-color': '#4c695c',
-            'border-color': '#bcd8f3',
-            'border-width': 2,
-            color: '#e9f4ff',
-            label: 'data(label)',
-            'font-family': 'Segoe UI, Microsoft YaHei, sans-serif',
-            'font-size': 11,
-            'text-background-color': '#09172a',
-            'text-background-opacity': 0.9,
-            'text-background-padding': '3px',
-            'text-max-width': '110px',
-            'text-valign': 'bottom',
-            'text-margin-y': 8,
-            'text-wrap': 'ellipsis',
-            width: 34,
-            height: 34,
-          },
-        },
-        { selector: 'node[nodeType = "ACHIEVEMENT"]', style: { 'background-color': '#38a8ff', width: 46, height: 46 } },
-        { selector: 'node[nodeType = "AUTHOR"]', style: { 'background-color': '#27b9d5' } },
-        { selector: 'node[nodeType = "INSTITUTION"]', style: { 'background-color': '#f5a04b', shape: 'round-rectangle' } },
-        { selector: 'node[nodeType = "VENUE"]', style: { 'background-color': '#a77af2', shape: 'diamond' } },
-        { selector: 'node[nodeType = "TOPIC"]', style: { 'background-color': '#35c98c', shape: 'hexagon' } },
-        {
-          selector: 'edge',
-          style: {
-            'curve-style': 'bezier',
-            'line-color': '#4d6b89',
-            'target-arrow-color': '#4d6b89',
-            'target-arrow-shape': 'triangle',
-            label: 'data(label)',
-            color: '#8ca3ba',
-            'font-size': 8,
-            'text-background-color': '#09172a',
-            'text-background-opacity': 0.8,
-            'text-background-padding': '2px',
-            width: 1.3,
-          },
-        },
-        { selector: 'node.is-dimmed', style: { opacity: 0.15 } },
-        { selector: 'edge.is-dimmed', style: { opacity: 0.15 } },
-        { selector: 'node.is-focused', style: { opacity: 1, 'border-color': '#f4fbff', 'border-width': 3 } },
-        { selector: 'edge.is-focused', style: { opacity: 1, width: 3, 'line-color': '#5bc5ff', 'target-arrow-color': '#5bc5ff', 'line-style': 'dashed', 'line-dash-pattern': [7, 5] } },
-        { selector: ':selected', style: { 'border-color': '#f4fbff', 'border-width': 4, 'line-color': '#5bc5ff', 'target-arrow-color': '#5bc5ff' } },
-      ],
-    })
-    cy.on('tap', 'node', selectNode)
-    cy.on('tap', 'edge', selectEdge)
-    cy.on('mouseover', 'node', focusNode)
-    cy.on('mouseout', 'node', clearNodeFocus)
-  }
-  cy.elements().remove()
-  cy.add(toCytoscapeElements(graph.value))
-  for (const nodeId of addedNodeIds) cy.getElementById(nodeId).style('opacity', 0)
-  cy.one('layoutstop', () => revealAddedNodes(addedNodeIds))
-  cy.layout({
-    name: 'cose',
-    animate: !prefersReducedMotion(),
-    animationDuration: prefersReducedMotion() ? 0 : 800,
-    fit: true,
-    padding: 42,
-    randomize: true,
-    nodeRepulsion: () => 5200,
-    idealEdgeLength: () => 82,
-    gravity: 0.16,
-  }).run()
-  const root = cy.getElementById(graph.value.rootNodeId)
-  if (root.nonempty()) root.select()
+function toggleNodeType(type: GraphNodeType): void {
+  const index = filters.nodeTypes.indexOf(type)
+  if (index >= 0) filters.nodeTypes.splice(index, 1)
+  else filters.nodeTypes.push(type)
 }
-
-function selectNode(event: EventObject): void {
-  selectedNodeId.value = event.target.id()
-  selectedEdgeId.value = ''
-  if (event.target.data('nodeType') === 'INSTITUTION' && cy) {
-    cy.animate({
-      zoom: Math.min(cy.zoom() * 1.35, 2.1),
-      center: { eles: event.target },
-    }, {
-      duration: prefersReducedMotion() ? 0 : 360,
-      easing: 'ease-out-cubic',
-    })
-  }
-}
-
-function selectEdge(event: EventObject): void {
-  selectedEdgeId.value = event.target.id()
-  selectedNodeId.value = ''
-}
-
-function focusNode(event: EventObject): void {
-  if (!cy) return
-  const node = event.target
-  const neighborhood = node.closedNeighborhood().union(node.neighborhood().nodes().closedNeighborhood())
-  cy.elements().addClass('is-dimmed').removeClass('is-focused')
-  neighborhood.removeClass('is-dimmed').addClass('is-focused')
-  startEdgeFlow()
-}
-
-function clearNodeFocus(): void {
-  cy?.elements().removeClass('is-dimmed is-focused')
-  stopEdgeFlow()
-}
-
-function startEdgeFlow(): void {
-  stopEdgeFlow()
-  if (prefersReducedMotion()) return
-  const tick = (): void => {
-    edgeDashOffset = (edgeDashOffset + 1) % 24
-    cy?.edges('.is-focused').style('line-dash-offset', -edgeDashOffset)
-    edgeFlowFrame = window.requestAnimationFrame(tick)
-  }
-  edgeFlowFrame = window.requestAnimationFrame(tick)
-}
-
-function stopEdgeFlow(): void {
-  if (edgeFlowFrame !== undefined) {
-    window.cancelAnimationFrame(edgeFlowFrame)
-    edgeFlowFrame = undefined
-  }
-}
-
-function revealAddedNodes(nodeIds: string[]): void {
-  if (!cy || !nodeIds.length) return
-  for (const timer of revealTimers.splice(0)) window.clearTimeout(timer)
-  nodeIds.forEach((nodeId, index) => {
-    const timer = window.setTimeout(() => {
-      cy?.getElementById(nodeId).animate(
-        { style: { opacity: 1 } },
-        { duration: prefersReducedMotion() ? 0 : 200, easing: 'ease-out-cubic' },
-      )
-    }, prefersReducedMotion() ? 0 : index * 30)
-    revealTimers.push(timer)
-  })
-}
-
-function switchView(mode: 'graph' | 'nodes' | 'edges'): void {
-  viewMode.value = mode
-  if (mode === 'graph') {
-    void nextTick().then(() => renderGraph())
-  }
+function toggleRelationshipType(type: GraphRelationshipType): void {
+  const index = filters.relationshipTypes.indexOf(type)
+  if (index >= 0) filters.relationshipTypes.splice(index, 1)
+  else filters.relationshipTypes.push(type)
 }
 
 function splitAchievementTypes(): string[] | undefined {
-  const values = filters.achievementTypes.split(',').map((value) => value.trim()).filter(Boolean)
+  const values = splitValues(filters.achievementTypes)
   return values.length ? [...new Set(values)] : undefined
 }
 
@@ -348,147 +208,250 @@ function nodeTypeLabel(type: GraphNodeType): string {
   return nodeTypes.find((item) => item.value === type)?.label ?? type
 }
 
-function resizeGraph(): void {
-  cy?.resize()
-  cy?.fit(undefined, 42)
+function selectNode(id: string): void {
+  selectedNodeId.value = id
+  selectedEdgeId.value = ''
+}
+function selectEdge(id: string): void {
+  selectedEdgeId.value = id
+  selectedNodeId.value = ''
 }
 
-onMounted(() => {
-  void loadSyncStatus()
-  window.addEventListener('resize', resizeGraph)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeGraph)
-  stopEdgeFlow()
-  for (const timer of revealTimers.splice(0)) window.clearTimeout(timer)
-  cy?.destroy()
-  cy = null
-})
+onMounted(() => loadSyncStatus())
 </script>
 
 <template>
-  <section class="page-stack graph-page">
-    <header class="page-heading graph-heading">
-      <div>
-        <span class="eyebrow">KNOWLEDGE GRAPH / LOCAL VIEW</span>
-        <h1>知识图谱</h1>
-        <p>从一个业务节点出发，查看受限局部关系或查询一条确定性最短路径。图数据来自可重建的 Neo4j 投影，成果与统计仍以 MySQL 为准。</p>
-      </div>
-      <div class="graph-status" :class="{ warning: syncStatus && (!syncStatus.neo4jAvailable || syncStatus.lagThresholdExceeded || syncStatus.rebuildInProgress) }">
-        <span class="eyebrow">GRAPH STATUS</span>
-        <strong>{{ syncLabel }}</strong>
-        <small v-if="syncStatus">待处理 {{ syncStatus.pendingCount }} · 死信 {{ syncStatus.deadCount }}</small>
-      </div>
-    </header>
+  <section class="page-stack">
+    <PageHeader
+      title="知识图谱"
+      description="从一个业务节点出发，查看受限局部关系或查询一条确定性最短路径。图数据来自可重建的 Neo4j 投影，成果与统计仍以 MySQL 为准。"
+    >
+      <template #actions>
+        <div class="flex flex-wrap items-center gap-2">
+          <StatusPill :status="syncWarning ? 'DEGRADED' : 'UP'" :pulse="!syncWarning" />
+          <span class="text-sm font-medium">{{ syncLabel }}</span>
+          <span v-if="syncStatus" class="text-xs text-muted-foreground">
+            待处理 {{ syncStatus.pendingCount }} · 死信 {{ syncStatus.deadCount }}
+          </span>
+        </div>
+      </template>
+    </PageHeader>
 
-    <div class="filter-panel graph-filter-panel">
-      <div class="graph-filter-grid">
-        <label><span>中心类型</span><ElSelect v-model="filters.centerType"><ElOption v-for="item in nodeTypes" :key="item.value" :label="item.label" :value="item.value" /></ElSelect></label>
-        <label><span>中心业务ID</span><ElInputNumber v-model="filters.centerId" :min="1" :step="1" controls-position="right" /></label>
-        <label><span>查询深度</span><ElInputNumber v-model="filters.depth" :min="1" :max="2" controls-position="right" /></label>
-        <label><span>本次节点上限</span><ElInputNumber v-model="filters.nodeLimit" :min="1" :max="300" controls-position="right" /></label>
-        <label><span>起始年份</span><ElInputNumber v-model="filters.publicationYearFrom" :min="1000" :max="9999" controls-position="right" /></label>
-        <label><span>结束年份</span><ElInputNumber v-model="filters.publicationYearTo" :min="1000" :max="9999" controls-position="right" /></label>
-        <label><span>节点类型</span><ElSelect v-model="filters.nodeTypes" multiple collapse-tags placeholder="全部"><ElOption v-for="item in nodeTypes" :key="item.value" :label="item.label" :value="item.value" /></ElSelect></label>
-        <label><span>关系类型</span><ElSelect v-model="filters.relationshipTypes" multiple collapse-tags placeholder="全部"><ElOption v-for="item in relationshipTypes" :key="item.value" :label="item.label" :value="item.value" /></ElSelect></label>
-        <label class="graph-wide-filter"><span>成果类型</span><ElInput v-model="filters.achievementTypes" placeholder="多个类型使用英文逗号分隔" @keyup.enter="loadCenter" /></label>
-      </div>
-      <div class="filter-footer">
-        <span class="meta-line">深度最大2，累计最多300个节点；空类型过滤表示全部。</span>
-        <ElButton type="primary" :loading="loading" @click="loadCenter">加载中心子图</ElButton>
+    <!-- 过滤区 -->
+    <PanelSection title="子图过滤" subtitle="深度最大2，累计最多300个节点；空类型过滤表示全部。">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <FilterField label="中心类型">
+          <Select v-model="filters.centerType">
+            <SelectTrigger placeholder="选择中心类型" />
+            <SelectContent>
+              <SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </FilterField>
+        <FilterField label="中心业务ID"><Input v-model="filters.centerId" type="number" min="1" @keydown.enter="loadCenter" /></FilterField>
+        <FilterField label="查询深度"><Input v-model="filters.depth" type="number" min="1" max="2" /></FilterField>
+        <FilterField label="本次节点上限"><Input v-model="filters.nodeLimit" type="number" min="1" max="300" /></FilterField>
+        <FilterField label="起始年份"><Input v-model="filters.publicationYearFrom" type="number" min="1000" max="9999" /></FilterField>
+        <FilterField label="结束年份"><Input v-model="filters.publicationYearTo" type="number" min="1000" max="9999" /></FilterField>
+        <FilterField label="成果类型" class="sm:col-span-2" hint="多个类型使用英文逗号分隔">
+          <Input v-model="filters.achievementTypes" placeholder="如 article, review" @keydown.enter="loadCenter" />
+        </FilterField>
       </div>
 
-      <details class="path-query">
-        <summary>查询两点间最短路径</summary>
-        <div class="path-query-grid">
-          <ElSelect v-model="pathQuery.sourceType" aria-label="路径起点类型"><ElOption v-for="item in nodeTypes" :key="item.value" :label="item.label" :value="item.value" /></ElSelect>
-          <ElInputNumber v-model="pathQuery.sourceId" :min="1" aria-label="路径起点业务ID" placeholder="起点ID" />
-          <span aria-hidden="true">→</span>
-          <ElSelect v-model="pathQuery.targetType" aria-label="路径终点类型"><ElOption v-for="item in nodeTypes" :key="item.value" :label="item.label" :value="item.value" /></ElSelect>
-          <ElInputNumber v-model="pathQuery.targetId" :min="1" aria-label="路径终点业务ID" placeholder="终点ID" />
-          <ElInputNumber v-model="pathQuery.maxHops" :min="1" :max="6" aria-label="最大跳数" />
-          <ElButton :loading="loading" @click="loadPath">查询路径</ElButton>
+      <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="space-y-2">
+          <span class="text-sm font-medium text-muted-foreground">节点类型</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="item in nodeTypes"
+              :key="item.value"
+              type="button"
+              :aria-pressed="filters.nodeTypes.includes(item.value)"
+              class="rounded-full border px-3 py-1 text-xs transition-colors"
+              :class="filters.nodeTypes.includes(item.value)
+                ? 'border-primary bg-primary/12 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              @click="toggleNodeType(item.value)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <span class="text-sm font-medium text-muted-foreground">关系类型</span>
+          <div class="flex flex-wrap gap-1.5">
+            <button
+              v-for="item in relationshipTypes"
+              :key="item.value"
+              type="button"
+              :aria-pressed="filters.relationshipTypes.includes(item.value)"
+              class="rounded-full border px-3 py-1 text-xs transition-colors"
+              :class="filters.relationshipTypes.includes(item.value)
+                ? 'border-primary bg-primary/12 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
+              @click="toggleRelationshipType(item.value)"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 flex justify-end border-t border-border pt-4">
+        <Button :loading="loading" @click="loadCenter">加载中心子图</Button>
+      </div>
+
+      <!-- 路径查询 -->
+      <details class="mt-4 rounded-lg border border-border bg-muted/30 px-4">
+        <summary class="cursor-pointer py-3 text-sm font-medium text-primary">查询两点间最短路径</summary>
+        <div class="grid grid-cols-1 items-end gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-6">
+          <FilterField label="起点类型">
+            <Select v-model="pathQuery.sourceType">
+              <SelectTrigger placeholder="起点类型" />
+              <SelectContent><SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="起点业务ID"><Input v-model="pathQuery.sourceId" type="number" min="1" /></FilterField>
+          <FilterField label="终点类型">
+            <Select v-model="pathQuery.targetType">
+              <SelectTrigger placeholder="终点类型" />
+              <SelectContent><SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="终点业务ID"><Input v-model="pathQuery.targetId" type="number" min="1" /></FilterField>
+          <FilterField label="最大跳数"><Input v-model="pathQuery.maxHops" type="number" min="1" max="6" /></FilterField>
+          <Button variant="outline" :loading="loading" @click="loadPath">查询路径</Button>
         </div>
       </details>
-    </div>
+    </PanelSection>
 
-    <ElAlert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" show-icon />
-    <ElAlert
-      v-if="graph?.truncated"
-      :title="graph.narrowingSuggestion || '图结果已达到服务端限制，请缩小过滤范围。'"
-      type="warning"
-      :closable="false"
-      show-icon
-    />
+    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <Alert v-if="graph?.truncated" variant="warning">
+      <AlertTitle>{{ graph.narrowingSuggestion || '图结果已达到服务端限制，请缩小过滤范围。' }}</AlertTitle>
+    </Alert>
 
-    <div v-if="graph" class="graph-workspace" v-loading="loading">
-      <div class="graph-stage content-panel">
-        <div class="toolbar graph-toolbar">
-          <div>
-            <strong>{{ graph.nodes.length }} 个节点 · {{ graph.edges.length }} 条关系</strong>
-            <span class="meta-line">Trace {{ graph.traceId }}</span>
+    <!-- 图工作区 -->
+    <div v-if="graph" class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)]">
+      <PanelSection :padded="false" class="overflow-hidden">
+        <template #title>
+          <div class="min-w-0">
+            <h2 class="truncate text-sm font-semibold">{{ graph.nodes.length }} 个节点 · {{ graph.edges.length }} 条关系</h2>
+            <span class="mono-evidence block text-xs text-muted-foreground">Trace {{ graph.traceId }}</span>
           </div>
-          <ul class="graph-legend" aria-label="节点类型图例">
-            <li v-for="item in nodeTypes" :key="item.value" :class="`graph-legend-${item.value.toLowerCase()}`">
-              <span aria-hidden="true" />{{ item.label }}
-            </li>
-          </ul>
-          <div class="view-switch" aria-label="图谱视图切换">
-            <button :class="{ active: viewMode === 'graph' }" @click="switchView('graph')">图形</button>
-            <button :class="{ active: viewMode === 'nodes' }" @click="switchView('nodes')">节点表</button>
-            <button :class="{ active: viewMode === 'edges' }" @click="switchView('edges')">关系表</button>
+        </template>
+        <template #actions>
+          <div class="flex items-center gap-1 rounded-md border border-border p-0.5" role="group" aria-label="图谱视图切换">
+            <button
+              v-for="mode in ([['graph', '图形'], ['nodes', '节点表'], ['edges', '关系表']] as const)"
+              :key="mode[0]"
+              type="button"
+              :aria-pressed="viewMode === mode[0]"
+              class="rounded px-2.5 py-1 text-xs font-medium transition-colors"
+              :class="viewMode === mode[0] ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
+              @click="viewMode = mode[0]"
+            >
+              {{ mode[1] }}
+            </button>
           </div>
+        </template>
+
+        <!-- 图例 -->
+        <ul v-if="viewMode === 'graph'" class="flex flex-wrap gap-x-4 gap-y-1 border-b border-border px-4 py-2 text-xs text-muted-foreground" aria-label="节点类型图例">
+          <li v-for="item in nodeTypes" :key="item.value" class="flex items-center gap-1.5">
+            <span class="size-2.5 rounded-full" :class="{
+              'bg-graph-achievement': item.value === 'ACHIEVEMENT',
+              'bg-graph-author': item.value === 'AUTHOR',
+              'bg-graph-institution': item.value === 'INSTITUTION',
+              'bg-graph-venue': item.value === 'VENUE',
+              'bg-graph-topic': item.value === 'TOPIC',
+            }" aria-hidden="true" />
+            {{ item.label }}
+          </li>
+        </ul>
+
+        <div v-show="viewMode === 'graph'" class="p-2">
+          <GraphCanvas
+            :elements="graphElements"
+            :root-node-id="graph.rootNodeId"
+            :label="graphLabel"
+            :loading="loading"
+            :added-node-ids="addedNodeIds"
+            @select-node="selectNode"
+            @select-edge="selectEdge"
+          />
         </div>
 
-        <div v-show="viewMode === 'graph'" ref="graphContainer" class="graph-canvas" role="img" :aria-label="`知识图谱，共${graph.nodes.length}个节点和${graph.edges.length}条关系`" />
-        <ElTable v-if="viewMode === 'nodes'" :data="graph.nodes" max-height="620" empty-text="暂无节点">
-          <ElTableColumn label="类型" width="120"><template #default="{ row }"><ElTag effect="plain">{{ nodeTypeLabel(row.type) }}</ElTag></template></ElTableColumn>
-          <ElTableColumn prop="label" label="名称" min-width="260" />
-          <ElTableColumn prop="businessId" label="业务ID" min-width="140" />
-          <ElTableColumn label="操作" width="100"><template #default="{ row }"><ElButton link type="primary" @click="selectedNodeId = row.id; selectedEdgeId = ''">查看</ElButton></template></ElTableColumn>
-        </ElTable>
-        <ElTable v-if="viewMode === 'edges'" :data="graph.edges" max-height="620" empty-text="暂无关系">
-          <ElTableColumn label="关系" width="120"><template #default="{ row }">{{ relationshipLabel(row.type) }}</template></ElTableColumn>
-          <ElTableColumn prop="source" label="起点" min-width="180" />
-          <ElTableColumn prop="target" label="终点" min-width="180" />
-          <ElTableColumn label="操作" width="100"><template #default="{ row }"><ElButton link type="primary" @click="selectedEdgeId = row.id; selectedNodeId = ''">查看</ElButton></template></ElTableColumn>
-        </ElTable>
-      </div>
+        <div v-if="viewMode === 'nodes'" class="p-4">
+          <DataTable
+            :columns="nodeColumns"
+            :data="graph.nodes"
+            :get-row-id="(row) => row.id"
+            empty-text="暂无节点"
+            dense
+          >
+            <template #cell-actions="{ row }">
+              <Button variant="link" size="sm" class="h-auto p-0" @click="selectNode(row.id)">查看</Button>
+            </template>
+          </DataTable>
+        </div>
+        <div v-if="viewMode === 'edges'" class="p-4">
+          <DataTable
+            :columns="edgeColumns"
+            :data="graph.edges"
+            :get-row-id="(row) => row.id"
+            empty-text="暂无关系"
+            dense
+          >
+            <template #cell-actions="{ row }">
+              <Button variant="link" size="sm" class="h-auto p-0" @click="selectEdge(row.id)">查看</Button>
+            </template>
+          </DataTable>
+        </div>
+      </PanelSection>
 
-      <aside class="graph-inspector content-panel" aria-live="polite">
+      <!-- 检查器 -->
+      <PanelSection class="xl:sticky xl:top-20" aria-live="polite">
         <template v-if="selectedNode">
-          <span class="eyebrow">NODE / {{ selectedNode.type }}</span>
-          <h2>{{ selectedNode.label }}</h2>
-          <p class="graph-business-id">业务ID · {{ selectedNode.businessId }}</p>
-          <div class="inspector-actions">
-            <ElButton type="primary" plain :disabled="!canExpandSelected" @click="expandSelected">展开一跳</ElButton>
-            <RouterLink v-if="selectedNodeTarget" class="text-link" :to="selectedNodeTarget">进入业务详情 →</RouterLink>
+          <span class="eyebrow">节点 · {{ nodeTypeLabel(selectedNode.type) }}</span>
+          <h2 class="mt-1 break-words text-xl font-semibold">{{ selectedNode.label }}</h2>
+          <p class="mono-evidence mt-1 text-xs text-muted-foreground">业务ID · {{ selectedNode.businessId }}</p>
+          <div class="my-4 flex items-center justify-between gap-3 border-b border-border pb-4">
+            <Button variant="outline" size="sm" :disabled="!canExpandSelected" @click="expandSelected">展开一跳</Button>
+            <RouterLink v-if="selectedNodeTarget" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" :to="selectedNodeTarget">
+              进入业务详情 →
+            </RouterLink>
           </div>
         </template>
         <template v-else-if="selectedEdge">
-          <span class="eyebrow">RELATIONSHIP</span>
-          <h2>{{ relationshipLabel(selectedEdge.type) }}</h2>
-          <p class="graph-business-id">{{ selectedEdge.source }} → {{ selectedEdge.target }}</p>
+          <span class="eyebrow">关系</span>
+          <h2 class="mt-1 text-xl font-semibold">{{ relationshipLabel(selectedEdge.type) }}</h2>
+          <p class="mono-evidence mt-1 break-words text-xs text-muted-foreground">{{ selectedEdge.source }} → {{ selectedEdge.target }}</p>
         </template>
         <template v-else>
-          <span class="eyebrow">INSPECTOR</span>
-          <h2>选择图中元素</h2>
-          <p class="meta-line">点击节点或关系，查看有限摘要、主动展开或进入对应业务页面。</p>
+          <span class="eyebrow">检查器</span>
+          <h2 class="mt-1 text-xl font-semibold">选择图中元素</h2>
+          <p class="mt-1 text-sm text-muted-foreground">点击节点或关系，查看有限摘要、主动展开或进入对应业务页面。</p>
         </template>
 
-        <dl v-if="selectedNode || selectedEdge" class="property-list">
+        <dl v-if="selectedNode || selectedEdge" class="grid grid-cols-[minmax(90px,0.7fr)_minmax(0,1.3fr)] gap-y-1">
           <template v-for="item in propertyRows" :key="item.key">
-            <dt>{{ item.key }}</dt>
-            <dd>{{ item.value }}</dd>
+            <dt class="border-b border-border py-2 text-xs text-muted-foreground">{{ item.key }}</dt>
+            <dd class="break-words border-b border-border py-2 text-sm">{{ item.value }}</dd>
           </template>
         </dl>
-        <p v-if="(selectedNode || selectedEdge) && !propertyRows.length" class="meta-line">该元素没有额外摘要属性。</p>
-      </aside>
+        <p v-if="(selectedNode || selectedEdge) && !propertyRows.length" class="mt-3 text-sm text-muted-foreground">该元素没有额外摘要属性。</p>
+      </PanelSection>
     </div>
 
-    <div v-else class="empty-panel graph-empty">
-      <strong>从一个确定的业务节点开始</strong>
-      <p>选择节点类型并输入业务ID。这里不会自动请求大范围图谱，也不会绕过服务端的深度和节点上限。</p>
-    </div>
+    <!-- 空态 -->
+    <PanelSection v-else>
+      <div class="flex flex-col items-center gap-3 px-6 py-14 text-center">
+        <Waypoints class="size-10 text-muted-foreground/50" aria-hidden="true" />
+        <strong class="text-base font-semibold">从一个确定的业务节点开始</strong>
+        <p class="max-w-md text-sm text-muted-foreground">
+          选择节点类型并输入业务ID。这里不会自动请求大范围图谱，也不会绕过服务端的深度和节点上限。
+        </p>
+      </div>
+    </PanelSection>
   </section>
 </template>

@@ -1,22 +1,20 @@
 <script setup lang="ts">
+import type { ColumnDef } from '@tanstack/vue-table'
+import { Gauge } from 'lucide-vue-next'
 import { onMounted, reactive, ref } from 'vue'
-import {
-  ElAlert,
-  ElButton,
-  ElDialog,
-  ElInput,
-  ElInputNumber,
-  ElPagination,
-  ElTable,
-  ElTableColumn,
-  ElTag,
-  vLoading,
-} from 'element-plus'
 
+import { DataTable, FilterBar, FilterField, JsonEvidence, LoadingSkeleton, PageHeader, PanelSection } from '@/components/business'
+import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { toErrorMessage } from '@/services/api'
 import { qualityApi } from '@/services/business'
 import type { PageResponse, QualityMetric, QualityMetricDetail } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
+
+type SampleRow = QualityMetricDetail['samples'][number]
 
 const metrics = ref<PageResponse<QualityMetric>>({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 })
 const loading = ref(false)
@@ -24,22 +22,49 @@ const detailLoading = ref(false)
 const errorMessage = ref('')
 const detailVisible = ref(false)
 const detail = ref<QualityMetricDetail | null>(null)
-const filters = reactive({
-  sourceId: undefined as number | undefined,
-  runId: undefined as number | undefined,
-  metricCode: '',
-})
+const filters = reactive({ sourceId: '', runId: '', metricCode: '' })
+
+const columns: ColumnDef<QualityMetric, any>[] = [
+  { accessorKey: 'metricCode', header: '指标', enableSorting: false },
+  { accessorKey: 'sourceId', header: '来源 ID', enableSorting: false, meta: { width: '90px' } },
+  { accessorKey: 'taskId', header: '任务 ID', enableSorting: false, meta: { width: '90px' } },
+  { accessorKey: 'runId', header: '运行 ID', enableSorting: false, meta: { width: '90px' } },
+  { id: 'result', accessorFn: (row) => metricPercent(row), header: '结果', enableSorting: false, meta: { width: '110px' } },
+  { id: 'count', accessorFn: (row) => `${row.numerator} / ${row.denominator}`, header: '计数', enableSorting: false, meta: { width: '120px' } },
+  { id: 'measuredAt', accessorFn: (row) => formatDateTime(row.measuredAt), header: '测量时间', enableSorting: false, meta: { width: '170px' } },
+  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '100px' } },
+]
+
+const sampleColumns: ColumnDef<SampleRow, any>[] = [
+  { accessorKey: 'rawRecordId', header: '原始记录 ID', enableSorting: false, meta: { width: '120px' } },
+  { accessorKey: 'externalRecordId', header: '外部记录', enableSorting: false },
+  { id: 'evidence', accessorFn: (row) => JSON.stringify(row.evidence), header: '证据', enableSorting: false },
+  { id: 'createdAt', accessorFn: (row) => formatDateTime(row.createdAt), header: '记录时间', enableSorting: false, meta: { width: '160px' } },
+]
 
 async function load(page = 0): Promise<void> {
   loading.value = true
   errorMessage.value = ''
   try {
-    metrics.value = await qualityApi.page({ ...filters, page, size: metrics.value.size })
+    metrics.value = await qualityApi.page({
+      sourceId: filters.sourceId ? Number(filters.sourceId) : undefined,
+      runId: filters.runId ? Number(filters.runId) : undefined,
+      metricCode: filters.metricCode.trim(),
+      page,
+      size: metrics.value.size,
+    })
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
   } finally {
     loading.value = false
   }
+}
+
+function reset(): void {
+  filters.sourceId = ''
+  filters.runId = ''
+  filters.metricCode = ''
+  void load()
 }
 
 async function showDetail(metric: QualityMetric): Promise<void> {
@@ -64,53 +89,64 @@ onMounted(() => load())
 
 <template>
   <section class="page-stack">
-    <header class="page-heading">
-      <div>
-        <span class="eyebrow">DATA / QUALITY METRICS</span>
-        <h1>质量指标</h1>
-        <p>按来源和采集运行检查质量度量，进入详情审阅构成指标的原始记录样本。</p>
-      </div>
-    </header>
-    <div class="filter-panel">
-      <div class="filter-grid quality-filters">
-        <label><span>来源 ID</span><ElInputNumber v-model="filters.sourceId" :min="1" /></label>
-        <label><span>运行 ID</span><ElInputNumber v-model="filters.runId" :min="1" /></label>
-        <label><span>指标代码</span><ElInput v-model="filters.metricCode" clearable @keyup.enter="load()" /></label>
-        <div class="filter-actions"><ElButton type="primary" :loading="loading" @click="load()">查询指标</ElButton></div>
-      </div>
-    </div>
-    <ElAlert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" show-icon />
-    <div class="content-panel">
-      <div class="toolbar"><strong>质量度量</strong><span class="meta-line">共 {{ metrics.totalElements }} 条</span></div>
-      <ElTable v-loading="loading" :data="metrics.items" empty-text="暂无质量指标">
-        <ElTableColumn prop="metricCode" label="指标" min-width="210" />
-        <ElTableColumn prop="sourceId" label="来源 ID" width="100" />
-        <ElTableColumn prop="taskId" label="任务 ID" width="100" />
-        <ElTableColumn prop="runId" label="运行 ID" width="100" />
-        <ElTableColumn label="结果" width="130"><template #default="{ row }"><ElTag effect="plain">{{ metricPercent(row as QualityMetric) }}</ElTag></template></ElTableColumn>
-        <ElTableColumn label="计数" width="140"><template #default="{ row }">{{ row.numerator }} / {{ row.denominator }}</template></ElTableColumn>
-        <ElTableColumn label="测量时间" width="180"><template #default="{ row }">{{ formatDateTime(row.measuredAt) }}</template></ElTableColumn>
-        <ElTableColumn label="操作" width="100"><template #default="{ row }"><ElButton link type="primary" @click="showDetail(row as QualityMetric)">查看样本</ElButton></template></ElTableColumn>
-      </ElTable>
-      <div v-if="metrics.totalPages > 1" class="pagination-row">
-        <ElPagination :current-page="metrics.page + 1" :page-size="metrics.size" :total="metrics.totalElements" layout="prev, pager, next" @current-change="(page: number) => load(page - 1)" />
-      </div>
-    </div>
+    <PageHeader
+      title="质量指标"
+      description="按来源和采集运行检查质量度量，进入详情审阅构成指标的原始记录样本。"
+    />
 
-    <ElDialog v-model="detailVisible" title="质量指标样本" width="820px">
-      <div v-loading="detailLoading">
-        <div v-if="detail" class="metric-summary">
-          <span class="eyebrow">{{ detail.metric.metricCode }}</span>
-          <strong>{{ metricPercent(detail.metric) }}</strong>
-          <small>{{ detail.metric.numerator }} / {{ detail.metric.denominator }} · 运行 #{{ detail.metric.runId }}</small>
-        </div>
-        <ElTable :data="detail?.samples ?? []" empty-text="该指标没有问题样本">
-          <ElTableColumn prop="rawRecordId" label="原始记录 ID" width="130" />
-          <ElTableColumn prop="externalRecordId" label="外部记录" min-width="180" />
-          <ElTableColumn label="证据" min-width="300"><template #default="{ row }"><code>{{ JSON.stringify(row.evidence) }}</code></template></ElTableColumn>
-          <ElTableColumn label="记录时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></ElTableColumn>
-        </ElTable>
-      </div>
-    </ElDialog>
+    <FilterBar :columns="4" :applying="loading" apply-text="查询指标" @apply="load()" @reset="reset">
+      <FilterField label="来源 ID"><Input v-model="filters.sourceId" type="number" min="1" /></FilterField>
+      <FilterField label="运行 ID"><Input v-model="filters.runId" type="number" min="1" /></FilterField>
+      <FilterField label="指标代码"><Input v-model="filters.metricCode" @keydown.enter="load()" /></FilterField>
+    </FilterBar>
+
+    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+
+    <PanelSection title="质量度量" :subtitle="`共 ${metrics.totalElements} 条`">
+      <template #actions><Gauge class="size-4 text-muted-foreground" aria-hidden="true" /></template>
+      <DataTable
+        :columns="columns"
+        :data="metrics.items"
+        :loading="loading"
+        :page="metrics.page"
+        :size="metrics.size"
+        :total="metrics.totalElements"
+        empty-text="暂无质量指标"
+        :get-row-id="(row) => String(row.id)"
+        @update:page="load"
+      >
+        <template #cell-result="{ value }"><Badge variant="subtle">{{ value }}</Badge></template>
+        <template #cell-actions="{ row }">
+          <Button variant="link" size="sm" class="h-auto p-0" @click="showDetail(row)">查看样本</Button>
+        </template>
+      </DataTable>
+    </PanelSection>
+
+    <Dialog v-model:open="detailVisible">
+      <DialogContent class="sm:max-w-3xl">
+        <DialogHeader><DialogTitle>质量指标样本</DialogTitle></DialogHeader>
+        <LoadingSkeleton v-if="detailLoading" variant="table" :rows="4" />
+        <template v-else-if="detail">
+          <div class="space-y-1 border-l-4 border-primary bg-muted/40 p-4">
+            <span class="eyebrow">{{ detail.metric.metricCode }}</span>
+            <strong class="block text-3xl font-semibold tabular-nums">{{ metricPercent(detail.metric) }}</strong>
+            <small class="text-xs text-muted-foreground">
+              {{ detail.metric.numerator }} / {{ detail.metric.denominator }} · 运行 #{{ detail.metric.runId }}
+            </small>
+          </div>
+          <DataTable
+            :columns="sampleColumns"
+            :data="detail.samples"
+            :get-row-id="(row) => String(row.id)"
+            empty-text="该指标没有问题样本"
+            dense
+          >
+            <template #cell-evidence="{ row }">
+              <JsonEvidence :data="row.evidence" max-height="120px" />
+            </template>
+          </DataTable>
+        </template>
+      </DialogContent>
+    </Dialog>
   </section>
 </template>

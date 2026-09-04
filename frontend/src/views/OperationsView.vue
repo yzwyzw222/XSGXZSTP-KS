@@ -1,52 +1,36 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import {
-  ElAlert,
-  ElButton,
-  ElDialog,
-  ElInput,
-  ElOption,
-  ElPagination,
-  ElSelect,
-  ElTabPane,
-  ElTable,
-  ElTableColumn,
-  ElTabs,
-  ElTag,
-  ElMessage,
-  vLoading,
-} from 'element-plus'
+import type { ColumnDef } from '@tanstack/vue-table'
+import { AlertOctagon, RefreshCw } from 'lucide-vue-next'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
+import { DataTable, PageHeader, StatCard, StatusPill } from '@/components/business'
+import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { FormItem, FormLabel } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/sonner'
 import { toErrorMessage } from '@/services/api'
 import { graphApi, operationsApi } from '@/services/business'
 import {
-  fetchGraphHealth,
-  fetchLiveness,
-  fetchReadiness,
-  type HealthResponse,
-  type HealthStatus,
+  fetchGraphHealth, fetchLiveness, fetchReadiness, type HealthResponse, type HealthStatus,
 } from '@/services/health'
 import { hasPermission } from '@/services/session'
 import type {
-  AlertEvent,
-  AlertStatus,
-  AlertType,
-  AuditLog,
-  GraphEvent,
-  GraphMaintenanceRun,
-  GraphOutboxStatus,
-  GraphSyncStatus,
-  OperationsOverview,
-  PageResponse,
+  AlertEvent, AlertStatus, AlertType, AuditLog, GraphEvent, GraphMaintenanceRun,
+  GraphOutboxStatus, GraphSyncStatus, OperationsOverview, PageResponse,
 } from '@/types/api'
 import { formatDateTime, formatNumber } from '@/utils/format'
 
 type ProbeKey = 'liveness' | 'readiness' | 'graph'
-
-interface ProbeState {
-  status: HealthStatus
-  detail: string
-}
+interface ProbeState { status: HealthStatus; detail: string }
 
 function emptyPage<T>(): PageResponse<T> {
   return { items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }
@@ -67,11 +51,8 @@ const probes = reactive<Record<ProbeKey, ProbeState>>({
   readiness: { status: 'UNKNOWN', detail: '尚未检查' },
   graph: { status: 'UNKNOWN', detail: '尚未检查' },
 })
-const alertFilters = reactive<{ status: AlertStatus | ''; type: AlertType | '' }>({
-  status: 'OPEN',
-  type: '',
-})
-const graphEventStatus = ref<GraphOutboxStatus | ''>('')
+const alertFilters = reactive<{ status: string; type: string }>({ status: 'OPEN', type: 'ALL' })
+const graphEventStatus = ref<string>('ALL')
 const acknowledgeVisible = ref(false)
 const selectedAlert = ref<AlertEvent | null>(null)
 const acknowledgeReason = ref('')
@@ -85,6 +66,56 @@ const alertTypes: Array<{ value: AlertType; label: string }> = [
 ]
 const graphStatuses: GraphOutboxStatus[] = ['PENDING', 'PROCESSING', 'SUCCEEDED', 'DEAD']
 
+const healthCards: Array<{ key: ProbeKey; label: string }> = [
+  { key: 'liveness', label: '应用存活' },
+  { key: 'readiness', label: 'MySQL 就绪' },
+  { key: 'graph', label: 'Neo4j 独立状态' },
+]
+
+const metricCards = computed(() => [
+  { label: '活动采集', value: overview.value?.activeCrawlRunCount ?? 0, note: '运行中或暂停请求处理中', tone: 'blue' as const },
+  { label: '近期失败', value: overview.value?.recentCrawlFailureCount ?? 0, note: '近 24 小时未解决', tone: 'amber' as const },
+  { label: '待处理图事件', value: overview.value?.graphPendingCount ?? 0, note: `最老 ${formatNumber(syncStatus.value?.oldestPendingAgeSeconds)} 秒`, tone: 'cyan' as const },
+  { label: '处理中图事件', value: overview.value?.graphProcessingCount ?? 0, note: '受租约保护', tone: 'green' as const },
+  { label: '图死信', value: overview.value?.graphDeadCount ?? 0, note: '需要人工判断后重放', tone: 'rose' as const },
+  { label: '未确认告警', value: overview.value?.openAlertCount ?? 0, note: '系统内事件', tone: 'rose' as const },
+])
+
+const alertColumns: ColumnDef<AlertEvent, any>[] = [
+  { accessorKey: 'severity', header: '级别', enableSorting: false, meta: { width: '90px' } },
+  { id: 'alert', accessorFn: (row) => `${alertTypeLabel(row.type)} · ${row.summary}`, header: '告警', enableSorting: false },
+  { id: 'subject', accessorFn: (row) => `${row.subjectType} ${row.subjectId ?? ''}`, header: '主体', enableSorting: false, meta: { width: '150px' } },
+  { accessorKey: 'occurrenceCount', header: '次数', enableSorting: false, meta: { width: '70px' } },
+  { id: 'lastDetected', accessorFn: (row) => formatDateTime(row.lastDetectedAt), header: '末次检测', enableSorting: false, meta: { width: '170px' } },
+  { id: 'statusAction', header: '状态/操作', enableSorting: false, meta: { width: '140px' } },
+]
+const eventColumns: ColumnDef<GraphEvent, any>[] = [
+  { accessorKey: 'status', header: '状态', enableSorting: false, meta: { width: '110px' } },
+  { accessorKey: 'eventId', header: '事件', enableSorting: false },
+  { accessorKey: 'attempts', header: '尝试', enableSorting: false, meta: { width: '70px' } },
+  { id: 'error', accessorFn: (row) => row.errorSummary ?? row.errorCode ?? '—', header: '错误摘要', enableSorting: false },
+  { id: 'next', accessorFn: (row) => formatDateTime(row.nextAttemptAt), header: '下次执行', enableSorting: false, meta: { width: '170px' } },
+  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '90px' } },
+]
+const maintenanceColumns: ColumnDef<GraphMaintenanceRun, any>[] = [
+  { id: 'run', accessorFn: (row) => `#${row.id} · ${maintenanceTypeLabel(row.runType)}`, header: '运行', enableSorting: false },
+  { accessorKey: 'status', header: '状态', enableSorting: false, meta: { width: '110px' } },
+  { accessorKey: 'scannedCount', header: '扫描', enableSorting: false, meta: { width: '90px' } },
+  { accessorKey: 'repairedCount', header: '修复', enableSorting: false, meta: { width: '90px' } },
+  { accessorKey: 'differenceCount', header: '差异', enableSorting: false, meta: { width: '90px' } },
+  { id: 'updatedAt', accessorFn: (row) => formatDateTime(row.updatedAt), header: '更新时间', enableSorting: false, meta: { width: '170px' } },
+  { accessorKey: 'errorCode', header: '错误码', enableSorting: false },
+]
+const auditColumns: ColumnDef<AuditLog, any>[] = [
+  { accessorKey: 'action', header: '操作', enableSorting: false },
+  { id: 'actor', accessorFn: (row) => row.actorUserId ?? '系统', header: '操作人', enableSorting: false, meta: { width: '90px' } },
+  { id: 'target', accessorFn: (row) => `${row.targetType} ${row.targetId ?? ''}`, header: '目标', enableSorting: false },
+  { accessorKey: 'result', header: '结果', enableSorting: false, meta: { width: '95px' } },
+  { id: 'summary', accessorFn: (row) => auditSummary(row.summary), header: '摘要', enableSorting: false },
+  { id: 'createdAt', accessorFn: (row) => formatDateTime(row.createdAt), header: '时间', enableSorting: false, meta: { width: '170px' } },
+  { accessorKey: 'traceId', header: 'Trace ID', enableSorting: false },
+]
+
 async function refreshAll(): Promise<void> {
   loading.value = true
   partialError.value = ''
@@ -93,9 +124,9 @@ async function refreshAll(): Promise<void> {
     fetchReadiness(),
     fetchGraphHealth(),
     operationsApi.overview(),
-    operationsApi.alerts(alertFilters.status || undefined, alertFilters.type || undefined, alerts.value.page),
+    operationsApi.alerts(statusArg(alertFilters.status), typeArg(alertFilters.type), alerts.value.page),
     graphApi.syncStatus(),
-    operationsApi.graphEvents(graphEventStatus.value || undefined, graphEvents.value.page),
+    operationsApi.graphEvents(graphEventArg(graphEventStatus.value), graphEvents.value.page),
     operationsApi.maintenanceRuns(maintenanceRuns.value.page),
     operationsApi.audits(audits.value.page),
   ] as const)
@@ -114,12 +145,17 @@ async function refreshAll(): Promise<void> {
   loading.value = false
 }
 
-function applyProbe(
-  key: ProbeKey,
-  label: string,
-  result: PromiseSettledResult<HealthResponse>,
-  failures: string[],
-): void {
+function statusArg(value: string): AlertStatus | undefined {
+  return value === 'ALL' || !value ? undefined : value as AlertStatus
+}
+function typeArg(value: string): AlertType | undefined {
+  return value === 'ALL' || !value ? undefined : value as AlertType
+}
+function graphEventArg(value: string): GraphOutboxStatus | undefined {
+  return value === 'ALL' || !value ? undefined : value as GraphOutboxStatus
+}
+
+function applyProbe(key: ProbeKey, label: string, result: PromiseSettledResult<HealthResponse>, failures: string[]): void {
   if (result.status === 'fulfilled') {
     probes[key].status = result.value.status
     probes[key].detail = result.value.status === 'UP' ? '端点报告正常' : `端点报告 ${result.value.status}`
@@ -130,52 +166,31 @@ function applyProbe(
   failures.push(label)
 }
 
-function applyResult<T>(
-  result: PromiseSettledResult<T>,
-  apply: (value: T) => void,
-  label: string,
-  failures: string[],
-): void {
-  if (result.status === 'fulfilled') {
-    apply(result.value)
-  } else {
-    failures.push(label)
-  }
+function applyResult<T>(result: PromiseSettledResult<T>, apply: (value: T) => void, label: string, failures: string[]): void {
+  if (result.status === 'fulfilled') apply(result.value)
+  else failures.push(label)
 }
 
 async function loadAlerts(page = 0): Promise<void> {
   await loadSection('系统内告警', async () => {
-    alerts.value = await operationsApi.alerts(
-      alertFilters.status || undefined,
-      alertFilters.type || undefined,
-      page,
-      alerts.value.size,
-    )
+    alerts.value = await operationsApi.alerts(statusArg(alertFilters.status), typeArg(alertFilters.type), page, alerts.value.size)
   })
 }
-
 async function loadGraphEvents(page = 0): Promise<void> {
   await loadSection('图同步事件', async () => {
-    graphEvents.value = await operationsApi.graphEvents(
-      graphEventStatus.value || undefined,
-      page,
-      graphEvents.value.size,
-    )
+    graphEvents.value = await operationsApi.graphEvents(graphEventArg(graphEventStatus.value), page, graphEvents.value.size)
   })
 }
-
 async function loadMaintenanceRuns(page = 0): Promise<void> {
   await loadSection('维护运行', async () => {
     maintenanceRuns.value = await operationsApi.maintenanceRuns(page, maintenanceRuns.value.size)
   })
 }
-
 async function loadAudits(page = 0): Promise<void> {
   await loadSection('审计记录', async () => {
     audits.value = await operationsApi.audits(page, audits.value.size)
   })
 }
-
 async function loadSection(label: string, request: () => Promise<void>): Promise<void> {
   loading.value = true
   partialError.value = ''
@@ -211,11 +226,9 @@ async function acknowledgeAlert(): Promise<void> {
     } else {
       alerts.value.items = alerts.value.items.map((item) => item.id === updated.id ? updated : item)
     }
-    if (overview.value) {
-      overview.value.openAlertCount = Math.max(0, overview.value.openAlertCount - 1)
-    }
+    if (overview.value) overview.value.openAlertCount = Math.max(0, overview.value.openAlertCount - 1)
     acknowledgeVisible.value = false
-    ElMessage.success('告警已确认并写入审计')
+    toast.success('告警已确认并写入审计')
   } catch (error) {
     partialError.value = toErrorMessage(error)
   } finally {
@@ -228,7 +241,7 @@ async function replayEvent(event: GraphEvent): Promise<void> {
   partialError.value = ''
   try {
     await operationsApi.replayGraphEvent(event.eventId)
-    ElMessage.success('死信事件已提交重放')
+    toast.success('死信事件已提交重放')
     await loadGraphEvents(graphEvents.value.page)
   } catch (error) {
     partialError.value = toErrorMessage(error)
@@ -250,7 +263,7 @@ async function startMaintenance(type: 'backfill' | 'reconcile' | 'rebuild'): Pro
     maintenanceRuns.value.totalElements = Math.max(maintenanceRuns.value.totalElements, maintenanceRuns.value.items.length)
     rebuildVisible.value = false
     rebuildConfirmation.value = ''
-    ElMessage.success('图维护运行已提交')
+    toast.success('图维护运行已提交')
   } catch (error) {
     partialError.value = toErrorMessage(error)
   } finally {
@@ -269,26 +282,20 @@ function submitRebuild(): void {
 function healthLabel(status: HealthStatus | undefined): string {
   return status === 'UP' ? '正常' : status === 'DOWN' ? '异常' : status === 'OUT_OF_SERVICE' ? '停止服务' : '未知'
 }
-
 function alertTypeLabel(type: AlertType): string {
   return alertTypes.find((item) => item.value === type)?.label ?? type
 }
-
 function maintenanceTypeLabel(type: GraphMaintenanceRun['runType']): string {
   return type === 'INITIAL_BACKFILL' ? '初始回填' : type === 'RECONCILE' ? '对账修复' : '全量重建'
 }
-
 function evidenceText(evidence: Record<string, unknown>): string {
-  return Object.entries(evidence)
-    .slice(0, 4)
+  return Object.entries(evidence).slice(0, 4)
     .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
     .join(' · ') || '无补充证据'
 }
-
 function auditSummary(summary: Record<string, string | null>): string {
   return Object.entries(summary).map(([key, value]) => `${key}=${value ?? '—'}`).join(' · ') || '—'
 }
-
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : '请求失败'
 }
@@ -297,138 +304,224 @@ onMounted(refreshAll)
 </script>
 
 <template>
-  <section class="page-stack operations-page" v-loading="loading">
-    <header class="page-heading operations-heading">
-      <div>
-        <span class="eyebrow">OPERATIONS / CONTROL DESK</span>
-        <h1>运行监控</h1>
-        <p>从健康端点、MySQL 运行状态和受控运维记录定位问题。Neo4j 降级不会遮蔽目录、统计与其他权威数据能力。</p>
-      </div>
-      <div class="operations-stamp">
-        <span class="eyebrow">最近汇总</span>
-        <strong>{{ formatDateTime(overview?.generatedAt) }}</strong>
-        <ElButton plain :loading="loading" @click="refreshAll">刷新全部</ElButton>
-      </div>
-    </header>
+  <section class="page-stack">
+    <PageHeader
+      title="运行监控"
+      description="从健康端点、MySQL 运行状态和受控运维记录定位问题。Neo4j 降级不会遮蔽目录、统计与其他权威数据能力。"
+      divided
+    >
+      <template #actions>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-muted-foreground">最近汇总 {{ formatDateTime(overview?.generatedAt) }}</span>
+          <Button variant="outline" size="icon" :loading="loading" aria-label="刷新全部" @click="refreshAll">
+            <RefreshCw class="size-4" />
+          </Button>
+        </div>
+      </template>
+    </PageHeader>
 
-    <ElAlert v-if="partialError" :title="partialError" type="warning" :closable="false" show-icon />
+    <Alert v-if="partialError" variant="warning"><AlertTitle>{{ partialError }}</AlertTitle></Alert>
 
-    <div class="operations-health-grid" aria-label="依赖健康状态">
-      <article v-for="item in [
-        { key: 'liveness', label: '应用存活', caption: 'LIVENESS' },
-        { key: 'readiness', label: 'MySQL 就绪', caption: 'READINESS' },
-        { key: 'graph', label: 'Neo4j 独立状态', caption: 'GRAPH GROUP' },
-      ]" :key="item.key" class="operations-health" :data-state="probes[item.key as ProbeKey].status">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div>
-          <small>{{ item.caption }}</small>
-          <strong>{{ item.label }} · {{ healthLabel(probes[item.key as ProbeKey].status) }}</strong>
-          <span>{{ probes[item.key as ProbeKey].detail }}</span>
+    <!-- 依赖健康 -->
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="依赖健康状态">
+      <article
+        v-for="item in healthCards"
+        :key="item.key"
+        class="flex items-start gap-3 rounded-xl border p-4"
+        :class="{
+          'border-success/35 bg-success/8': probes[item.key].status === 'UP',
+          'border-destructive/35 bg-destructive/8': probes[item.key].status === 'DOWN' || probes[item.key].status === 'OUT_OF_SERVICE',
+          'border-warning/35 bg-warning/8': probes[item.key].status !== 'UP' && probes[item.key].status !== 'DOWN' && probes[item.key].status !== 'OUT_OF_SERVICE',
+          'border-border bg-card': false,
+        }"
+      >
+        <StatusPill :status="probes[item.key].status" :label="healthLabel(probes[item.key].status)" pulse class="mt-0.5 shrink-0" />
+        <div class="min-w-0 space-y-0.5">
+          <strong class="block text-sm font-semibold">{{ item.label }} · {{ healthLabel(probes[item.key].status) }}</strong>
+          <span class="block text-xs text-muted-foreground">{{ probes[item.key].detail }}</span>
         </div>
       </article>
     </div>
 
-    <div class="operations-metrics" aria-label="运行计数">
-      <article><span>活动采集</span><strong>{{ formatNumber(overview?.activeCrawlRunCount) }}</strong><small>运行中或暂停请求处理中</small></article>
-      <article><span>近期失败</span><strong>{{ formatNumber(overview?.recentCrawlFailureCount) }}</strong><small>近 24 小时未解决</small></article>
-      <article><span>待处理图事件</span><strong>{{ formatNumber(overview?.graphPendingCount) }}</strong><small>最老 {{ formatNumber(syncStatus?.oldestPendingAgeSeconds) }} 秒</small></article>
-      <article><span>处理中图事件</span><strong>{{ formatNumber(overview?.graphProcessingCount) }}</strong><small>受租约保护</small></article>
-      <article class="operations-metric-critical"><span>图死信</span><strong>{{ formatNumber(overview?.graphDeadCount) }}</strong><small>需要人工判断后重放</small></article>
-      <article class="operations-metric-critical"><span>未确认告警</span><strong>{{ formatNumber(overview?.openAlertCount) }}</strong><small>系统内事件</small></article>
+    <!-- 运行计数 -->
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-label="运行计数">
+      <StatCard v-for="metric in metricCards" :key="metric.label" :label="metric.label" :value="metric.value" :note="metric.note" :tone="metric.tone" />
     </div>
 
-    <div class="operations-context">
-      <div>
-        <strong>采集失败定位</strong>
-        <span>总览只提供冻结的近 24 小时聚合计数；失败阶段、有限摘要与重试入口保留在具体采集运行中。</span>
+    <!-- 上下文提示 -->
+    <div class="flex flex-col gap-3 rounded-lg border-l-4 border-l-warning bg-warning/8 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div class="space-y-1">
+        <strong class="text-sm font-semibold">采集失败定位</strong>
+        <p class="text-xs text-muted-foreground">总览只提供冻结的近 24 小时聚合计数；失败阶段、有限摘要与重试入口保留在具体采集运行中。</p>
       </div>
-      <RouterLink to="/crawl" class="text-link">进入采集任务 →</RouterLink>
+      <RouterLink to="/crawl" class="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline">进入采集任务 →</RouterLink>
     </div>
 
-    <ElTabs v-model="activeTab" class="content-panel operations-tabs">
-      <ElTabPane :label="`系统内告警 ${alerts.totalElements}`" name="alerts">
-        <div class="toolbar operations-toolbar">
-          <div class="operations-filters">
-            <ElSelect v-model="alertFilters.status" placeholder="全部状态" clearable aria-label="告警状态">
-              <ElOption label="未确认" value="OPEN" /><ElOption label="已确认" value="ACKNOWLEDGED" />
-            </ElSelect>
-            <ElSelect v-model="alertFilters.type" placeholder="全部类型" clearable aria-label="告警类型">
-              <ElOption v-for="item in alertTypes" :key="item.value" :label="item.label" :value="item.value" />
-            </ElSelect>
-            <ElButton @click="loadAlerts(0)">筛选告警</ElButton>
+    <!-- 选项卡 -->
+    <Tabs v-model="activeTab">
+      <TabsList class="w-full justify-start overflow-x-auto">
+        <TabsTrigger value="alerts">系统内告警 {{ alerts.totalElements }}</TabsTrigger>
+        <TabsTrigger value="events">图同步事件 {{ graphEvents.totalElements }}</TabsTrigger>
+        <TabsTrigger value="maintenance">维护运行 {{ maintenanceRuns.totalElements }}</TabsTrigger>
+        <TabsTrigger value="audits">审计记录 {{ audits.totalElements }}</TabsTrigger>
+      </TabsList>
+
+      <!-- 告警 -->
+      <TabsContent value="alerts">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <Select v-model="alertFilters.status">
+            <SelectTrigger class="w-40" placeholder="全部状态" aria-label="告警状态" />
+            <SelectContent>
+              <SelectItem value="ALL">全部状态</SelectItem>
+              <SelectItem value="OPEN">未确认</SelectItem>
+              <SelectItem value="ACKNOWLEDGED">已确认</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select v-model="alertFilters.type">
+            <SelectTrigger class="w-44" placeholder="全部类型" aria-label="告警类型" />
+            <SelectContent>
+              <SelectItem value="ALL">全部类型</SelectItem>
+              <SelectItem v-for="item in alertTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" @click="loadAlerts(0)">筛选告警</Button>
+          <span class="ml-auto text-xs text-muted-foreground">只展示有限安全证据</span>
+        </div>
+        <DataTable
+          :columns="alertColumns" :data="alerts.items" :loading="loading"
+          :page="alerts.page" :size="alerts.size" :total="alerts.totalElements"
+          empty-text="暂无系统内告警" :get-row-id="(row) => String(row.id)" @update:page="loadAlerts"
+        >
+          <template #cell-severity="{ row }">
+            <Badge :variant="row.severity === 'CRITICAL' ? 'destructive' : 'warning'">{{ row.severity }}</Badge>
+          </template>
+          <template #cell-alert="{ row }">
+            <strong class="block text-sm font-medium text-foreground">{{ alertTypeLabel(row.type) }} · {{ row.summary }}</strong>
+            <small class="block text-xs text-muted-foreground">{{ evidenceText(row.evidence) }}</small>
+          </template>
+          <template #cell-statusAction="{ row }">
+            <StatusPill v-if="row.status === 'ACKNOWLEDGED'" status="SUCCEEDED" label="已确认" />
+            <Button
+              v-else-if="hasPermission('ALERT_MANAGE')"
+              variant="link" size="sm" class="h-auto p-0"
+              :loading="actionLoading === `alert-${row.id}`" @click="openAcknowledge(row)"
+            >确认告警</Button>
+          </template>
+        </DataTable>
+      </TabsContent>
+
+      <!-- 图同步事件 -->
+      <TabsContent value="events">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <Select v-model="graphEventStatus">
+            <SelectTrigger class="w-44" placeholder="全部状态" aria-label="图事件状态" />
+            <SelectContent>
+              <SelectItem value="ALL">全部状态</SelectItem>
+              <SelectItem v-for="status in graphStatuses" :key="status" :value="status">{{ status }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" @click="loadGraphEvents(0)">筛选事件</Button>
+          <span class="ml-auto text-xs text-muted-foreground">
+            Neo4j {{ syncStatus?.neo4jAvailable ? '可用' : '已降级' }} · 重建 {{ syncStatus?.rebuildInProgress ? '进行中' : '未进行' }}
+          </span>
+        </div>
+        <DataTable
+          :columns="eventColumns" :data="graphEvents.items" :loading="loading"
+          :page="graphEvents.page" :size="graphEvents.size" :total="graphEvents.totalElements"
+          empty-text="暂无图同步事件" :get-row-id="(row) => row.eventId" @update:page="loadGraphEvents"
+        >
+          <template #cell-status="{ row }"><StatusPill :status="row.status" /></template>
+          <template #cell-eventId="{ row }">
+            <strong class="mono-evidence block text-xs font-medium text-foreground">{{ row.eventId }}</strong>
+            <small class="block text-xs text-muted-foreground">成果 #{{ row.achievementId }} · 目标版本 {{ row.desiredVersion }}</small>
+          </template>
+          <template #cell-actions="{ row }">
+            <Button
+              v-if="row.status === 'DEAD' && hasPermission('GRAPH_SYNC_MANAGE')"
+              variant="link" size="sm" class="h-auto p-0"
+              :loading="actionLoading === `event-${row.eventId}`" @click="replayEvent(row)"
+            >重放</Button>
+          </template>
+        </DataTable>
+      </TabsContent>
+
+      <!-- 维护运行 -->
+      <TabsContent value="maintenance">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <strong class="text-sm font-medium">MySQL 驱动的受控图维护</strong>
+          <div v-if="hasPermission('GRAPH_SYNC_MANAGE')" class="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" :loading="actionLoading === 'backfill'" @click="startMaintenance('backfill')">启动回填</Button>
+            <Button variant="outline" size="sm" :loading="actionLoading === 'reconcile'" @click="startMaintenance('reconcile')">启动对账</Button>
+            <Button variant="destructive" size="sm" @click="rebuildVisible = true">全量重建</Button>
           </div>
-          <span class="meta-line">只展示有限安全证据</span>
         </div>
-        <ElTable :data="alerts.items" empty-text="暂无系统内告警">
-          <ElTableColumn label="级别" width="90"><template #default="{ row }"><ElTag :type="row.severity === 'CRITICAL' ? 'danger' : 'warning'" effect="plain">{{ row.severity }}</ElTag></template></ElTableColumn>
-          <ElTableColumn label="告警" min-width="330"><template #default="{ row }"><strong class="table-title">{{ alertTypeLabel(row.type) }} · {{ row.summary }}</strong><small>{{ evidenceText(row.evidence) }}</small></template></ElTableColumn>
-          <ElTableColumn label="主体" width="150"><template #default="{ row }">{{ row.subjectType }} {{ row.subjectId ?? '' }}</template></ElTableColumn>
-          <ElTableColumn prop="occurrenceCount" label="次数" width="75" />
-          <ElTableColumn label="末次检测" width="180"><template #default="{ row }">{{ formatDateTime(row.lastDetectedAt) }}</template></ElTableColumn>
-          <ElTableColumn label="状态/操作" width="150"><template #default="{ row }"><ElTag v-if="row.status === 'ACKNOWLEDGED'" type="success" effect="plain">已确认</ElTag><ElButton v-else-if="hasPermission('ALERT_MANAGE')" link type="primary" :loading="actionLoading === `alert-${row.id}`" @click="openAcknowledge(row as AlertEvent)">确认告警</ElButton></template></ElTableColumn>
-        </ElTable>
-        <div v-if="alerts.totalPages > 1" class="pagination-row"><ElPagination :current-page="alerts.page + 1" :page-size="alerts.size" :total="alerts.totalElements" layout="prev, pager, next" @current-change="(page: number) => loadAlerts(page - 1)" /></div>
-      </ElTabPane>
+        <DataTable
+          :columns="maintenanceColumns" :data="maintenanceRuns.items" :loading="loading"
+          :page="maintenanceRuns.page" :size="maintenanceRuns.size" :total="maintenanceRuns.totalElements"
+          empty-text="暂无维护运行" :get-row-id="(row) => String(row.id)" @update:page="loadMaintenanceRuns"
+        >
+          <template #cell-status="{ row }"><StatusPill :status="row.status" /></template>
+        </DataTable>
+      </TabsContent>
 
-      <ElTabPane :label="`图同步事件 ${graphEvents.totalElements}`" name="events">
-        <div class="toolbar operations-toolbar">
-          <div class="operations-filters"><ElSelect v-model="graphEventStatus" placeholder="全部状态" clearable aria-label="图事件状态"><ElOption v-for="status in graphStatuses" :key="status" :label="status" :value="status" /></ElSelect><ElButton @click="loadGraphEvents(0)">筛选事件</ElButton></div>
-          <span class="meta-line">Neo4j {{ syncStatus?.neo4jAvailable ? '可用' : '已降级' }} · 重建 {{ syncStatus?.rebuildInProgress ? '进行中' : '未进行' }}</span>
+      <!-- 审计记录 -->
+      <TabsContent value="audits">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <strong class="text-sm font-medium">关键操作安全摘要</strong>
+          <span class="text-xs text-muted-foreground">不展示凭据、路径、SQL 或 Cypher</span>
         </div>
-        <ElTable :data="graphEvents.items" empty-text="暂无图同步事件">
-          <ElTableColumn label="状态" width="105"><template #default="{ row }"><ElTag :type="row.status === 'DEAD' ? 'danger' : row.status === 'SUCCEEDED' ? 'success' : 'warning'" effect="plain">{{ row.status }}</ElTag></template></ElTableColumn>
-          <ElTableColumn label="事件" min-width="250"><template #default="{ row }"><strong class="table-title">{{ row.eventId }}</strong><small>成果 #{{ row.achievementId }} · 目标版本 {{ row.desiredVersion }}</small></template></ElTableColumn>
-          <ElTableColumn prop="attempts" label="尝试" width="75" />
-          <ElTableColumn label="错误摘要" min-width="180"><template #default="{ row }">{{ row.errorSummary ?? row.errorCode ?? '—' }}</template></ElTableColumn>
-          <ElTableColumn label="下次执行" width="180"><template #default="{ row }">{{ formatDateTime(row.nextAttemptAt) }}</template></ElTableColumn>
-          <ElTableColumn label="操作" width="100"><template #default="{ row }"><ElButton v-if="row.status === 'DEAD' && hasPermission('GRAPH_SYNC_MANAGE')" link type="primary" :loading="actionLoading === `event-${row.eventId}`" @click="replayEvent(row as GraphEvent)">重放</ElButton></template></ElTableColumn>
-        </ElTable>
-        <div v-if="graphEvents.totalPages > 1" class="pagination-row"><ElPagination :current-page="graphEvents.page + 1" :page-size="graphEvents.size" :total="graphEvents.totalElements" layout="prev, pager, next" @current-change="(page: number) => loadGraphEvents(page - 1)" /></div>
-      </ElTabPane>
+        <DataTable
+          :columns="auditColumns" :data="audits.items" :loading="loading"
+          :page="audits.page" :size="audits.size" :total="audits.totalElements"
+          empty-text="暂无审计记录" :get-row-id="(row) => String(row.id)" @update:page="loadAudits"
+        >
+          <template #cell-result="{ row }">
+            <Badge :variant="row.result === 'SUCCESS' ? 'success' : 'destructive'">{{ row.result }}</Badge>
+          </template>
+          <template #cell-traceId="{ row }"><span class="mono-evidence text-xs">{{ row.traceId }}</span></template>
+        </DataTable>
+      </TabsContent>
+    </Tabs>
 
-      <ElTabPane :label="`维护运行 ${maintenanceRuns.totalElements}`" name="maintenance">
-        <div class="toolbar operations-toolbar">
-          <strong>MySQL 驱动的受控图维护</strong>
-          <div v-if="hasPermission('GRAPH_SYNC_MANAGE')" class="operations-actions"><ElButton :loading="actionLoading === 'backfill'" @click="startMaintenance('backfill')">启动回填</ElButton><ElButton :loading="actionLoading === 'reconcile'" @click="startMaintenance('reconcile')">启动对账</ElButton><ElButton type="danger" plain @click="rebuildVisible = true">全量重建</ElButton></div>
-        </div>
-        <ElTable :data="maintenanceRuns.items" empty-text="暂无维护运行">
-          <ElTableColumn label="运行" min-width="170"><template #default="{ row }"><strong class="table-title">#{{ row.id }} · {{ maintenanceTypeLabel(row.runType) }}</strong><small>请求人 #{{ row.requestedBy }}</small></template></ElTableColumn>
-          <ElTableColumn label="状态" width="105"><template #default="{ row }"><ElTag :type="row.status === 'FAILED' ? 'danger' : row.status === 'SUCCEEDED' ? 'success' : 'warning'" effect="plain">{{ row.status }}</ElTag></template></ElTableColumn>
-          <ElTableColumn prop="scannedCount" label="扫描" width="100" />
-          <ElTableColumn prop="repairedCount" label="修复" width="100" />
-          <ElTableColumn prop="differenceCount" label="差异" width="100" />
-          <ElTableColumn label="更新时间" width="180"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></ElTableColumn>
-          <ElTableColumn prop="errorCode" label="错误码" min-width="140" />
-        </ElTable>
-        <div v-if="maintenanceRuns.totalPages > 1" class="pagination-row"><ElPagination :current-page="maintenanceRuns.page + 1" :page-size="maintenanceRuns.size" :total="maintenanceRuns.totalElements" layout="prev, pager, next" @current-change="(page: number) => loadMaintenanceRuns(page - 1)" /></div>
-      </ElTabPane>
+    <!-- 确认告警 -->
+    <Dialog v-model:open="acknowledgeVisible">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle class="flex items-center gap-2"><AlertOctagon class="size-5 text-warning" />确认系统内告警</DialogTitle>
+          <DialogDescription>确认不会关闭触发条件；只有晚于确认时间的新信号才会重新产生未确认事件。</DialogDescription>
+        </DialogHeader>
+        <FormItem>
+          <FormLabel for="ackReason">告警确认原因</FormLabel>
+          <Textarea
+            id="ackReason" v-model="acknowledgeReason" :rows="4" :maxlength="1000"
+            placeholder="填写处置结论或转交说明" aria-label="告警确认原因"
+          />
+        </FormItem>
+        <DialogFooter>
+          <Button variant="outline" @click="acknowledgeVisible = false">取消</Button>
+          <Button :loading="actionLoading.startsWith('alert-')" @click="acknowledgeAlert">提交确认</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-      <ElTabPane :label="`审计记录 ${audits.totalElements}`" name="audits">
-        <div class="toolbar operations-toolbar"><strong>关键操作安全摘要</strong><span class="meta-line">不展示凭据、路径、SQL 或 Cypher</span></div>
-        <ElTable :data="audits.items" empty-text="暂无审计记录">
-          <ElTableColumn prop="action" label="操作" min-width="190" />
-          <ElTableColumn label="操作人" width="100"><template #default="{ row }">{{ row.actorUserId ?? '系统' }}</template></ElTableColumn>
-          <ElTableColumn label="目标" min-width="180"><template #default="{ row }">{{ row.targetType }} {{ row.targetId ?? '' }}</template></ElTableColumn>
-          <ElTableColumn label="结果" width="95"><template #default="{ row }"><ElTag :type="row.result === 'SUCCESS' ? 'success' : 'danger'" effect="plain">{{ row.result }}</ElTag></template></ElTableColumn>
-          <ElTableColumn label="摘要" min-width="230"><template #default="{ row }">{{ auditSummary(row.summary) }}</template></ElTableColumn>
-          <ElTableColumn label="时间" width="180"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></ElTableColumn>
-          <ElTableColumn prop="traceId" label="Trace ID" min-width="210" />
-        </ElTable>
-        <div v-if="audits.totalPages > 1" class="pagination-row"><ElPagination :current-page="audits.page + 1" :page-size="audits.size" :total="audits.totalElements" layout="prev, pager, next" @current-change="(page: number) => loadAudits(page - 1)" /></div>
-      </ElTabPane>
-    </ElTabs>
-
-    <ElDialog v-model="acknowledgeVisible" title="确认系统内告警" width="520px">
-      <p class="meta-line">确认不会关闭触发条件；只有晚于确认时间的新信号才会重新产生未确认事件。</p>
-      <ElInput v-model="acknowledgeReason" type="textarea" :rows="4" maxlength="1000" show-word-limit placeholder="填写处置结论或转交说明" aria-label="告警确认原因" />
-      <template #footer><ElButton @click="acknowledgeVisible = false">取消</ElButton><ElButton type="primary" :loading="actionLoading.startsWith('alert-')" @click="acknowledgeAlert">提交确认</ElButton></template>
-    </ElDialog>
-
-    <ElDialog v-model="rebuildVisible" title="确认全量重建 AACV 图投影" width="560px">
-      <ElAlert title="该操作会重建所有 AACV 受管图数据；不会删除非 AACV 数据。" type="warning" :closable="false" show-icon />
-      <p class="meta-line rebuild-confirmation">请输入 <code>REBUILD_AACV_MANAGED_GRAPH</code> 继续。</p>
-      <ElInput v-model="rebuildConfirmation" aria-label="全量重建确认值" autocomplete="off" />
-      <template #footer><ElButton @click="rebuildVisible = false">取消</ElButton><ElButton type="danger" :loading="actionLoading === 'rebuild'" @click="submitRebuild">确认重建</ElButton></template>
-    </ElDialog>
+    <!-- 全量重建确认 -->
+    <Dialog v-model:open="rebuildVisible">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>确认全量重建 AACV 图投影</DialogTitle>
+        </DialogHeader>
+        <Alert variant="warning"><AlertTitle>该操作会重建所有 AACV 受管图数据；不会删除非 AACV 数据。</AlertTitle></Alert>
+        <FormItem>
+          <FormLabel for="rebuildConfirm">
+            请输入 <code class="mono-evidence rounded bg-muted px-1.5 py-0.5 text-xs">REBUILD_AACV_MANAGED_GRAPH</code> 继续
+          </FormLabel>
+          <Input id="rebuildConfirm" v-model="rebuildConfirmation" autocomplete="off" aria-label="全量重建确认值" />
+        </FormItem>
+        <DialogFooter>
+          <Button variant="outline" @click="rebuildVisible = false">取消</Button>
+          <Button variant="destructive" :loading="actionLoading === 'rebuild'" @click="submitRebuild">确认重建</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </section>
 </template>

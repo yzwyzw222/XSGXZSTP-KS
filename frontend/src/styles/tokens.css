@@ -1,0 +1,381 @@
+/* ============================================================
+   AACV Design Tokens — 三层架构（design-system Skill）
+   Primitive（原始值） → Semantic（语义别名） → Component（组件级）
+   全部颜色使用 HSL 分量，便于透明度组合与主题切换
+   ============================================================ */
+
+/* ---------- Primitive 层：原始调色板与尺度 ---------- */
+:root {
+  /* 蓝色系（品牌主色，学术理性） */
+  --color-blue-50: 205 100% 96%;
+  --color-blue-100: 206 96% 90%;
+  --color-blue-200: 207 92% 80%;
+  --color-blue-300: 206 90% 70%;
+  --color-blue-400: 207 88% 60%;
+  --color-blue-500: 207 90% 54%;
+  --color-blue-600: 209 92% 47%;
+  --color-blue-700: 210 90% 38%;
+  --color-blue-800: 211 85% 30%;
+  --color-blue-900: 212 80% 23%;
+  --color-blue-950: 213 78% 14%;
+
+  /* 青色（作者/次级数据） */
+  --color-cyan-300: 186 85% 70%;
+  --color-cyan-400: 187 84% 58%;
+  --color-cyan-500: 189 82% 47%;
+  --color-cyan-600: 191 80% 38%;
+
+  /* 翠绿（成功/健康） */
+  --color-emerald-300: 158 68% 62%;
+  --color-emerald-400: 158 70% 50%;
+  --color-emerald-500: 160 72% 42%;
+  --color-emerald-600: 162 74% 33%;
+
+  /* 琥珀（警告/机构） */
+  --color-amber-300: 38 96% 68%;
+  --color-amber-400: 36 94% 58%;
+  --color-amber-500: 34 92% 50%;
+  --color-amber-600: 32 88% 42%;
+
+  /* 玫红（危险/错误） */
+  --color-rose-300: 352 92% 74%;
+  --color-rose-400: 352 90% 66%;
+  --color-rose-500: 353 88% 58%;
+  --color-rose-600: 354 84% 48%;
+
+  /* 紫罗兰（期刊/特殊节点） */
+  --color-violet-300: 262 84% 76%;
+  --color-violet-400: 262 82% 68%;
+  --color-violet-500: 263 78% 58%;
+  --color-violet-600: 264 74% 47%;
+
+  /* 石板灰（中性色基底） */
+  --color-slate-0: 0 0% 100%;
+  --color-slate-50: 210 40% 98%;
+  --color-slate-100: 210 40% 96%;
+  --color-slate-200: 214 32% 91%;
+  --color-slate-300: 213 27% 84%;
+  --color-slate-400: 215 20% 65%;
+  --color-slate-500: 215 16% 47%;
+  --color-slate-600: 215 19% 35%;
+  --color-slate-700: 215 22% 27%;
+  --color-slate-800: 217 28% 20%;
+  --color-slate-850: 218 32% 15%;
+  --color-slate-900: 219 36% 11%;
+  --color-slate-925: 220 42% 8%;
+  --color-slate-950: 222 47% 5%;
+
+  /* 圆角尺度 */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-full: 9999px;
+
+  /* 间距尺度（4px 基准） */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* 字体 */
+  --font-sans: 'Inter', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+
+  /* 字号阶梯（独立命名空间，避免与 Tailwind --text-* 工具类冲突） */
+  --font-size-2xs: 0.625rem;
+  --font-size-xs: 0.6875rem;
+  --font-size-sm: 0.75rem;
+  --font-size-base: 0.8125rem;
+  --font-size-md: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.1875rem;
+  --font-size-2xl: 1.4375rem;
+  --font-size-3xl: 1.8125rem;
+  --font-size-4xl: 2.25rem;
+
+  /* 行高 */
+  --leading-tight: 1.25;
+  --leading-snug: 1.4;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.7;
+
+  /* 字重 */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* 字距 */
+  --tracking-tight: -0.03em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.05em;
+  --tracking-wider: 0.1em;
+
+  /* 阴影 */
+  --shadow-xs: 0 1px 2px 0 rgb(8 23 43 / 0.06);
+  --shadow-sm: 0 1px 3px 0 rgb(8 23 43 / 0.1), 0 1px 2px -1px rgb(8 23 43 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(8 23 43 / 0.12), 0 2px 4px -2px rgb(8 23 43 / 0.12);
+  --shadow-lg: 0 10px 15px -3px rgb(8 23 43 / 0.16), 0 4px 6px -4px rgb(8 23 43 / 0.16);
+  --shadow-xl: 0 20px 25px -5px rgb(8 23 43 / 0.2), 0 8px 10px -6px rgb(8 23 43 / 0.2);
+  --shadow-glow: 0 0 20px rgb(45 157 245 / 0.25);
+
+  /* 动效 */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 320ms;
+
+  /* 布局 */
+  --sidebar-width: 15rem;
+  --sidebar-width-collapsed: 4rem;
+  --topbar-height: 4rem;
+  --content-max-width: 100rem;
+}
+
+/* ---------- Semantic 层：浅色主题 ---------- */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --background: var(--color-slate-50);
+  --foreground: var(--color-slate-900);
+
+  --card: var(--color-slate-0);
+  --card-foreground: var(--color-slate-900);
+
+  --popover: var(--color-slate-0);
+  --popover-foreground: var(--color-slate-900);
+
+  --primary: var(--color-blue-600);
+  --primary-foreground: var(--color-slate-0);
+  --primary-hover: var(--color-blue-700);
+  --primary-active: var(--color-blue-800);
+
+  --secondary: var(--color-slate-100);
+  --secondary-foreground: var(--color-slate-700);
+
+  --muted: var(--color-slate-100);
+  --muted-foreground: var(--color-slate-500);
+
+  --accent: var(--color-blue-50);
+  --accent-foreground: var(--color-blue-700);
+
+  --destructive: var(--color-rose-500);
+  --destructive-foreground: var(--color-slate-0);
+
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-slate-0);
+  --success-subtle: 160 72% 95%;
+
+  --warning: var(--color-amber-500);
+  --warning-foreground: var(--color-slate-900);
+  --warning-subtle: 40 96% 94%;
+
+  --info: var(--color-cyan-500);
+  --info-foreground: var(--color-slate-0);
+
+  --border: var(--color-slate-200);
+  --border-strong: var(--color-slate-300);
+  --input: var(--color-slate-200);
+  --input-background: var(--color-slate-0);
+  --ring: var(--color-blue-400);
+
+  --sidebar: var(--color-slate-0);
+  --sidebar-foreground: var(--color-slate-600);
+  --sidebar-accent: var(--color-blue-50);
+  --sidebar-accent-foreground: var(--color-blue-700);
+  --sidebar-border: var(--color-slate-200);
+  --sidebar-active: var(--color-blue-600);
+
+  --overlay: 219 36% 11% / 0.45;
+
+  /* 图表色板 */
+  --chart-1: var(--color-blue-500);
+  --chart-2: var(--color-emerald-400);
+  --chart-3: var(--color-amber-400);
+  --chart-4: var(--color-violet-400);
+  --chart-5: var(--color-cyan-400);
+  --chart-6: var(--color-rose-400);
+  --chart-grid: var(--color-slate-200);
+  --chart-axis: var(--color-slate-400);
+  --chart-tooltip-bg: var(--color-slate-0);
+  --chart-tooltip-border: var(--color-slate-300);
+  --chart-tooltip-fg: var(--color-slate-900);
+
+  /* 知识图谱节点色 */
+  --graph-achievement: var(--color-blue-500);
+  --graph-author: var(--color-cyan-500);
+  --graph-institution: var(--color-amber-500);
+  --graph-venue: var(--color-violet-500);
+  --graph-topic: var(--color-emerald-500);
+  --graph-edge: var(--color-slate-300);
+  --graph-canvas: var(--color-slate-50);
+
+  /* 表格 */
+  --table-header-bg: var(--color-slate-100);
+  --table-header-fg: var(--color-slate-500);
+  --table-row-hover: var(--color-blue-50);
+  --table-border: var(--color-slate-200);
+
+  /* 状态点 */
+  --status-running: var(--color-emerald-500);
+  --status-idle: var(--color-slate-400);
+  --status-warning: var(--color-amber-500);
+  --status-error: var(--color-rose-500);
+}
+
+/* ---------- Semantic 层：深色主题 ---------- */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: var(--color-slate-950);
+  --foreground: 210 40% 96%;
+
+  --card: var(--color-slate-900);
+  --card-foreground: 210 40% 96%;
+
+  --popover: var(--color-slate-900);
+  --popover-foreground: 210 40% 96%;
+
+  --primary: var(--color-blue-400);
+  --primary-foreground: var(--color-slate-950);
+  --primary-hover: var(--color-blue-300);
+  --primary-active: var(--color-blue-500);
+
+  --secondary: var(--color-slate-800);
+  --secondary-foreground: var(--color-slate-200);
+
+  --muted: var(--color-slate-850);
+  --muted-foreground: var(--color-slate-400);
+
+  --accent: 213 60% 22%;
+  --accent-foreground: var(--color-blue-200);
+
+  --destructive: var(--color-rose-400);
+  --destructive-foreground: var(--color-slate-950);
+
+  --success: var(--color-emerald-400);
+  --success-foreground: var(--color-slate-950);
+  --success-subtle: 160 45% 15%;
+
+  --warning: var(--color-amber-400);
+  --warning-foreground: var(--color-slate-950);
+  --warning-subtle: 38 45% 16%;
+
+  --info: var(--color-cyan-400);
+  --info-foreground: var(--color-slate-950);
+
+  --border: 217 30% 24%;
+  --border-strong: 215 25% 33%;
+  --input: 217 30% 26%;
+  --input-background: var(--color-slate-925);
+  --ring: var(--color-blue-400);
+
+  --sidebar: var(--color-slate-925);
+  --sidebar-foreground: var(--color-slate-400);
+  --sidebar-accent: 213 55% 20%;
+  --sidebar-accent-foreground: var(--color-blue-200);
+  --sidebar-border: 217 30% 20%;
+  --sidebar-active: var(--color-blue-400);
+
+  --overlay: 222 47% 3% / 0.65;
+
+  /* 图表色板（深色下提高亮度） */
+  --chart-1: var(--color-blue-300);
+  --chart-2: var(--color-emerald-300);
+  --chart-3: var(--color-amber-300);
+  --chart-4: var(--color-violet-300);
+  --chart-5: var(--color-cyan-300);
+  --chart-6: var(--color-rose-300);
+  --chart-grid: 217 28% 20%;
+  --chart-axis: var(--color-slate-500);
+  --chart-tooltip-bg: var(--color-slate-900);
+  --chart-tooltip-border: 217 30% 28%;
+  --chart-tooltip-fg: 210 40% 96%;
+
+  /* 知识图谱节点色 */
+  --graph-achievement: var(--color-blue-300);
+  --graph-author: var(--color-cyan-300);
+  --graph-institution: var(--color-amber-300);
+  --graph-venue: var(--color-violet-300);
+  --graph-topic: var(--color-emerald-300);
+  --graph-edge: 215 20% 40%;
+  --graph-canvas: var(--color-slate-925);
+
+  /* 表格 */
+  --table-header-bg: var(--color-slate-925);
+  --table-header-fg: var(--color-slate-400);
+  --table-row-hover: 213 50% 18%;
+  --table-border: 217 30% 22%;
+
+  /* 状态点 */
+  --status-running: var(--color-emerald-400);
+  --status-idle: var(--color-slate-500);
+  --status-warning: var(--color-amber-400);
+  --status-error: var(--color-rose-400);
+}
+
+/* ---------- Component 层：组件级 Token ---------- */
+:root {
+  /* 按钮 */
+  --button-radius: var(--radius-sm);
+  --button-height-sm: 1.75rem;
+  --button-height-md: 2.25rem;
+  --button-height-lg: 2.75rem;
+  --button-padding-x: var(--space-4);
+  --button-font-weight: var(--font-medium);
+  --button-primary-bg: var(--primary);
+  --button-primary-fg: var(--primary-foreground);
+  --button-primary-bg-hover: var(--primary-hover);
+  --button-primary-bg-active: var(--primary-active);
+  --button-secondary-bg: var(--secondary);
+  --button-secondary-fg: var(--secondary-foreground);
+  --button-destructive-bg: var(--destructive);
+  --button-destructive-fg: var(--destructive-foreground);
+
+  /* 卡片 */
+  --card-radius: var(--radius-lg);
+  --card-border: 1px solid hsl(var(--border));
+  --card-shadow: var(--shadow-sm);
+  --card-padding: var(--space-5);
+
+  /* 输入 */
+  --input-radius: var(--radius-sm);
+  --input-height: 2.25rem;
+  --input-border: 1px solid hsl(var(--input));
+  --input-bg: hsl(var(--input-background));
+  --input-fg: hsl(var(--foreground));
+  --input-placeholder: hsl(var(--muted-foreground));
+  --input-focus-ring: 0 0 0 2px hsl(var(--ring) / 0.45);
+
+  /* 表格 */
+  --table-radius: var(--radius-md);
+  --table-cell-padding: var(--space-3) var(--space-4);
+  --table-font-size: var(--font-size-base);
+
+  /* 对话框/浮层 */
+  --dialog-radius: var(--radius-xl);
+  --dialog-shadow: var(--shadow-xl);
+  --dialog-border: 1px solid hsl(var(--border));
+
+  /* 徽标 */
+  --badge-radius: var(--radius-full);
+  --badge-font-size: var(--font-size-xs);
+  --badge-padding: 0.125rem var(--space-2);
+
+  /* 侧栏 */
+  --nav-item-radius: var(--radius-md);
+  --nav-item-height: 2.5rem;
+  --nav-item-padding: var(--space-2) var(--space-3);
+}

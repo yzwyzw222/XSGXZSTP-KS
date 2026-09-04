@@ -1,9 +1,10 @@
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -28,5 +29,13 @@ export default defineConfig({
     environment: 'jsdom',
     clearMocks: true,
     include: ['src/**/*.test.ts'],
+    testTimeout: 15000,
+    deps: {
+      optimizer: {
+        web: {
+          include: ['reka-ui', 'lucide-vue-next', '@tanstack/vue-table', '@vueuse/core', 'vue-sonner'],
+        },
+      },
+    },
   },
 })

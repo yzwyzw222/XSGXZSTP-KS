@@ -1,25 +1,21 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import {
-  ElAlert,
-  ElButton,
-  ElInput,
-  ElInputNumber,
-  ElPagination,
-  ElTable,
-  ElTableColumn,
-  ElTag,
-  vLoading,
-} from 'element-plus'
+import type { ColumnDef } from '@tanstack/vue-table'
+import { Download, ExternalLink, FileSpreadsheet, Library } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 
-import { catalogApi, exportApi, type AchievementQuery } from '@/services/business'
+import {
+  DataTable, FilterBar, FilterField, PageHeader, PanelSection, StatusPill,
+} from '@/components/business'
+import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toErrorMessage } from '@/services/api'
+import { catalogApi, exportApi, type AchievementQuery } from '@/services/business'
 import { hasPermission } from '@/services/session'
 import type { AchievementSummary, ExportFormat, ExportTask, PageResponse } from '@/types/api'
-import {
-  ExportFilterResolutionError,
-  resolveExportFilter,
-} from '@/utils/export-filter'
+import { ExportFilterResolutionError, resolveExportFilter } from '@/utils/export-filter'
 import { formatDateTime } from '@/utils/format'
 
 const loading = ref(false)
@@ -30,11 +26,7 @@ const exportErrorMessage = ref('')
 const exportTask = ref<ExportTask | null>(null)
 let exportPollTimer: number | undefined
 const result = ref<PageResponse<AchievementSummary>>({
-  items: [],
-  page: 0,
-  size: 20,
-  totalElements: 0,
-  totalPages: 0,
+  items: [], page: 0, size: 20, totalElements: 0, totalPages: 0,
 })
 const filters = reactive({
   title: '',
@@ -46,6 +38,23 @@ const filters = reactive({
   venue: '',
   topic: '',
 })
+
+/** 年份输入以字符串编辑，提交时转换为 number（导出契约要求数值）。 */
+const yearModel = computed<string | number>({
+  get: () => filters.publicationYear ?? '',
+  set: (value) => {
+    const text = String(value ?? '').trim()
+    filters.publicationYear = text === '' ? undefined : Number(text)
+  },
+})
+
+const columns: ColumnDef<AchievementSummary, any>[] = [
+  { accessorKey: 'title', header: '题名', enableSorting: false, meta: { width: '34%' } },
+  { id: 'authors', accessorFn: (row) => row.authors.join('；'), header: '作者', enableSorting: false },
+  { accessorKey: 'publicationDate', header: '发表日期', enableSorting: false, meta: { width: '110px' } },
+  { accessorKey: 'primaryVenue', header: '期刊/来源', enableSorting: false },
+  { id: 'topics', accessorFn: (row) => row.topics.join('，'), header: '主题', enableSorting: false },
+]
 
 async function load(page = 0): Promise<void> {
   loading.value = true
@@ -62,14 +71,8 @@ async function load(page = 0): Promise<void> {
 
 function reset(): void {
   Object.assign(filters, {
-    title: '',
-    author: '',
-    organization: '',
-    publicationYear: undefined,
-    achievementType: '',
-    sourceCode: '',
-    venue: '',
-    topic: '',
+    title: '', author: '', organization: '', publicationYear: undefined,
+    achievementType: '', sourceCode: '', venue: '', topic: '',
   })
   void load()
 }
@@ -114,7 +117,6 @@ async function pollExport(exportId: string): Promise<void> {
 async function downloadExport(): Promise<void> {
   const task = exportTask.value
   if (!task?.downloadAvailable || !task.downloadToken) return
-
   exportDownloading.value = true
   exportErrorMessage.value = ''
   try {
@@ -147,11 +149,8 @@ function isTerminal(status: ExportTask['status']): boolean {
 
 function exportStatusText(status: ExportTask['status']): string {
   return {
-    PENDING: '等待处理',
-    RUNNING: '正在生成',
-    SUCCEEDED: '导出完成',
-    FAILED: '导出失败',
-    EXPIRED: '文件已过期',
+    PENDING: '等待处理', RUNNING: '正在生成', SUCCEEDED: '导出完成',
+    FAILED: '导出失败', EXPIRED: '文件已过期',
   }[status]
 }
 
@@ -161,102 +160,111 @@ onBeforeUnmount(clearExportPolling)
 
 <template>
   <section class="page-stack">
-    <header class="page-heading">
-      <div>
-        <span class="eyebrow">CATALOG / ACHIEVEMENTS</span>
-        <h1>成果目录</h1>
-        <p>检索规范化成果，进入详情核对作者、来源记录和字段级血缘。</p>
-      </div>
-      <div class="entity-links">
-        <RouterLink to="/catalog/authors">作者</RouterLink>
-        <RouterLink to="/catalog/organizations">机构</RouterLink>
-        <RouterLink to="/catalog/venues">期刊</RouterLink>
-        <RouterLink to="/catalog/topics">主题</RouterLink>
-      </div>
-    </header>
+    <PageHeader
+      title="成果目录"
+      description="检索规范化成果，进入详情核对作者、来源记录和字段级血缘。"
+    >
+      <template #actions>
+        <nav class="flex flex-wrap gap-1.5" aria-label="编目实体入口">
+          <Button v-for="link in [
+            { to: '/catalog/authors', label: '作者' },
+            { to: '/catalog/organizations', label: '机构' },
+            { to: '/catalog/venues', label: '期刊' },
+            { to: '/catalog/topics', label: '主题' },
+          ]" :key="link.to" variant="outline" size="sm" as-child>
+            <RouterLink :to="link.to">{{ link.label }}<ExternalLink class="size-3.5" /></RouterLink>
+          </Button>
+        </nav>
+      </template>
+    </PageHeader>
 
-    <div class="filter-panel">
-      <div class="filter-grid">
-        <label><span>题名</span><ElInput v-model="filters.title" clearable /></label>
-        <label><span>作者</span><ElInput v-model="filters.author" clearable /></label>
-        <label><span>机构</span><ElInput v-model="filters.organization" clearable /></label>
-        <label><span>出版年份</span><ElInputNumber v-model="filters.publicationYear" :min="1000" :max="9999" controls-position="right" /></label>
-        <label><span>成果类型</span><ElInput v-model="filters.achievementType" clearable /></label>
-        <label><span>来源代码</span><ElInput v-model="filters.sourceCode" clearable /></label>
-        <label><span>期刊</span><ElInput v-model="filters.venue" clearable /></label>
-        <label><span>主题</span><ElInput v-model="filters.topic" clearable @keyup.enter="load()" /></label>
-      </div>
-      <div class="filter-footer">
-        <span class="meta-line">多个条件将由服务端组合过滤</span>
-        <div class="filter-actions">
-          <template v-if="hasPermission('EXPORT_CREATE')">
-            <ElButton :loading="exportCreating === 'CSV'" :disabled="exportCreating !== null" @click="createExport('CSV')">导出 CSV</ElButton>
-            <ElButton :loading="exportCreating === 'JSON'" :disabled="exportCreating !== null" @click="createExport('JSON')">导出 JSON</ElButton>
-          </template>
-          <ElButton @click="reset">重置</ElButton>
-          <ElButton type="primary" :loading="loading" @click="load()">查询成果</ElButton>
+    <FilterBar :columns="4" :applying="loading" apply-text="查询成果" @apply="load()" @reset="reset">
+      <FilterField label="题名"><Input v-model="filters.title" /></FilterField>
+      <FilterField label="作者"><Input v-model="filters.author" /></FilterField>
+      <FilterField label="机构"><Input v-model="filters.organization" /></FilterField>
+      <FilterField label="出版年份"><Input v-model="yearModel" type="number" min="1000" max="9999" /></FilterField>
+      <FilterField label="成果类型"><Input v-model="filters.achievementType" /></FilterField>
+      <FilterField label="来源代码"><Input v-model="filters.sourceCode" /></FilterField>
+      <FilterField label="期刊"><Input v-model="filters.venue" /></FilterField>
+      <FilterField label="主题"><Input v-model="filters.topic" @keydown.enter="load()" /></FilterField>
+
+      <template #meta>多个条件将由服务端组合过滤</template>
+      <template #actions>
+        <template v-if="hasPermission('EXPORT_CREATE')">
+          <Button variant="outline" size="sm" :loading="exportCreating === 'CSV'" :disabled="exportCreating !== null" @click="createExport('CSV')">
+            <FileSpreadsheet class="size-4" />导出 CSV
+          </Button>
+          <Button variant="outline" size="sm" :loading="exportCreating === 'JSON'" :disabled="exportCreating !== null" @click="createExport('JSON')">
+            导出 JSON
+          </Button>
+        </template>
+      </template>
+    </FilterBar>
+
+    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <Alert v-if="exportErrorMessage" variant="destructive"><AlertTitle>{{ exportErrorMessage }}</AlertTitle></Alert>
+
+    <!-- 导出任务票据 -->
+    <section
+      v-if="exportTask"
+      aria-live="polite"
+      class="grid gap-4 rounded-xl border border-border border-l-4 border-l-success bg-card p-4 shadow-sm lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.6fr)_auto] lg:items-center"
+    >
+      <div class="space-y-1">
+        <span class="eyebrow">导出任务 · {{ exportTask.format }}</span>
+        <div class="flex items-center gap-2">
+          <strong class="text-lg font-semibold text-foreground">{{ exportStatusText(exportTask.status) }}</strong>
+          <StatusPill :status="exportTask.status" />
         </div>
+        <span class="mono-evidence block text-xs text-muted-foreground">任务 {{ exportTask.id }}</span>
       </div>
-    </div>
-
-    <ElAlert v-if="errorMessage" :title="errorMessage" type="error" :closable="false" show-icon />
-    <ElAlert v-if="exportErrorMessage" :title="exportErrorMessage" type="error" :closable="false" show-icon />
-
-    <div v-if="exportTask" class="content-panel export-ticket" aria-live="polite">
-      <div>
-        <span class="eyebrow">EXPORT / {{ exportTask.format }}</span>
-        <strong>{{ exportStatusText(exportTask.status) }}</strong>
-        <span class="meta-line">任务 {{ exportTask.id }}</span>
-      </div>
-      <dl>
-        <div><dt>预计记录</dt><dd>{{ exportTask.requestedCount.toLocaleString('zh-CN') }}</dd></div>
-        <div><dt>已导出</dt><dd>{{ exportTask.exportedCount.toLocaleString('zh-CN') }}</dd></div>
-        <div><dt>创建时间</dt><dd>{{ formatDateTime(exportTask.createdAt) }}</dd></div>
-        <div><dt>过期时间</dt><dd>{{ formatDateTime(exportTask.expiresAt) }}</dd></div>
+      <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="space-y-0.5"><dt class="text-xs text-muted-foreground">预计记录</dt><dd class="text-sm font-medium tabular-nums">{{ exportTask.requestedCount.toLocaleString('zh-CN') }}</dd></div>
+        <div class="space-y-0.5"><dt class="text-xs text-muted-foreground">已导出</dt><dd class="text-sm font-medium tabular-nums">{{ exportTask.exportedCount.toLocaleString('zh-CN') }}</dd></div>
+        <div class="space-y-0.5"><dt class="text-xs text-muted-foreground">创建时间</dt><dd class="text-sm">{{ formatDateTime(exportTask.createdAt) }}</dd></div>
+        <div class="space-y-0.5"><dt class="text-xs text-muted-foreground">过期时间</dt><dd class="text-sm">{{ formatDateTime(exportTask.expiresAt) }}</dd></div>
       </dl>
-      <div class="export-ticket-action">
-        <span v-if="exportTask.errorMessage" class="danger-text">{{ exportTask.errorMessage }}</span>
-        <ElButton
+      <div class="flex flex-col items-start gap-2 lg:items-end">
+        <span v-if="exportTask.errorMessage" class="text-xs text-destructive">{{ exportTask.errorMessage }}</span>
+        <Button
           v-if="exportTask.downloadAvailable && exportTask.downloadToken"
-          type="primary"
           :loading="exportDownloading"
           @click="downloadExport"
-        >下载文件</ElButton>
+        >
+          <Download class="size-4" />下载文件
+        </Button>
       </div>
-    </div>
+    </section>
 
-    <div class="content-panel">
-      <div class="toolbar">
-        <strong>检索结果</strong>
-        <span class="meta-line">共 {{ result.totalElements.toLocaleString('zh-CN') }} 条</span>
-      </div>
-      <ElTable v-loading="loading" :data="result.items" empty-text="暂无符合条件的成果">
-        <ElTableColumn prop="title" label="题名" min-width="300">
-          <template #default="{ row }">
-            <RouterLink class="table-title" :to="'/catalog/achievements/' + row.id">{{ row.title }}</RouterLink>
-            <small>{{ row.doi || '无 DOI' }}</small>
-          </template>
-        </ElTableColumn>
-        <ElTableColumn label="作者" min-width="180">
-          <template #default="{ row }">{{ row.authors.join('；') || '—' }}</template>
-        </ElTableColumn>
-        <ElTableColumn prop="publicationDate" label="发表日期" width="120" />
-        <ElTableColumn prop="primaryVenue" label="期刊/来源" min-width="150" />
-        <ElTableColumn label="主题" min-width="160">
-          <template #default="{ row }">
-            <ElTag v-for="topic in row.topics.slice(0, 2)" :key="topic" size="small" effect="plain">{{ topic }}</ElTag>
-          </template>
-        </ElTableColumn>
-      </ElTable>
-      <div v-if="result.totalPages > 1" class="pagination-row">
-        <ElPagination
-          :current-page="result.page + 1"
-          :page-size="result.size"
-          :total="result.totalElements"
-          layout="prev, pager, next"
-          @current-change="(page: number) => load(page - 1)"
-        />
-      </div>
-    </div>
+    <PanelSection title="检索结果" :subtitle="`共 ${result.totalElements.toLocaleString('zh-CN')} 条`">
+      <template #actions><Library class="size-4 text-muted-foreground" aria-hidden="true" /></template>
+      <DataTable
+        :columns="columns"
+        :data="result.items"
+        :loading="loading"
+        :page="result.page"
+        :size="result.size"
+        :total="result.totalElements"
+        empty-text="暂无符合条件的成果"
+        :get-row-id="(row) => String(row.id)"
+        @update:page="load"
+      >
+        <template #cell-title="{ row }">
+          <RouterLink class="font-medium text-foreground hover:text-primary" :to="`/catalog/achievements/${row.id}`">
+            {{ row.title }}
+          </RouterLink>
+          <span class="mono-evidence mt-0.5 block text-xs text-muted-foreground">{{ row.doi || '无 DOI' }}</span>
+        </template>
+        <template #cell-authors="{ value }">
+          <span class="text-muted-foreground">{{ value || '—' }}</span>
+        </template>
+        <template #cell-topics="{ row }">
+          <div class="flex flex-wrap gap-1">
+            <Badge v-for="topic in row.topics.slice(0, 2)" :key="topic" variant="subtle">{{ topic }}</Badge>
+            <span v-if="!row.topics.length" class="text-muted-foreground">—</span>
+          </div>
+        </template>
+      </DataTable>
+    </PanelSection>
   </section>
 </template>

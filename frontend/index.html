@@ -1,12 +1,34 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f3efe3" />
-    <meta name="description" content="AACV System 阶段 1 工程基础与运行状态入口" />
-    <title>AACV System · 工程基础</title>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
+    <meta name="description" content="AACV System 学术成果采集、治理、图谱与分析平台" />
+    <title>AACV System · 学术成果平台</title>
+    <script>
+      // 防 FOUC：在首帧渲染前应用持久化主题或系统偏好
+      ;(function () {
+        try {
+          var stored = localStorage.getItem('aacv-theme')
+          var resolved =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+          var root = document.documentElement
+          root.setAttribute('data-theme', resolved)
+          root.classList.toggle('dark', resolved === 'dark')
+          root.style.colorScheme = resolved
+        } catch (e) {
+          /* noop */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
