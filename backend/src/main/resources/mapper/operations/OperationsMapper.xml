@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.operations.infrastructure.persistence.OperationsMapper">
+    <sql id="alertColumns">
+        id, alert_type, severity, status, subject_type, subject_id, dedup_key,
+        summary, evidence_json, detected_signal_at, first_detected_at, last_detected_at,
+        occurrence_count, acknowledged_by, acknowledged_at, acknowledgement_reason, version
+    </sql>
+
+    <select id="countActiveCrawlRuns" resultType="long">
+        SELECT COUNT(*) FROM crawl_run
+        WHERE status IN ('PENDING', 'RUNNING', 'PAUSING', 'PAUSED', 'CANCELLING')
+    </select>
+
+    <select id="countRecentUnresolvedCrawlFailures" resultType="long">
+        SELECT COUNT(*) FROM crawl_failure
+        WHERE resolved = FALSE AND created_at &gt;= #{since}
+    </select>
+
+    <select id="countOpenAlerts" resultType="long">
+        SELECT COUNT(*) FROM alert_event WHERE status = 'OPEN'
+    </select>
+
+    <select id="findSourceFailureSignals"
+            resultType="com.aacv.system.operations.application.port.OperationsRepository$SourceFailureSignal">
+        SELECT id AS source_id, consecutive_failures, last_failure_at
+        FROM data_source
+        WHERE consecutive_failures &gt;= #{threshold} AND last_failure_at IS NOT NULL
+        ORDER BY id
+    </select>
+
+    <select id="findParseRateSignals"
+            resultType="com.aacv.system.operations.application.port.OperationsRepository$ParseRateSignal">
+        WITH ranked_run AS (
+            SELECT r.task_id, r.id AS run_id, r.read_count, r.parsed_count, r.finished_at,
+                   ROW_NUMBER() OVER (PARTITION BY r.task_id ORDER BY r.finished_at DESC, r.id DESC) AS run_rank
+            FROM crawl_run r
+            WHERE r.finished_at IS NOT NULL
+              AND r.status IN ('SUCCEEDED', 'PARTIAL_SUCCESS', 'FAILED', 'CANCELLED')
+        )
+        SELECT task_id, run_id, read_count, parsed_count,
+               CAST(parsed_count / read_count AS DECIMAL(10, 6)) AS success_rate,
+               finished_at
+        FROM ranked_run
+        WHERE run_rank = 1
+          AND read_count &gt;= #{minimumRecords}
+          AND parsed_count / read_count &lt; #{successRateThreshold}
+        ORDER BY task_id
+    </select>
+
+    <select id="latestGraphSignalAt" resultType="java.time.Instant">
+        SELECT MAX(updated_at) FROM graph_outbox_event
+        WHERE status IN ('PENDING', 'PROCESSING', 'DEAD')
+    </select>
+
+    <select id="findOpenByDedupKey" resultType="com.aacv.system.operations.infrastructure.persistence.AlertEventRow">
+        SELECT <include refid="alertColumns"/> FROM alert_event
+        WHERE dedup_key = #{dedupKey} AND status = 'OPEN'
+    </select>
+
+    <select id="findLatestByDedupKey" resultType="com.aacv.system.operations.infrastructure.persistence.AlertEventRow">
+        SELECT <include refid="alertColumns"/> FROM alert_event
+        WHERE dedup_key = #{dedupKey}
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <select id="findById" resultType="com.aacv.system.operations.infrastructure.persistence.AlertEventRow">
+        SELECT <include refid="alertColumns"/> FROM alert_event WHERE id = #{alertId}
+    </select>
+
+    <select id="lockById" resultType="com.aacv.system.operations.infrastructure.persistence.AlertEventRow">
+        SELECT <include refid="alertColumns"/> FROM alert_event WHERE id = #{alertId} FOR UPDATE
+    </select>
+
+    <insert id="insertOpen" parameterType="com.aacv.system.operations.infrastructure.persistence.AlertEventRow">
+        INSERT INTO alert_event (
+            alert_type, severity, status, subject_type, subject_id, dedup_key, summary,
+            evidence_json, detected_signal_at, first_detected_at, last_detected_at, occurrence_count, version
+        ) VALUES (
+            #{alertType}, #{severity}, 'OPEN', #{subjectType}, #{subjectId}, #{dedupKey}, #{summary},
+            CAST(#{evidenceJson} AS JSON), #{detectedSignalAt}, #{firstDetectedAt}, #{lastDetectedAt}, 1, 0
+        )
+        ON DUPLICATE KEY UPDATE id = id
+    </insert>
+
+    <update id="updateDetection">
+        UPDATE alert_event
+        SET severity = #{severity}, summary = #{summary}, evidence_json = CAST(#{evidenceJson} AS JSON),
+            detected_signal_at = #{detectedSignalAt}, last_detected_at = #{detectedAt},
+            occurrence_count = occurrence_count + 1, version = version + 1
+        WHERE id = #{alertId} AND status = 'OPEN' AND version = #{expectedVersion}
+    </update>
+
+    <update id="acknowledge">
+        UPDATE alert_event
+        SET status = 'ACKNOWLEDGED', acknowledged_by = #{actorId}, acknowledged_at = #{acknowledgedAt},
+            acknowledgement_reason = #{reason}, version = version + 1
+        WHERE id = #{alertId} AND status = 'OPEN' AND version = #{expectedVersion}
+    </update>
+
+    <select id="countAlerts" resultType="long">
+        SELECT COUNT(*) FROM alert_event
+        <where>
+            <if test="status != null">status = #{status}</if>
+            <if test="type != null">
+                <if test="status != null">AND</if>
+                alert_type = #{type}
+            </if>
+        </where>
+    </select>
+
+    <select id="findAlerts" resultType="com.aacv.system.operations.infrastructure.persistence.AlertEventRow">
+        SELECT <include refid="alertColumns"/> FROM alert_event
+        <where>
+            <if test="status != null">status = #{status}</if>
+            <if test="type != null">
+                <if test="status != null">AND</if>
+                alert_type = #{type}
+            </if>
+        </where>
+        ORDER BY last_detected_at DESC, id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+</mapper>

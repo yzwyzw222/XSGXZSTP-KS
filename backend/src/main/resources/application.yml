@@ -1,0 +1,105 @@
+spring:
+  config:
+    import: "optional:file:../.env[.properties],optional:file:.env[.properties]"
+  application:
+    name: aacv-system
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
+  datasource:
+    url: ${AACV_DB_URL:jdbc:mysql://127.0.0.1:3306/aacv_system?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${AACV_DB_USERNAME}
+    password: ${AACV_DB_PASSWORD}
+    hikari:
+      connection-timeout: 5000
+      minimum-idle: 1
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-migration-naming: true
+  session:
+    timeout: 30m
+    jdbc:
+      initialize-schema: never
+  neo4j:
+    uri: ${AACV_NEO4J_URI:bolt://127.0.0.1:7687}
+    connection-timeout: ${AACV_NEO4J_CONNECTION_TIMEOUT:5s}
+    max-transaction-retry-time: ${AACV_NEO4J_MAX_TRANSACTION_RETRY_TIME:5s}
+    authentication:
+      username: ${AACV_NEO4J_USERNAME:neo4j}
+      password: ${AACV_NEO4J_PASSWORD}
+    pool:
+      connection-acquisition-timeout: ${AACV_NEO4J_CONNECTION_ACQUISITION_TIMEOUT:5s}
+  quartz:
+    job-store-type: jdbc
+    jdbc:
+      initialize-schema: never
+    properties:
+      org.quartz.scheduler.instanceName: aacvScheduler
+      org.quartz.scheduler.instanceId: NON_CLUSTERED
+      org.quartz.jobStore.isClustered: false
+      org.quartz.threadPool.threadCount: 2
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
+server:
+  address: ${AACV_SERVER_ADDRESS:127.0.0.1}
+  port: ${AACV_SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+        graph:
+          include: neo4j,graphSchema
+
+logging:
+  structured:
+    format:
+      console: ecs
+
+aacv:
+  operations:
+    alerts-enabled: true
+    alert-evaluation-interval-seconds: 60
+    consecutive-failure-threshold: 3
+    parse-minimum-records: 20
+    parse-success-rate-threshold: 0.80
+    graph-backlog-seconds: 300
+  export:
+    root-directory: ${AACV_EXPORT_ROOT:${java.io.tmpdir}/aacv-system/exports}
+    max-records: 10000
+    user-active-limit: 2
+    concurrency: 2
+    queue-capacity: 20
+    retention-hours: 24
+  graph:
+    outbox:
+      enabled: ${AACV_GRAPH_OUTBOX_ENABLED:true}
+  bootstrap-admin:
+    enabled: ${AACV_BOOTSTRAP_ADMIN_ENABLED:false}
+    username: ${AACV_BOOTSTRAP_ADMIN_USERNAME:}
+    password: ${AACV_BOOTSTRAP_ADMIN_PASSWORD:}

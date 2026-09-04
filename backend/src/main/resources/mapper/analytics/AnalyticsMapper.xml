@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.analytics.infrastructure.persistence.AnalyticsMapper">
+    <sql id="scopedAchievementCte">
+        WITH scoped_achievement AS (
+            SELECT achievement.id,
+                   COALESCE(JSON_UNQUOTE(type_override.field_value), achievement.achievement_type)
+                       AS achievement_type,
+                   YEAR(COALESCE(
+                       STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                       achievement.publication_date)) AS publication_year,
+                   achievement.updated_at
+            FROM achievement
+            LEFT JOIN canonical_entity_link member_link
+                   ON member_link.entity_type = 'ACHIEVEMENT'
+                  AND member_link.entity_id = achievement.id
+            LEFT JOIN manual_field_override type_override
+                   ON type_override.achievement_id = achievement.id
+                  AND type_override.field_name = 'type'
+                  AND type_override.active = TRUE
+            LEFT JOIN manual_field_override date_override
+                   ON date_override.achievement_id = achievement.id
+                  AND date_override.field_name = 'publicationDate'
+                  AND date_override.active = TRUE
+            WHERE member_link.entity_id IS NULL
+            <if test="query.publicationYearFrom != null">
+                AND YEAR(COALESCE(
+                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                    achievement.publication_date)) &gt;= #{query.publicationYearFrom}
+            </if>
+            <if test="query.publicationYearTo != null">
+                AND YEAR(COALESCE(
+                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                    achievement.publication_date)) &lt;= #{query.publicationYearTo}
+            </if>
+            <if test="query.achievementType != null">
+                AND COALESCE(JSON_UNQUOTE(type_override.field_value), achievement.achievement_type)
+                    = #{query.achievementType}
+            </if>
+            <if test="query.sourceType != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM achievement_source source_relation
+                    JOIN data_source source_value ON source_value.id = source_relation.source_id
+                    LEFT JOIN canonical_entity_link source_achievement_link
+                           ON source_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND source_achievement_link.entity_id = source_relation.achievement_id
+                    WHERE COALESCE(
+                              source_achievement_link.canonical_entity_id,
+                              source_relation.achievement_id) = achievement.id
+                      AND source_value.source_type = #{query.sourceType}
+                )
+            </if>
+            <if test="query.organizationId != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM authorship_organization organization_relation
+                    LEFT JOIN canonical_entity_link organization_achievement_link
+                           ON organization_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND organization_achievement_link.entity_id = organization_relation.achievement_id
+                    LEFT JOIN canonical_entity_link organization_link
+                           ON organization_link.entity_type = 'ORGANIZATION'
+                          AND organization_link.entity_id = organization_relation.organization_id
+                    WHERE COALESCE(
+                              organization_achievement_link.canonical_entity_id,
+                              organization_relation.achievement_id) = achievement.id
+                      AND COALESCE(
+                              organization_link.canonical_entity_id,
+                              organization_relation.organization_id) = #{query.organizationId}
+                )
+            </if>
+            <if test="query.topicId != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM achievement_subject topic_relation
+                    LEFT JOIN canonical_entity_link topic_achievement_link
+                           ON topic_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND topic_achievement_link.entity_id = topic_relation.achievement_id
+                    WHERE COALESCE(
+                              topic_achievement_link.canonical_entity_id,
+                              topic_relation.achievement_id) = achievement.id
+                      AND topic_relation.subject_id = #{query.topicId}
+                )
+            </if>
+        )
+    </sql>
+
+    <sql id="authorRelationCte">
+        , author_relation AS (
+            SELECT DISTINCT COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
+                                AS achievement_id,
+                            COALESCE(author_link.canonical_entity_id, relation_value.author_id) AS author_id
+            FROM achievement_author relation_value
+            LEFT JOIN canonical_entity_link achievement_link
+                   ON achievement_link.entity_type = 'ACHIEVEMENT'
+                  AND achievement_link.entity_id = relation_value.achievement_id
+            LEFT JOIN canonical_entity_link author_link
+                   ON author_link.entity_type = 'AUTHOR'
+                  AND author_link.entity_id = relation_value.author_id
+        )
+    </sql>
+
+    <sql id="organizationRelationCte">
+        , organization_relation AS (
+            SELECT DISTINCT COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
+                                AS achievement_id,
+                            COALESCE(organization_link.canonical_entity_id, relation_value.organization_id)
+                                AS organization_id
+            FROM authorship_organization relation_value
+            LEFT JOIN canonical_entity_link achievement_link
+                   ON achievement_link.entity_type = 'ACHIEVEMENT'
+                  AND achievement_link.entity_id = relation_value.achievement_id
+            LEFT JOIN canonical_entity_link organization_link
+                   ON organization_link.entity_type = 'ORGANIZATION'
+                  AND organization_link.entity_id = relation_value.organization_id
+        )
+    </sql>
+
+    <sql id="sourceRelationCte">
+        , source_relation AS (
+            SELECT DISTINCT COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
+                                AS achievement_id,
+                            relation_value.source_id
+            FROM achievement_source relation_value
+            LEFT JOIN canonical_entity_link achievement_link
+                   ON achievement_link.entity_type = 'ACHIEVEMENT'
+                  AND achievement_link.entity_id = relation_value.achievement_id
+        )
+    </sql>
+
+    <sql id="topicRelationCte">
+        , topic_relation AS (
+            SELECT DISTINCT COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
+                                AS achievement_id,
+                            relation_value.subject_id
+            FROM achievement_subject relation_value
+            LEFT JOIN canonical_entity_link achievement_link
+                   ON achievement_link.entity_type = 'ACHIEVEMENT'
+                  AND achievement_link.entity_id = relation_value.achievement_id
+        )
+    </sql>
+
+    <select id="overview"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        <include refid="authorRelationCte"/>
+        <include refid="organizationRelationCte"/>
+        <include refid="sourceRelationCte"/>
+        SELECT COUNT(DISTINCT scoped.id) AS achievement_count,
+               COUNT(DISTINCT authors.author_id) AS author_count,
+               COUNT(DISTINCT organizations.organization_id) AS organization_count,
+               COUNT(DISTINCT sources.source_id) AS source_count
+        FROM scoped_achievement scoped
+        LEFT JOIN author_relation authors ON authors.achievement_id = scoped.id
+        LEFT JOIN organization_relation organizations ON organizations.achievement_id = scoped.id
+        LEFT JOIN source_relation sources ON sources.achievement_id = scoped.id
+    </select>
+
+    <select id="trends"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        SELECT publication_year, COUNT(*) AS achievement_count
+        FROM scoped_achievement
+        WHERE publication_year IS NOT NULL
+        GROUP BY publication_year
+        ORDER BY publication_year
+    </select>
+
+    <select id="achievementTypes"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        SELECT COALESCE(achievement_type, 'UNKNOWN') AS item_key,
+               COALESCE(achievement_type, '未知') AS item_label,
+               COUNT(*) AS achievement_count
+        FROM scoped_achievement
+        GROUP BY achievement_type
+        ORDER BY achievement_count DESC, item_key
+    </select>
+
+    <select id="sources"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        <include refid="sourceRelationCte"/>
+        SELECT source_value.source_code AS item_key,
+               source_value.source_code AS item_label,
+               COUNT(DISTINCT scoped.id) AS achievement_count
+        FROM scoped_achievement scoped
+        JOIN source_relation relation_value ON relation_value.achievement_id = scoped.id
+        JOIN data_source source_value ON source_value.id = relation_value.source_id
+        GROUP BY source_value.id, source_value.source_code
+        ORDER BY achievement_count DESC, item_key
+    </select>
+
+    <select id="organizations"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        <include refid="organizationRelationCte"/>
+        SELECT CAST(organization.id AS CHAR) AS item_key,
+               COALESCE(organization.display_name, CONCAT('机构 ', organization.id)) AS item_label,
+               COUNT(DISTINCT scoped.id) AS achievement_count
+        FROM scoped_achievement scoped
+        JOIN organization_relation relation_value ON relation_value.achievement_id = scoped.id
+        JOIN organization ON organization.id = relation_value.organization_id
+        GROUP BY organization.id, organization.display_name
+        ORDER BY achievement_count DESC, organization.id
+        LIMIT 20
+    </select>
+
+    <select id="topics"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        <include refid="topicRelationCte"/>
+        SELECT CAST(subject.id AS CHAR) AS item_key,
+               subject.display_name AS item_label,
+               COUNT(DISTINCT scoped.id) AS achievement_count
+        FROM scoped_achievement scoped
+        JOIN topic_relation relation_value ON relation_value.achievement_id = scoped.id
+        JOIN subject ON subject.id = relation_value.subject_id
+        GROUP BY subject.id, subject.display_name
+        ORDER BY achievement_count DESC, subject.id
+        LIMIT 20
+    </select>
+
+    <select id="authorCollaboration"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        <include refid="authorRelationCte"/>
+        SELECT left_author.id AS left_id,
+               COALESCE(left_author.display_name, CONCAT('作者 ', left_author.id)) AS left_label,
+               right_author.id AS right_id,
+               COALESCE(right_author.display_name, CONCAT('作者 ', right_author.id)) AS right_label,
+               COUNT(DISTINCT scoped.id) AS shared_achievement_count
+        FROM scoped_achievement scoped
+        JOIN author_relation left_relation ON left_relation.achievement_id = scoped.id
+        JOIN author_relation right_relation
+          ON right_relation.achievement_id = scoped.id
+         AND right_relation.author_id &gt; left_relation.author_id
+        JOIN author left_author ON left_author.id = left_relation.author_id
+        JOIN author right_author ON right_author.id = right_relation.author_id
+        GROUP BY left_author.id, left_author.display_name, right_author.id, right_author.display_name
+        ORDER BY shared_achievement_count DESC, left_author.id, right_author.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="organizationCollaboration"
+            resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        <include refid="organizationRelationCte"/>
+        SELECT left_organization.id AS left_id,
+               COALESCE(left_organization.display_name, CONCAT('机构 ', left_organization.id)) AS left_label,
+               right_organization.id AS right_id,
+               COALESCE(right_organization.display_name, CONCAT('机构 ', right_organization.id)) AS right_label,
+               COUNT(DISTINCT scoped.id) AS shared_achievement_count
+        FROM scoped_achievement scoped
+        JOIN organization_relation left_relation ON left_relation.achievement_id = scoped.id
+        JOIN organization_relation right_relation
+          ON right_relation.achievement_id = scoped.id
+         AND right_relation.organization_id &gt; left_relation.organization_id
+        JOIN organization left_organization ON left_organization.id = left_relation.organization_id
+        JOIN organization right_organization ON right_organization.id = right_relation.organization_id
+        GROUP BY left_organization.id, left_organization.display_name,
+                 right_organization.id, right_organization.display_name
+        ORDER BY shared_achievement_count DESC, left_organization.id, right_organization.id
+        LIMIT #{limit}
+    </select>
+
+    <select id="lastUpdatedAt" resultType="java.time.Instant">
+        <include refid="scopedAchievementCte"/>
+        SELECT COALESCE(MAX(updated_at), UTC_TIMESTAMP(6))
+        FROM scoped_achievement
+    </select>
+</mapper>

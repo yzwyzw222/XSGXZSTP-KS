@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.identity.infrastructure.persistence.UserAccountMapper">
+    <resultMap id="userAccountRow" type="com.aacv.system.identity.infrastructure.persistence.UserAccountRow">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="status" column="status"/>
+        <result property="version" column="version"/>
+        <result property="credentialsChangedAt" column="credentials_changed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="userColumns">
+        id,
+        username,
+        password_hash,
+        status,
+        version,
+        credentials_changed_at,
+        created_at,
+        updated_at
+    </sql>
+
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*)
+        FROM sys_user
+    </select>
+
+    <select id="findById" resultMap="userAccountRow">
+        SELECT <include refid="userColumns"/>
+        FROM sys_user
+        WHERE id = #{userId}
+    </select>
+
+    <select id="findByUsername" resultMap="userAccountRow">
+        SELECT <include refid="userColumns"/>
+        FROM sys_user
+        WHERE username = #{username}
+    </select>
+
+    <select id="findPage" resultMap="userAccountRow">
+        SELECT <include refid="userColumns"/>
+        FROM sys_user
+        ORDER BY id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findRoleCodesByUserId" resultType="string">
+        SELECT role.role_code
+        FROM sys_user_role user_role
+        INNER JOIN sys_role role ON role.id = user_role.role_id
+        WHERE user_role.user_id = #{userId}
+        ORDER BY role.role_code
+    </select>
+
+    <select id="findRoleCodesByUserIds"
+            resultType="com.aacv.system.identity.infrastructure.persistence.UserRoleRow">
+        SELECT user_role.user_id AS userId,
+               role.role_code AS roleCode
+        FROM sys_user_role user_role
+        INNER JOIN sys_role role ON role.id = user_role.role_id
+        WHERE user_role.user_id IN
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+        ORDER BY user_role.user_id, role.role_code
+    </select>
+
+    <insert id="insertUser" parameterType="com.aacv.system.identity.infrastructure.persistence.UserAccountRow"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (
+            username,
+            password_hash,
+            status,
+            version,
+            credentials_changed_at,
+            created_at,
+            updated_at
+        )
+        VALUES (
+            #{username},
+            #{passwordHash},
+            #{status},
+            0,
+            #{credentialsChangedAt},
+            #{createdAt},
+            #{updatedAt}
+        )
+    </insert>
+
+    <insert id="insertUserRole">
+        INSERT INTO sys_user_role (user_id, role_id)
+        SELECT #{userId}, id
+        FROM sys_role
+        WHERE role_code = #{roleCode}
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE sys_user
+        SET status = #{status},
+            version = version + 1,
+            updated_at = #{now}
+        WHERE id = #{userId}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE sys_user
+        SET password_hash = #{passwordHash},
+            status = #{status},
+            credentials_changed_at = #{credentialsChangedAt},
+            version = version + 1,
+            updated_at = #{credentialsChangedAt}
+        WHERE id = #{userId}
+          AND version = #{expectedVersion}
+    </update>
+
+    <update id="incrementVersion">
+        UPDATE sys_user
+        SET version = version + 1,
+            updated_at = #{now}
+        WHERE id = #{userId}
+          AND version = #{expectedVersion}
+    </update>
+
+    <delete id="deleteUserRoles">
+        DELETE FROM sys_user_role
+        WHERE user_id = #{userId}
+    </delete>
+
+    <select id="acquireInitialAdminLock" resultType="integer">
+        SELECT GET_LOCK('aacv.initial-admin', #{timeoutSeconds})
+    </select>
+
+    <select id="releaseInitialAdminLock" resultType="integer">
+        SELECT RELEASE_LOCK('aacv.initial-admin')
+    </select>
+</mapper>

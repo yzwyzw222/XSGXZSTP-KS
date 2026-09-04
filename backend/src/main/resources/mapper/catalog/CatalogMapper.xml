@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.catalog.infrastructure.persistence.CatalogMapper">
+    <sql id="achievementFilters">
+        <where>
+            AND achievement_link.entity_id IS NULL
+            <if test="query.title != null">
+                AND LOCATE(
+                    LOWER(#{query.title}),
+                    LOWER(COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_normalized))
+                ) &gt; 0
+            </if>
+            <if test="query.author != null">
+                AND EXISTS (
+                    SELECT 1 FROM achievement_author aa
+                    LEFT JOIN canonical_entity_link member_link
+                           ON member_link.entity_type = 'ACHIEVEMENT'
+                          AND member_link.entity_id = aa.achievement_id
+                    LEFT JOIN canonical_entity_link author_link
+                           ON author_link.entity_type = 'AUTHOR'
+                          AND author_link.entity_id = aa.author_id
+                    JOIN author au ON au.id = COALESCE(author_link.canonical_entity_id, aa.author_id)
+                    WHERE COALESCE(member_link.canonical_entity_id, aa.achievement_id) = a.id
+                      AND LOCATE(LOWER(#{query.author}), LOWER(au.display_name)) &gt; 0
+                )
+            </if>
+            <if test="query.organization != null">
+                AND EXISTS (
+                    SELECT 1 FROM authorship_organization ao
+                    LEFT JOIN canonical_entity_link member_link
+                           ON member_link.entity_type = 'ACHIEVEMENT'
+                          AND member_link.entity_id = ao.achievement_id
+                    LEFT JOIN canonical_entity_link organization_link
+                           ON organization_link.entity_type = 'ORGANIZATION'
+                          AND organization_link.entity_id = ao.organization_id
+                    JOIN organization o
+                      ON o.id = COALESCE(organization_link.canonical_entity_id, ao.organization_id)
+                    WHERE COALESCE(member_link.canonical_entity_id, ao.achievement_id) = a.id
+                      AND LOCATE(LOWER(#{query.organization}), LOWER(o.display_name)) &gt; 0
+                )
+            </if>
+            <if test="query.publicationYear != null">
+                AND YEAR(COALESCE(
+                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                    a.publication_date
+                )) = #{query.publicationYear}
+            </if>
+            <if test="query.achievementType != null">
+                AND COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type)
+                    = #{query.achievementType}
+            </if>
+            <if test="query.sourceCode != null">
+                AND EXISTS (
+                    SELECT 1 FROM achievement_source axs
+                    JOIN data_source ds ON ds.id = axs.source_id
+                    LEFT JOIN canonical_entity_link member_link
+                           ON member_link.entity_type = 'ACHIEVEMENT'
+                          AND member_link.entity_id = axs.achievement_id
+                    WHERE COALESCE(member_link.canonical_entity_id, axs.achievement_id) = a.id
+                      AND ds.source_code = #{query.sourceCode}
+                )
+            </if>
+            <if test="query.venue != null">
+                AND LOCATE(LOWER(#{query.venue}), LOWER(v.display_name)) &gt; 0
+            </if>
+            <if test="query.topic != null">
+                AND EXISTS (
+                    SELECT 1 FROM achievement_subject ats
+                    JOIN subject subject_value ON subject_value.id = ats.subject_id
+                    LEFT JOIN canonical_entity_link member_link
+                           ON member_link.entity_type = 'ACHIEVEMENT'
+                          AND member_link.entity_id = ats.achievement_id
+                    WHERE COALESCE(member_link.canonical_entity_id, ats.achievement_id) = a.id
+                      AND LOCATE(LOWER(#{query.topic}), LOWER(subject_value.display_name)) &gt; 0
+                )
+            </if>
+            <if test="relatedId != null">
+                <choose>
+                    <when test="relatedKind == 'AUTHOR'">
+                        AND EXISTS (
+                            SELECT 1 FROM achievement_author x
+                            LEFT JOIN canonical_entity_link member_link
+                                   ON member_link.entity_type = 'ACHIEVEMENT'
+                                  AND member_link.entity_id = x.achievement_id
+                            LEFT JOIN canonical_entity_link related_link
+                                   ON related_link.entity_type = 'AUTHOR'
+                                  AND related_link.entity_id = x.author_id
+                            WHERE COALESCE(member_link.canonical_entity_id, x.achievement_id) = a.id
+                              AND COALESCE(related_link.canonical_entity_id, x.author_id) = #{relatedId}
+                        )
+                    </when>
+                    <when test="relatedKind == 'ORGANIZATION'">
+                        AND EXISTS (
+                            SELECT 1 FROM authorship_organization x
+                            LEFT JOIN canonical_entity_link member_link
+                                   ON member_link.entity_type = 'ACHIEVEMENT'
+                                  AND member_link.entity_id = x.achievement_id
+                            LEFT JOIN canonical_entity_link related_link
+                                   ON related_link.entity_type = 'ORGANIZATION'
+                                  AND related_link.entity_id = x.organization_id
+                            WHERE COALESCE(member_link.canonical_entity_id, x.achievement_id) = a.id
+                              AND COALESCE(related_link.canonical_entity_id, x.organization_id) = #{relatedId}
+                        )
+                    </when>
+                    <when test="relatedKind == 'VENUE'">
+                        AND COALESCE(venue_link.canonical_entity_id, effective_venue.id) = #{relatedId}
+                    </when>
+                    <when test="relatedKind == 'TOPIC'">
+                        AND EXISTS (
+                            SELECT 1 FROM achievement_topic x
+                            LEFT JOIN canonical_entity_link member_link
+                                   ON member_link.entity_type = 'ACHIEVEMENT'
+                                  AND member_link.entity_id = x.achievement_id
+                            WHERE COALESCE(member_link.canonical_entity_id, x.achievement_id) = a.id
+                              AND x.topic_id = #{relatedId}
+                        )
+                    </when>
+                </choose>
+            </if>
+        </where>
+    </sql>
+
+    <select id="countAchievements" resultType="long">
+        SELECT COUNT(*)
+        FROM achievement a
+        LEFT JOIN canonical_entity_link achievement_link
+               ON achievement_link.entity_type = 'ACHIEVEMENT' AND achievement_link.entity_id = a.id
+        LEFT JOIN manual_field_override title_override
+               ON title_override.achievement_id = a.id AND title_override.field_name = 'title' AND title_override.active = TRUE
+        LEFT JOIN manual_field_override type_override
+               ON type_override.achievement_id = a.id AND type_override.field_name = 'type' AND type_override.active = TRUE
+        LEFT JOIN manual_field_override date_override
+               ON date_override.achievement_id = a.id AND date_override.field_name = 'publicationDate' AND date_override.active = TRUE
+        LEFT JOIN manual_field_override venue_override
+               ON venue_override.achievement_id = a.id AND venue_override.field_name = 'venueId' AND venue_override.active = TRUE
+        LEFT JOIN venue effective_venue
+               ON effective_venue.id = COALESCE(CAST(JSON_UNQUOTE(venue_override.field_value) AS UNSIGNED), a.primary_venue_id)
+        LEFT JOIN canonical_entity_link venue_link
+               ON venue_link.entity_type = 'VENUE' AND venue_link.entity_id = effective_venue.id
+        LEFT JOIN venue v ON v.id = COALESCE(venue_link.canonical_entity_id, effective_venue.id)
+        <include refid="achievementFilters"/>
+    </select>
+
+    <select id="findAchievementPage"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT a.id,
+               COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_original) AS title,
+               a.doi_normalized AS doi,
+               COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type) AS achievement_type,
+               COALESCE(STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'), a.publication_date)
+                   AS publication_date,
+               v.display_name AS primary_venue
+        FROM achievement a
+        LEFT JOIN canonical_entity_link achievement_link
+               ON achievement_link.entity_type = 'ACHIEVEMENT' AND achievement_link.entity_id = a.id
+        LEFT JOIN manual_field_override title_override
+               ON title_override.achievement_id = a.id AND title_override.field_name = 'title' AND title_override.active = TRUE
+        LEFT JOIN manual_field_override type_override
+               ON type_override.achievement_id = a.id AND type_override.field_name = 'type' AND type_override.active = TRUE
+        LEFT JOIN manual_field_override date_override
+               ON date_override.achievement_id = a.id AND date_override.field_name = 'publicationDate' AND date_override.active = TRUE
+        LEFT JOIN manual_field_override venue_override
+               ON venue_override.achievement_id = a.id AND venue_override.field_name = 'venueId' AND venue_override.active = TRUE
+        LEFT JOIN venue effective_venue
+               ON effective_venue.id = COALESCE(CAST(JSON_UNQUOTE(venue_override.field_value) AS UNSIGNED), a.primary_venue_id)
+        LEFT JOIN canonical_entity_link venue_link
+               ON venue_link.entity_type = 'VENUE' AND venue_link.entity_id = effective_venue.id
+        LEFT JOIN venue v ON v.id = COALESCE(venue_link.canonical_entity_id, effective_venue.id)
+        <include refid="achievementFilters"/>
+        ORDER BY a.publication_date DESC, a.id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findAchievementBase"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT a.id,
+               COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_original) AS title,
+               a.doi_normalized AS doi,
+               COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type) AS achievement_type,
+               COALESCE(JSON_UNQUOTE(language_override.field_value), a.language) AS language,
+               COALESCE(STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'), a.publication_date)
+                   AS publication_date,
+               v.display_name AS primary_venue,
+               pd.abstract_text, COALESCE(pd.authorships_may_be_incomplete, FALSE) AS authorships_may_be_incomplete
+        FROM achievement requested
+        LEFT JOIN canonical_entity_link requested_link
+               ON requested_link.entity_type = 'ACHIEVEMENT' AND requested_link.entity_id = requested.id
+        JOIN achievement a ON a.id = COALESCE(requested_link.canonical_entity_id, requested.id)
+        LEFT JOIN manual_field_override title_override
+               ON title_override.achievement_id = a.id AND title_override.field_name = 'title' AND title_override.active = TRUE
+        LEFT JOIN manual_field_override type_override
+               ON type_override.achievement_id = a.id AND type_override.field_name = 'type' AND type_override.active = TRUE
+        LEFT JOIN manual_field_override language_override
+               ON language_override.achievement_id = a.id AND language_override.field_name = 'language' AND language_override.active = TRUE
+        LEFT JOIN manual_field_override date_override
+               ON date_override.achievement_id = a.id AND date_override.field_name = 'publicationDate' AND date_override.active = TRUE
+        LEFT JOIN manual_field_override venue_override
+               ON venue_override.achievement_id = a.id AND venue_override.field_name = 'venueId' AND venue_override.active = TRUE
+        LEFT JOIN venue effective_venue
+               ON effective_venue.id = COALESCE(CAST(JSON_UNQUOTE(venue_override.field_value) AS UNSIGNED), a.primary_venue_id)
+        LEFT JOIN canonical_entity_link venue_link
+               ON venue_link.entity_type = 'VENUE' AND venue_link.entity_id = effective_venue.id
+        LEFT JOIN venue v ON v.id = COALESCE(venue_link.canonical_entity_id, effective_venue.id)
+        LEFT JOIN paper_detail pd ON pd.achievement_id = a.id
+        WHERE requested.id = #{id}
+    </select>
+
+    <select id="findAchievementAuthors"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT COALESCE(member_link.canonical_entity_id, aa.achievement_id) AS achievement_id,
+               au.id AS entity_id, au.display_name,
+               openalex.external_id, orcid.external_id AS orcid, MIN(aa.author_position) AS position
+        FROM achievement_author aa
+        LEFT JOIN canonical_entity_link member_link
+               ON member_link.entity_type = 'ACHIEVEMENT' AND member_link.entity_id = aa.achievement_id
+        LEFT JOIN canonical_entity_link author_link
+               ON author_link.entity_type = 'AUTHOR' AND author_link.entity_id = aa.author_id
+        JOIN author au ON au.id = COALESCE(author_link.canonical_entity_id, aa.author_id)
+        LEFT JOIN author_external_id openalex
+               ON openalex.author_id = au.id AND openalex.id_type = 'OPENALEX'
+        LEFT JOIN author_external_id orcid
+               ON orcid.author_id = au.id AND orcid.id_type = 'ORCID'
+        WHERE COALESCE(member_link.canonical_entity_id, aa.achievement_id) IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        GROUP BY COALESCE(member_link.canonical_entity_id, aa.achievement_id), au.id,
+                 au.display_name, openalex.external_id, orcid.external_id
+        ORDER BY achievement_id, position, au.id
+    </select>
+
+    <select id="findAchievementTopics"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT COALESCE(member_link.canonical_entity_id, ats.achievement_id) AS achievement_id,
+               subject_value.id AS entity_id, subject_value.external_id,
+               subject_value.display_name, MIN(ats.subject_position) AS position
+        FROM achievement_subject ats
+        LEFT JOIN canonical_entity_link member_link
+               ON member_link.entity_type = 'ACHIEVEMENT' AND member_link.entity_id = ats.achievement_id
+        JOIN subject subject_value ON subject_value.id = ats.subject_id
+        WHERE COALESCE(member_link.canonical_entity_id, ats.achievement_id) IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        GROUP BY COALESCE(member_link.canonical_entity_id, ats.achievement_id),
+                 subject_value.id, subject_value.external_id, subject_value.display_name
+        ORDER BY achievement_id, position, subject_value.id
+    </select>
+
+    <select id="findAuthorshipOrganizations"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT COALESCE(member_link.canonical_entity_id, ao.achievement_id) AS achievement_id,
+               canonical_author.id AS entity_id,
+               o.id AS organization_id, o.openalex_id AS organization_external_id,
+               o.display_name AS organization_name
+        FROM authorship_organization ao
+        LEFT JOIN canonical_entity_link member_link
+               ON member_link.entity_type = 'ACHIEVEMENT' AND member_link.entity_id = ao.achievement_id
+        LEFT JOIN canonical_entity_link author_link
+               ON author_link.entity_type = 'AUTHOR' AND author_link.entity_id = ao.author_id
+        JOIN author canonical_author ON canonical_author.id = COALESCE(author_link.canonical_entity_id, ao.author_id)
+        LEFT JOIN canonical_entity_link organization_link
+               ON organization_link.entity_type = 'ORGANIZATION' AND organization_link.entity_id = ao.organization_id
+        JOIN organization o ON o.id = COALESCE(organization_link.canonical_entity_id, ao.organization_id)
+        WHERE COALESCE(member_link.canonical_entity_id, ao.achievement_id) = #{id}
+        GROUP BY COALESCE(member_link.canonical_entity_id, ao.achievement_id),
+                 canonical_author.id, o.id, o.openalex_id, o.display_name
+        ORDER BY canonical_author.id, o.id
+    </select>
+
+    <select id="findAchievementSources"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT axs.id, axs.raw_record_id, ds.source_code, axs.external_record_id,
+               axs.source_url, axs.parser_version, axs.first_seen_at, axs.last_seen_at
+        FROM achievement_source axs
+        JOIN data_source ds ON ds.id = axs.source_id
+        LEFT JOIN canonical_entity_link member_link
+               ON member_link.entity_type = 'ACHIEVEMENT' AND member_link.entity_id = axs.achievement_id
+        WHERE COALESCE(member_link.canonical_entity_id, axs.achievement_id) = #{id}
+        ORDER BY ds.source_code, axs.external_record_id, axs.id
+    </select>
+
+    <select id="findAchievementReferences"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT reference_value.referenced_external_work_id
+        FROM achievement_reference reference_value
+        LEFT JOIN canonical_entity_link member_link
+               ON member_link.entity_type = 'ACHIEVEMENT'
+              AND member_link.entity_id = reference_value.citing_achievement_id
+        WHERE COALESCE(member_link.canonical_entity_id, reference_value.citing_achievement_id) = #{id}
+        GROUP BY reference_value.referenced_external_work_id
+        ORDER BY referenced_external_work_id
+    </select>
+
+    <select id="findAchievementFieldStates"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT provenance.field_name,
+               source.source_code,
+               provenance.raw_record_id,
+               FALSE AS manual_override
+        FROM entity_field_provenance provenance
+        JOIN data_source source ON source.id = provenance.source_id
+        WHERE provenance.entity_type = 'ACHIEVEMENT'
+          AND provenance.entity_id = #{id}
+          AND provenance.selected = TRUE
+        UNION ALL
+        SELECT field_name, NULL, NULL, TRUE
+        FROM manual_field_override
+        WHERE achievement_id = #{id} AND active = TRUE
+        ORDER BY field_name, manual_override DESC
+    </select>
+
+    <select id="countEntities" resultType="long">
+        <choose>
+            <when test="kind == 'AUTHOR'">
+                SELECT COUNT(*) FROM author e
+                LEFT JOIN canonical_entity_link entity_link
+                       ON entity_link.entity_type = 'AUTHOR' AND entity_link.entity_id = e.id
+                WHERE entity_link.entity_id IS NULL
+                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+            </when>
+            <when test="kind == 'ORGANIZATION'">
+                SELECT COUNT(*) FROM organization e
+                LEFT JOIN canonical_entity_link entity_link
+                       ON entity_link.entity_type = 'ORGANIZATION' AND entity_link.entity_id = e.id
+                WHERE entity_link.entity_id IS NULL
+                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+            </when>
+            <when test="kind == 'VENUE'">
+                SELECT COUNT(*) FROM venue e
+                LEFT JOIN canonical_entity_link entity_link
+                       ON entity_link.entity_type = 'VENUE' AND entity_link.entity_id = e.id
+                WHERE entity_link.entity_id IS NULL
+                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+            </when>
+            <otherwise>
+                SELECT COUNT(*) FROM topic e
+                <if test="name != null">WHERE LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="findEntityPage"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        <choose>
+            <when test="kind == 'AUTHOR'">
+                SELECT e.id, openalex.external_id, e.display_name, 'AUTHOR' AS entity_type,
+                       COUNT(DISTINCT relation_value.achievement_id) AS achievement_count
+                FROM author e
+                LEFT JOIN canonical_entity_link entity_link
+                       ON entity_link.entity_type = 'AUTHOR' AND entity_link.entity_id = e.id
+                LEFT JOIN author_external_id openalex
+                       ON openalex.author_id = e.id AND openalex.id_type = 'OPENALEX'
+                LEFT JOIN (
+                    SELECT COALESCE(author_link.canonical_entity_id, aa.author_id) AS entity_id,
+                           COALESCE(achievement_link.canonical_entity_id, aa.achievement_id) AS achievement_id
+                    FROM achievement_author aa
+                    LEFT JOIN canonical_entity_link author_link
+                           ON author_link.entity_type = 'AUTHOR' AND author_link.entity_id = aa.author_id
+                    LEFT JOIN canonical_entity_link achievement_link
+                           ON achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND achievement_link.entity_id = aa.achievement_id
+                ) relation_value ON relation_value.entity_id = e.id
+                WHERE entity_link.entity_id IS NULL
+                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+                GROUP BY e.id, openalex.external_id, e.display_name
+            </when>
+            <when test="kind == 'ORGANIZATION'">
+                SELECT e.id, e.openalex_id AS external_id, e.display_name,
+                       e.organization_type AS entity_type,
+                       COUNT(DISTINCT relation_value.achievement_id) AS achievement_count
+                FROM organization e
+                LEFT JOIN canonical_entity_link entity_link
+                       ON entity_link.entity_type = 'ORGANIZATION' AND entity_link.entity_id = e.id
+                LEFT JOIN (
+                    SELECT COALESCE(organization_link.canonical_entity_id, ao.organization_id) AS entity_id,
+                           COALESCE(achievement_link.canonical_entity_id, ao.achievement_id) AS achievement_id
+                    FROM authorship_organization ao
+                    LEFT JOIN canonical_entity_link organization_link
+                           ON organization_link.entity_type = 'ORGANIZATION'
+                          AND organization_link.entity_id = ao.organization_id
+                    LEFT JOIN canonical_entity_link achievement_link
+                           ON achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND achievement_link.entity_id = ao.achievement_id
+                ) relation_value ON relation_value.entity_id = e.id
+                WHERE entity_link.entity_id IS NULL
+                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+                GROUP BY e.id, e.openalex_id, e.display_name, e.organization_type
+            </when>
+            <when test="kind == 'VENUE'">
+                SELECT e.id, e.openalex_id AS external_id, e.display_name,
+                       e.venue_type AS entity_type,
+                       COUNT(DISTINCT relation_value.achievement_id) AS achievement_count
+                FROM venue e
+                LEFT JOIN canonical_entity_link entity_link
+                       ON entity_link.entity_type = 'VENUE' AND entity_link.entity_id = e.id
+                LEFT JOIN (
+                    SELECT COALESCE(venue_link.canonical_entity_id, a.primary_venue_id) AS entity_id,
+                           COALESCE(achievement_link.canonical_entity_id, a.id) AS achievement_id
+                    FROM achievement a
+                    LEFT JOIN canonical_entity_link venue_link
+                           ON venue_link.entity_type = 'VENUE' AND venue_link.entity_id = a.primary_venue_id
+                    LEFT JOIN canonical_entity_link achievement_link
+                           ON achievement_link.entity_type = 'ACHIEVEMENT' AND achievement_link.entity_id = a.id
+                ) relation_value ON relation_value.entity_id = e.id
+                WHERE entity_link.entity_id IS NULL
+                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+                GROUP BY e.id, e.openalex_id, e.display_name, e.venue_type
+            </when>
+            <otherwise>
+                SELECT e.id, e.openalex_id AS external_id, e.display_name,
+                       'TOPIC' AS entity_type,
+                       COUNT(DISTINCT COALESCE(achievement_link.canonical_entity_id, atp.achievement_id))
+                           AS achievement_count
+                FROM topic e
+                LEFT JOIN achievement_topic atp ON atp.topic_id = e.id
+                LEFT JOIN canonical_entity_link achievement_link
+                       ON achievement_link.entity_type = 'ACHIEVEMENT'
+                      AND achievement_link.entity_id = atp.achievement_id
+                <if test="name != null">WHERE LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+                GROUP BY e.id, e.openalex_id, e.display_name
+            </otherwise>
+        </choose>
+        ORDER BY display_name, id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+</mapper>

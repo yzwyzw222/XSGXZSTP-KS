@@ -1,0 +1,12 @@
+CREATE CONSTRAINT aacv_achievement_business_id IF NOT EXISTS FOR (node:Achievement) REQUIRE node.businessId IS UNIQUE;
+CREATE CONSTRAINT aacv_author_business_id IF NOT EXISTS FOR (node:Author) REQUIRE node.businessId IS UNIQUE;
+CREATE CONSTRAINT aacv_institution_business_id IF NOT EXISTS FOR (node:Institution) REQUIRE node.businessId IS UNIQUE;
+CREATE CONSTRAINT aacv_venue_business_id IF NOT EXISTS FOR (node:Venue) REQUIRE node.businessId IS UNIQUE;
+CREATE CONSTRAINT aacv_topic_business_id IF NOT EXISTS FOR (node:Topic) REQUIRE node.businessId IS UNIQUE;
+CREATE INDEX aacv_achievement_doi IF NOT EXISTS FOR (node:Achievement) ON (node.doi);
+CREATE INDEX aacv_achievement_publication_date IF NOT EXISTS FOR (node:Achievement) ON (node.publicationDate);
+CREATE INDEX aacv_achievement_type IF NOT EXISTS FOR (node:Achievement) ON (node.achievementType);
+CREATE INDEX aacv_author_orcid IF NOT EXISTS FOR (node:Author) ON (node.orcid);
+CREATE INDEX aacv_institution_standard_code IF NOT EXISTS FOR (node:Institution) ON (node.standardCode);
+CREATE INDEX aacv_venue_issn IF NOT EXISTS FOR (node:Venue) ON (node.issn);
+CREATE INDEX aacv_topic_code IF NOT EXISTS FOR (node:Topic) ON (node.code);

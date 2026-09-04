@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.governance.infrastructure.persistence.GovernanceMapper">
+    <sql id="candidateColumns">
+        id, entity_type, left_entity_id, right_entity_id, match_basis,
+        CAST(evidence_json AS CHAR CHARACTER SET utf8mb4) AS evidence_json,
+        status, source_id, rule_version, version, created_at, updated_at
+    </sql>
+    <sql id="candidateWhere">
+        <where>
+            <if test="query.entityType != null">AND entity_type = #{query.entityType}</if>
+            <if test="query.status != null">AND status = #{query.status}</if>
+            <if test="query.sourceId != null">AND source_id = #{query.sourceId}</if>
+            <if test="query.ruleVersion != null">AND rule_version = #{query.ruleVersion}</if>
+            <if test="query.createdFrom != null">AND created_at &gt;= #{query.createdFrom}</if>
+            <if test="query.createdTo != null">AND created_at &lt;= #{query.createdTo}</if>
+        </where>
+    </sql>
+    <select id="countCandidates" resultType="long">
+        SELECT COUNT(*) FROM duplicate_candidate
+        <include refid="candidateWhere"/>
+    </select>
+    <select id="findCandidates"
+            resultType="com.aacv.system.governance.infrastructure.persistence.CandidateRow">
+        SELECT <include refid="candidateColumns"/>
+        FROM duplicate_candidate
+        <include refid="candidateWhere"/>
+        ORDER BY id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+    <select id="findCandidate"
+            resultType="com.aacv.system.governance.infrastructure.persistence.CandidateRow">
+        SELECT <include refid="candidateColumns"/> FROM duplicate_candidate WHERE id = #{candidateId}
+    </select>
+    <select id="lockCandidate"
+            resultType="com.aacv.system.governance.infrastructure.persistence.CandidateRow">
+        SELECT <include refid="candidateColumns"/>
+        FROM duplicate_candidate WHERE id = #{candidateId} FOR UPDATE
+    </select>
+    <select id="countEntity" resultType="int">
+        <choose>
+            <when test="entityType == 'ACHIEVEMENT'">SELECT COUNT(*) FROM achievement WHERE id = #{entityId}</when>
+            <when test="entityType == 'AUTHOR'">SELECT COUNT(*) FROM author WHERE id = #{entityId}</when>
+            <when test="entityType == 'ORGANIZATION'">SELECT COUNT(*) FROM organization WHERE id = #{entityId}</when>
+            <otherwise>SELECT COUNT(*) FROM venue WHERE id = #{entityId}</otherwise>
+        </choose>
+    </select>
+    <select id="countCanonicalLink" resultType="int">
+        SELECT COUNT(*) FROM canonical_entity_link
+        WHERE entity_type = #{entityType} AND entity_id = #{entityId}
+    </select>
+    <update id="updateCandidateStatus">
+        UPDATE duplicate_candidate
+        SET status = #{status}, version = version + 1, updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{candidateId} AND version = #{expectedVersion}
+    </update>
+    <insert id="insertRevision" useGeneratedKeys="true" keyProperty="row.id">
+        INSERT INTO data_revision (
+            entity_type, entity_id, revision_action, before_json, after_json,
+            actor_user_id, reason, reversible, created_at
+        ) VALUES (
+            #{entityType}, #{entityId}, #{action}, #{beforeJson}, #{afterJson},
+            #{actorUserId}, #{reason}, #{reversible}, #{createdAt}
+        )
+    </insert>
+    <insert id="insertCanonicalLink">
+        INSERT INTO canonical_entity_link (
+            entity_type, entity_id, canonical_entity_id, revision_id
+        ) VALUES (#{entityType}, #{entityId}, #{canonicalEntityId}, #{revisionId})
+    </insert>
+    <delete id="deleteCanonicalLink">
+        DELETE FROM canonical_entity_link
+        WHERE entity_type = #{entityType} AND entity_id = #{entityId} AND revision_id = #{revisionId}
+    </delete>
+    <insert id="insertDecision" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO merge_decision (
+            candidate_id, decision, canonical_entity_id, revision_id,
+            actor_user_id, reason, decided_at
+        ) VALUES (
+            #{candidateId}, #{decision}, #{canonicalEntityId}, #{revisionId},
+            #{actorUserId}, #{reason}, #{decidedAt}
+        )
+    </insert>
+    <select id="findDecision"
+            resultType="com.aacv.system.governance.infrastructure.persistence.DecisionRow">
+        SELECT id, candidate_id, decision, canonical_entity_id, revision_id,
+               actor_user_id, reason, version, decided_at
+        FROM merge_decision WHERE id = #{decisionId}
+    </select>
+    <select id="lockDecision"
+            resultType="com.aacv.system.governance.infrastructure.persistence.DecisionRow">
+        SELECT id, candidate_id, decision, canonical_entity_id, revision_id,
+               actor_user_id, reason, version, decided_at
+        FROM merge_decision WHERE id = #{decisionId} FOR UPDATE
+    </select>
+    <select id="countLaterDecisions" resultType="int">
+        SELECT COUNT(*) FROM merge_decision WHERE candidate_id = #{candidateId} AND id &gt; #{decisionId}
+    </select>
+    <select id="countMergeDependencies" resultType="int">
+        SELECT COUNT(*) FROM canonical_entity_link
+        WHERE entity_type = #{entityType}
+          AND entity_id = #{canonicalEntityId}
+          AND revision_id != #{revisionId}
+    </select>
+    <select id="lockFieldOverride"
+            resultType="com.aacv.system.governance.infrastructure.persistence.OverrideRow">
+        SELECT id, achievement_id, field_name,
+               CAST(field_value AS CHAR CHARACTER SET utf8mb4) AS field_value,
+               revision_id, actor_user_id, reason, active, version, created_at, updated_at
+        FROM manual_field_override
+        WHERE achievement_id = #{achievementId} AND field_name = #{fieldName}
+        FOR UPDATE
+    </select>
+    <select id="lockFieldOverrideByRevision"
+            resultType="com.aacv.system.governance.infrastructure.persistence.OverrideRow">
+        SELECT id, achievement_id, field_name,
+               CAST(field_value AS CHAR CHARACTER SET utf8mb4) AS field_value,
+               revision_id, actor_user_id, reason, active, version, created_at, updated_at
+        FROM manual_field_override
+        WHERE achievement_id = #{achievementId} AND revision_id = #{revisionId}
+        FOR UPDATE
+    </select>
+    <insert id="insertFieldOverride" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO manual_field_override (
+            achievement_id, field_name, field_value, revision_id,
+            actor_user_id, reason, active, version, created_at, updated_at
+        ) VALUES (
+            #{achievementId}, #{fieldName}, #{fieldValue}, #{revisionId},
+            #{actorUserId}, #{reason}, #{active}, 0, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+    <update id="updateFieldOverride">
+        UPDATE manual_field_override
+        SET field_value = #{row.fieldValue},
+            revision_id = #{row.revisionId},
+            actor_user_id = #{row.actorUserId},
+            reason = #{row.reason},
+            active = #{row.active},
+            version = version + 1,
+            updated_at = #{row.updatedAt}
+        WHERE id = #{row.id} AND version = #{expectedVersion}
+    </update>
+    <select id="findFieldOverrideById"
+            resultType="com.aacv.system.governance.infrastructure.persistence.OverrideRow">
+        SELECT id, achievement_id, field_name,
+               CAST(field_value AS CHAR CHARACTER SET utf8mb4) AS field_value,
+               revision_id, actor_user_id, reason, active, version, created_at, updated_at
+        FROM manual_field_override WHERE id = #{overrideId}
+    </select>
+</mapper>

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.crawl.infrastructure.persistence.CrawlMapper">
+    <sql id="taskColumns">
+        id, source_id, task_name, parameter_version, parameters_json, parameter_hash, enabled, version,
+        created_by, created_at, updated_at
+    </sql>
+    <sql id="runColumns">
+        r.id, r.task_id, r.run_number, r.trigger_type, r.parent_run_id,
+        r.status, r.batch_job_execution_id,
+        r.read_count, r.parsed_count, r.created_count, r.updated_count,
+        r.duplicate_count, r.failure_count, r.request_count,
+        (SELECT c.cursor_value FROM crawl_checkpoint c
+         WHERE c.run_id = r.id ORDER BY c.committed_at DESC LIMIT 1) AS checkpoint,
+        r.started_at, r.finished_at, r.version
+    </sql>
+
+    <select id="countTasks" resultType="long">SELECT COUNT(*) FROM crawl_task</select>
+    <select id="countTaskName" resultType="int">
+        SELECT COUNT(*) FROM crawl_task WHERE source_id = #{sourceId} AND task_name = #{taskName}
+    </select>
+    <select id="findTaskPage" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlTaskRow">
+        SELECT <include refid="taskColumns"/> FROM crawl_task ORDER BY id LIMIT #{size} OFFSET #{offset}
+    </select>
+    <select id="findTaskById" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlTaskRow">
+        SELECT <include refid="taskColumns"/> FROM crawl_task WHERE id = #{id}
+    </select>
+    <select id="lockTaskById" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlTaskRow">
+        SELECT <include refid="taskColumns"/> FROM crawl_task WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="countTaskRuns" resultType="int">
+        SELECT COUNT(*) FROM crawl_run WHERE task_id = #{taskId}
+    </select>
+    <insert id="insertTask" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO crawl_task (
+            source_id, task_name, parameter_version, parameters_json, parameter_hash,
+            enabled, version, created_by, created_at, updated_at
+        ) VALUES (
+            #{sourceId}, #{taskName}, #{parameterVersion}, #{parametersJson}, #{parameterHash},
+            TRUE, 0, #{createdBy}, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+    <update id="updateTask">
+        UPDATE crawl_task
+        SET task_name = #{row.taskName},
+            parameters_json = #{row.parametersJson},
+            parameter_hash = #{row.parameterHash},
+            version = version + 1,
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{row.id} AND version = #{expectedVersion}
+    </update>
+    <select id="countActiveConflicts" resultType="int">
+        SELECT COUNT(*)
+        FROM crawl_run r
+        JOIN crawl_task t ON t.id = r.task_id
+        WHERE t.source_id = #{sourceId}
+          AND r.parameter_hash = #{parameterHash}
+          AND r.status IN ('PENDING', 'RUNNING', 'PAUSING', 'PAUSED', 'CANCELLING')
+    </select>
+    <insert id="insertPendingRun">
+        INSERT INTO crawl_run (
+            task_id, run_number, trigger_type, status, requested_by, parent_run_id, parameter_hash,
+            range_start, range_end, created_at, updated_at
+        ) VALUES (
+            #{taskId}, #{runNumber}, #{triggerType}, 'PENDING', #{requestedBy}, #{parentRunId}, #{parameterHash},
+            #{rangeStart}, #{rangeEnd}, #{createdAt}, #{createdAt}
+        )
+    </insert>
+    <select id="countRetryableFailures" resultType="int">
+        SELECT COUNT(*)
+        FROM (
+            SELECT f.id
+            FROM crawl_failure f
+            JOIN raw_record r ON r.id = f.raw_record_id
+            WHERE f.run_id = #{runId}
+              AND f.retryable = TRUE
+              AND f.resolved = FALSE
+              AND f.attempt_count &lt; 5
+              AND r.payload IS NOT NULL
+            ORDER BY f.id
+            LIMIT #{limit}
+        ) retry_candidates
+    </select>
+    <select id="countFailures" resultType="long">
+        SELECT COUNT(*) FROM crawl_failure WHERE run_id = #{runId}
+    </select>
+    <select id="findFailurePage"
+            resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlFailureRow">
+        SELECT id, run_id, raw_record_id, external_record_id, failure_stage,
+               error_category, safe_message, retryable, attempt_count, resolved,
+               evidence_hash, created_at, updated_at
+        FROM crawl_failure
+        WHERE run_id = #{runId}
+        ORDER BY id
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+    <select id="findRunByNumber" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlRunRow">
+        SELECT <include refid="runColumns"/> FROM crawl_run r WHERE r.run_number = #{runNumber}
+    </select>
+    <select id="findRunById" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlRunRow">
+        SELECT <include refid="runColumns"/> FROM crawl_run r WHERE r.id = #{runId}
+    </select>
+    <select id="lockRunById" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlRunRow">
+        SELECT <include refid="runColumns"/> FROM crawl_run r WHERE r.id = #{runId} FOR UPDATE
+    </select>
+    <select id="findCheckpoint" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlCheckpointRow">
+        SELECT cursor_value, committed_pages, committed_records, version
+        FROM crawl_checkpoint
+        WHERE run_id = #{runId} AND partition_key = 'default'
+    </select>
+    <select id="findControlIntent" resultType="string">
+        SELECT control_intent FROM crawl_run WHERE id = #{runId}
+    </select>
+    <update id="transitionRun">
+        UPDATE crawl_run
+        SET status = #{targetStatus},
+            control_intent = #{controlIntent},
+            batch_job_execution_id = COALESCE(#{batchJobExecutionId}, batch_job_execution_id),
+            started_at = CASE WHEN #{setStartedAt} THEN COALESCE(started_at, UTC_TIMESTAMP(6)) ELSE started_at END,
+            finished_at = CASE WHEN #{setFinishedAt} THEN UTC_TIMESTAMP(6) ELSE finished_at END,
+            version = version + 1,
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{runId} AND status = #{expectedStatus}
+    </update>
+    <update id="attachBatchExecution">
+        UPDATE crawl_run
+        SET batch_job_execution_id = #{batchJobExecutionId},
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{runId} AND status = #{expectedStatus}
+    </update>
+    <select id="findScheduleByTaskId" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlScheduleRow">
+        SELECT id, task_id, schedule_key, local_time, time_zone, incremental_mode,
+               next_fire_at, enabled, version
+        FROM crawl_schedule WHERE task_id = #{taskId}
+    </select>
+    <insert id="insertSchedule" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO crawl_schedule (
+            task_id, schedule_key, local_time, time_zone, incremental_mode,
+            next_fire_at, enabled, version, created_at, updated_at
+        ) VALUES (
+            #{taskId}, #{scheduleKey}, #{localTime}, #{timeZone}, #{incrementalMode},
+            #{nextFireAt}, TRUE, 0, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+        )
+    </insert>
+    <update id="updateSchedule">
+        UPDATE crawl_schedule
+        SET local_time = #{row.localTime}, time_zone = #{row.timeZone},
+            incremental_mode = #{row.incrementalMode},
+            next_fire_at = #{row.nextFireAt}, enabled = #{row.enabled},
+            version = version + 1, updated_at = UTC_TIMESTAMP(6)
+        WHERE task_id = #{row.taskId} AND version = #{expectedVersion}
+    </update>
+    <select id="findEnabledSchedules" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlScheduleRow">
+        SELECT id, task_id, schedule_key, local_time, time_zone, incremental_mode,
+               next_fire_at, enabled, version
+        FROM crawl_schedule
+        WHERE enabled = TRUE
+        ORDER BY id
+    </select>
+    <select id="findRecoveryCandidates" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlRecoveryCandidateRow">
+        SELECT r.id AS run_id,
+               r.status AS business_status,
+               r.batch_job_execution_id,
+               b.STATUS AS batch_status,
+               EXISTS(SELECT 1 FROM crawl_checkpoint c WHERE c.run_id = r.id) AS checkpoint_present
+        FROM crawl_run r
+        LEFT JOIN BATCH_JOB_EXECUTION b ON b.JOB_EXECUTION_ID = r.batch_job_execution_id
+        WHERE r.status IN ('RUNNING', 'PAUSING', 'CANCELLING')
+        ORDER BY r.id
+    </select>
+</mapper>

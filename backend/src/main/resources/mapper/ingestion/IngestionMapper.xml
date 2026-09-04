@@ -1,0 +1,525 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.ingestion.infrastructure.persistence.IngestionMapper">
+    <select id="findRawState" resultType="com.aacv.system.ingestion.infrastructure.persistence.RawRecordState">
+        SELECT id, payload_hash
+        FROM raw_record
+        WHERE source_id = #{sourceId} AND external_record_id = #{externalId}
+    </select>
+
+    <insert id="upsertRaw" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO raw_record (
+            source_id, run_id, external_record_id, source_url, fetched_at,
+            payload_hash, parser_version, parse_status, payload, payload_expires_at,
+            first_seen_at, last_seen_at
+        ) VALUES (
+            #{sourceId}, #{runId}, #{externalRecordId}, #{sourceUrl}, #{fetchedAt},
+            #{payloadHash}, #{parserVersion}, 'PENDING', #{payload}, #{payloadExpiresAt},
+            #{now}, #{now}
+        )
+        ON DUPLICATE KEY UPDATE
+            id = LAST_INSERT_ID(id),
+            source_url = VALUES(source_url),
+            fetched_at = VALUES(fetched_at),
+            payload_hash = VALUES(payload_hash),
+            parser_version = VALUES(parser_version),
+            parse_status = 'PENDING',
+            payload = VALUES(payload),
+            payload_expires_at = VALUES(payload_expires_at),
+            last_seen_at = VALUES(last_seen_at)
+    </insert>
+
+    <select id="findRetryableFailures"
+            resultType="com.aacv.system.ingestion.infrastructure.persistence.RetryFailureRow">
+        SELECT f.id AS failure_id,
+               ds.source_type,
+               r.external_record_id,
+               r.source_url,
+               CAST(r.payload AS CHAR CHARACTER SET utf8mb4) AS payload,
+               r.fetched_at
+        FROM crawl_failure f
+        JOIN raw_record r ON r.id = f.raw_record_id
+        JOIN data_source ds ON ds.id = r.source_id
+        WHERE f.run_id = #{runId}
+          AND f.retryable = TRUE
+          AND f.resolved = FALSE
+          AND f.attempt_count &lt; 5
+          AND r.payload IS NOT NULL
+        ORDER BY f.id
+        LIMIT #{limit}
+    </select>
+
+    <update id="recordRetryAttempt">
+        UPDATE crawl_failure
+        SET attempt_count = attempt_count + 1,
+            resolved = #{resolved},
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{failureId}
+          AND retryable = TRUE
+          AND resolved = FALSE
+          AND attempt_count &lt; 5
+    </update>
+
+    <update id="clearExpiredPayloads">
+        UPDATE raw_record
+        SET payload = NULL,
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id IN (
+            SELECT candidate.id
+            FROM (
+                SELECT id
+                FROM raw_record
+                WHERE payload IS NOT NULL
+                  AND payload_expires_at &lt;= #{expiredBefore}
+                ORDER BY id
+                LIMIT #{batchSize}
+            ) candidate
+        )
+    </update>
+
+    <update id="markRawParsed">
+        UPDATE raw_record SET parse_status = 'PARSED' WHERE id = #{id}
+    </update>
+    <update id="markRawFailed">
+        UPDATE raw_record SET parse_status = 'FAILED' WHERE id = #{id}
+    </update>
+
+    <select id="findAchievementBySource" resultType="long">
+        SELECT achievement_id
+        FROM achievement_source
+        WHERE source_id = #{sourceId} AND external_record_id = #{externalId}
+    </select>
+    <select id="findAchievementByDoi" resultType="long">
+        SELECT id FROM achievement WHERE doi_normalized = #{doi}
+    </select>
+
+    <insert id="upsertVenue">
+        INSERT INTO venue (openalex_id, display_name, issn_l, venue_type)
+        VALUES (#{externalId}, #{displayName}, #{issnL}, #{type})
+        ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name),
+            issn_l = VALUES(issn_l),
+            venue_type = VALUES(venue_type)
+    </insert>
+    <select id="findVenueId" resultType="long">
+        SELECT id FROM venue WHERE openalex_id = #{externalId}
+    </select>
+
+    <insert id="insertAchievement" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO achievement (
+            title_original, title_normalized, doi_normalized, match_fingerprint, fingerprint_version,
+            achievement_type, language, publication_date, date_precision,
+            primary_venue_id, first_seen_at, last_seen_at
+        ) VALUES (
+            #{work.titleOriginal}, #{work.titleNormalized}, #{work.doi}, #{work.matchFingerprint}, 1,
+            #{work.achievementType}, #{work.language}, #{work.publicationDate}, #{work.datePrecision},
+            #{venueId}, #{now}, #{now}
+        )
+    </insert>
+    <update id="updateAchievement">
+        UPDATE achievement
+        SET title_original = #{work.titleOriginal},
+            title_normalized = #{work.titleNormalized},
+            doi_normalized = COALESCE(#{work.doi}, doi_normalized),
+            match_fingerprint = #{work.matchFingerprint},
+            fingerprint_version = 1,
+            achievement_type = #{work.achievementType},
+            language = #{work.language},
+            publication_date = #{work.publicationDate},
+            date_precision = #{work.datePrecision},
+            primary_venue_id = #{venueId},
+            last_seen_at = #{now},
+            version = version + 1
+        WHERE id = #{id}
+    </update>
+    <insert id="upsertPaperDetail">
+        INSERT INTO paper_detail (achievement_id, abstract_text, authorships_may_be_incomplete)
+        VALUES (#{achievementId}, #{abstractText}, #{authorshipsMayBeIncomplete})
+        ON DUPLICATE KEY UPDATE
+            abstract_text = VALUES(abstract_text),
+            authorships_may_be_incomplete = VALUES(authorships_may_be_incomplete)
+    </insert>
+    <insert id="upsertAchievementSource">
+        INSERT INTO achievement_source (
+            achievement_id, source_id, raw_record_id, external_record_id,
+            source_url, parser_version, first_seen_at, last_seen_at
+        ) VALUES (
+            #{achievementId}, #{sourceId}, #{rawRecordId}, #{externalId},
+            #{sourceUrl}, #{parserVersion}, #{now}, #{now}
+        )
+        ON DUPLICATE KEY UPDATE
+            achievement_id = VALUES(achievement_id),
+            raw_record_id = VALUES(raw_record_id),
+            source_url = VALUES(source_url),
+            parser_version = VALUES(parser_version),
+            last_seen_at = VALUES(last_seen_at)
+    </insert>
+    <select id="findAchievementSourceId" resultType="long">
+        SELECT id
+        FROM achievement_source
+        WHERE source_id = #{sourceId} AND external_record_id = #{externalId}
+    </select>
+    <insert id="upsertAchievementSnapshot">
+        INSERT INTO achievement_source_snapshot (
+            achievement_source_id, normalized_payload, source_priority, observed_at
+        ) VALUES (
+            #{achievementSourceId}, #{normalizedPayload}, #{sourcePriority}, #{observedAt}
+        )
+        ON DUPLICATE KEY UPDATE
+            normalized_payload = VALUES(normalized_payload),
+            source_priority = VALUES(source_priority),
+            observed_at = VALUES(observed_at),
+            version = version + 1
+    </insert>
+    <select id="findAchievementSnapshots"
+            resultType="com.aacv.system.ingestion.infrastructure.persistence.SourceSnapshotRow">
+        SELECT source.id AS source_id,
+               achievement_source.raw_record_id,
+               source.source_type,
+               snapshot.source_priority,
+               CAST(snapshot.normalized_payload AS CHAR CHARACTER SET utf8mb4) AS normalized_payload
+        FROM achievement_source_snapshot snapshot
+        JOIN achievement_source ON achievement_source.id = snapshot.achievement_source_id
+        JOIN data_source source ON source.id = achievement_source.source_id
+        WHERE achievement_source.achievement_id = #{achievementId}
+        ORDER BY snapshot.source_priority, source.source_type, achievement_source.id
+    </select>
+    <update id="clearAchievementFieldSelection">
+        UPDATE entity_field_provenance
+        SET selected = FALSE,
+            version = version + 1
+        WHERE entity_type = 'ACHIEVEMENT'
+          AND entity_id = #{achievementId}
+          AND selected = TRUE
+    </update>
+    <insert id="upsertFieldProvenance">
+        INSERT INTO entity_field_provenance (
+            entity_type, entity_id, field_name, source_id, raw_record_id,
+            source_priority, field_value, selected, observed_at
+        ) VALUES (
+            #{entityType}, #{entityId}, #{fieldName}, #{sourceId}, #{rawRecordId},
+            #{sourcePriority}, #{fieldValue}, #{selected}, #{observedAt}
+        )
+        ON DUPLICATE KEY UPDATE
+            source_priority = VALUES(source_priority),
+            field_value = VALUES(field_value),
+            selected = VALUES(selected),
+            observed_at = VALUES(observed_at),
+            version = version + 1
+    </insert>
+
+    <delete id="deleteAuthorshipOrganizations">
+        DELETE FROM authorship_organization WHERE achievement_id = #{achievementId}
+    </delete>
+    <delete id="deleteAchievementAuthors">
+        DELETE FROM achievement_author WHERE achievement_id = #{achievementId}
+    </delete>
+    <delete id="deleteAchievementTopics">
+        DELETE FROM achievement_topic WHERE achievement_id = #{achievementId}
+    </delete>
+    <delete id="deleteAchievementSubjects">
+        DELETE FROM achievement_subject WHERE achievement_id = #{achievementId}
+    </delete>
+    <delete id="deleteAchievementReferences">
+        DELETE FROM achievement_reference WHERE citing_achievement_id = #{achievementId}
+    </delete>
+
+    <select id="findAuthorId" resultType="long">
+        SELECT author_id FROM author_external_id WHERE id_type = 'OPENALEX' AND external_id = #{openAlexId}
+    </select>
+    <select id="findAuthorByExternalId" resultType="long">
+        SELECT author_id
+        FROM author_external_id
+        WHERE id_type = #{idType} AND external_id = #{externalId}
+    </select>
+    <select id="countAuthorExternalType" resultType="int">
+        SELECT COUNT(*) FROM author_external_id
+        WHERE author_id = #{authorId} AND id_type = #{idType}
+    </select>
+    <select id="findAuthorIdsByName" resultType="long">
+        SELECT id FROM author
+        WHERE display_name = #{displayName} AND id != #{excludeId}
+        ORDER BY id
+    </select>
+    <insert id="insertAuthor" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO author (display_name) VALUES (#{displayName})
+    </insert>
+    <insert id="insertAuthorOpenAlexId">
+        INSERT INTO author_external_id (author_id, id_type, external_id)
+        VALUES (#{authorId}, 'OPENALEX', #{openAlexId})
+    </insert>
+    <insert id="insertAuthorExternalId">
+        INSERT IGNORE INTO author_external_id (author_id, id_type, external_id)
+        VALUES (#{authorId}, #{idType}, #{externalId})
+    </insert>
+    <update id="updateAuthor">
+        UPDATE author SET display_name = #{displayName} WHERE id = #{authorId}
+    </update>
+    <delete id="deleteAuthorOrcid">
+        DELETE FROM author_external_id WHERE author_id = #{authorId} AND id_type = 'ORCID'
+    </delete>
+    <insert id="insertAuthorOrcid">
+        INSERT IGNORE INTO author_external_id (author_id, id_type, external_id)
+        VALUES (#{authorId}, 'ORCID', #{orcid})
+    </insert>
+    <insert id="insertAchievementAuthor">
+        INSERT INTO achievement_author (achievement_id, author_id, author_position)
+        VALUES (#{achievementId}, #{authorId}, #{position})
+    </insert>
+
+    <insert id="upsertOrganization">
+        INSERT INTO organization (
+            openalex_id, display_name, country_code, organization_type
+        ) VALUES (
+            #{externalId}, #{displayName}, #{countryCode}, #{type}
+        )
+        ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name),
+            country_code = VALUES(country_code),
+            organization_type = VALUES(organization_type)
+    </insert>
+    <select id="findOrganizationId" resultType="long">
+        SELECT id FROM organization WHERE openalex_id = #{externalId}
+    </select>
+    <select id="findOrganizationByExternalId" resultType="long">
+        SELECT organization_id
+        FROM organization_external_id
+        WHERE id_type = #{idType} AND external_id = #{externalId}
+    </select>
+    <select id="countOrganizationExternalType" resultType="int">
+        SELECT COUNT(*) FROM organization_external_id
+        WHERE organization_id = #{organizationId} AND id_type = #{idType}
+    </select>
+    <select id="findOrganizationIdsByName" resultType="long">
+        SELECT id FROM organization
+        WHERE display_name = #{displayName} AND id != #{excludeId}
+        ORDER BY id
+    </select>
+    <insert id="insertOrganization" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO organization (
+            openalex_id, display_name, country_code, organization_type
+        ) VALUES (
+            #{openAlexId}, #{displayName}, #{countryCode}, #{type}
+        )
+    </insert>
+    <update id="updateOrganization">
+        UPDATE organization
+        SET display_name = #{displayName},
+            country_code = #{countryCode},
+            organization_type = #{type},
+            version = version + 1
+        WHERE id = #{id}
+    </update>
+    <insert id="insertOrganizationExternalId">
+        INSERT IGNORE INTO organization_external_id (organization_id, id_type, external_id)
+        VALUES (#{organizationId}, #{idType}, #{externalId})
+    </insert>
+    <insert id="insertAuthorshipOrganization">
+        INSERT INTO authorship_organization (achievement_id, author_id, organization_id)
+        VALUES (#{achievementId}, #{authorId}, #{organizationId})
+    </insert>
+
+    <insert id="upsertTopic">
+        INSERT INTO topic (openalex_id, display_name, subfield_name, field_name)
+        VALUES (#{externalId}, #{displayName}, #{subfieldName}, #{fieldName})
+        ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name),
+            subfield_name = VALUES(subfield_name),
+            field_name = VALUES(field_name)
+    </insert>
+    <select id="findTopicId" resultType="long">
+        SELECT id FROM topic WHERE openalex_id = #{externalId}
+    </select>
+    <insert id="upsertSubject">
+        INSERT INTO subject (source_id, external_id, display_name, subject_path)
+        VALUES (#{sourceId}, #{externalId}, #{displayName}, #{subjectPath})
+        ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name),
+            subject_path = VALUES(subject_path),
+            version = version + 1
+    </insert>
+    <select id="findSubjectId" resultType="long">
+        SELECT id FROM subject WHERE source_id = #{sourceId} AND external_id = #{externalId}
+    </select>
+    <insert id="insertAchievementSubject">
+        INSERT INTO achievement_subject (achievement_id, subject_id, subject_position)
+        VALUES (#{achievementId}, #{subjectId}, #{position})
+    </insert>
+    <insert id="insertAchievementTopic">
+        INSERT INTO achievement_topic (achievement_id, topic_id, topic_position)
+        VALUES (#{achievementId}, #{topicId}, #{position})
+    </insert>
+
+    <select id="findAchievementByOpenAlexWorkId" resultType="long">
+        SELECT achievement_id
+        FROM achievement_source
+        WHERE external_record_id = #{externalId}
+        LIMIT 1
+    </select>
+    <select id="findAchievementByTypedReference" resultType="long">
+        <choose>
+            <when test="idType == 'DOI'">
+                SELECT id FROM achievement WHERE doi_normalized = #{externalId}
+            </when>
+            <otherwise>
+                SELECT achievement_id
+                FROM achievement_source
+                WHERE external_record_id = #{externalId}
+                LIMIT 1
+            </otherwise>
+        </choose>
+    </select>
+    <insert id="insertAchievementReference">
+        INSERT INTO achievement_reference (
+            citing_achievement_id, referenced_external_work_id,
+            referenced_id_type, referenced_id_value, cited_achievement_id
+        ) VALUES (
+            #{achievementId}, #{externalId}, 'OPENALEX', #{externalId}, #{citedAchievementId}
+        )
+    </insert>
+    <insert id="insertTypedAchievementReference">
+        INSERT INTO achievement_reference (
+            citing_achievement_id, referenced_external_work_id,
+            referenced_id_type, referenced_id_value, cited_achievement_id
+        ) VALUES (
+            #{achievementId}, #{externalId}, #{idType}, #{externalId}, #{citedAchievementId}
+        )
+    </insert>
+    <update id="resolveDoiReferences">
+        UPDATE achievement_reference
+        SET cited_achievement_id = #{achievementId}
+        WHERE referenced_id_type = 'DOI'
+          AND referenced_id_value = #{doi}
+          AND (cited_achievement_id IS NULL OR cited_achievement_id != #{achievementId})
+    </update>
+
+    <select id="findCitingAchievementIdsByDoi" resultType="long">
+        SELECT DISTINCT citing_achievement_id
+        FROM achievement_reference
+        WHERE referenced_id_type = 'DOI'
+          AND referenced_id_value = #{doi}
+          AND cited_achievement_id IS NULL
+    </select>
+
+    <select id="findVenueByExternalId" resultType="long">
+        SELECT venue_id
+        FROM venue_external_id
+        WHERE id_type = #{idType} AND external_id = #{externalId}
+    </select>
+    <select id="countVenueExternalType" resultType="int">
+        SELECT COUNT(*) FROM venue_external_id
+        WHERE venue_id = #{venueId} AND id_type = #{idType}
+    </select>
+    <select id="findVenueIdsByName" resultType="long">
+        SELECT id FROM venue
+        WHERE display_name = #{displayName} AND id != #{excludeId}
+        ORDER BY id
+    </select>
+    <insert id="insertVenue" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO venue (openalex_id, display_name, issn_l, venue_type)
+        VALUES (#{openAlexId}, #{displayName}, #{issn}, #{type})
+    </insert>
+    <update id="updateVenue">
+        UPDATE venue
+        SET display_name = #{displayName},
+            issn_l = #{issn},
+            venue_type = #{type},
+            version = version + 1
+        WHERE id = #{id}
+    </update>
+    <insert id="insertVenueExternalId">
+        INSERT IGNORE INTO venue_external_id (venue_id, id_type, external_id)
+        VALUES (#{venueId}, #{idType}, #{externalId})
+    </insert>
+
+    <select id="findAchievementIdsByFingerprint" resultType="long">
+        SELECT id FROM achievement
+        WHERE match_fingerprint = #{fingerprint} AND id != #{excludeId}
+        ORDER BY id
+    </select>
+    <insert id="insertDuplicateCandidate">
+        INSERT IGNORE INTO duplicate_candidate (
+            entity_type, left_entity_id, right_entity_id,
+            match_basis, source_id, rule_version, evidence_json, evidence_hash
+        ) VALUES (
+            #{entityType}, #{leftEntityId}, #{rightEntityId},
+            #{matchBasis}, #{sourceId}, #{ruleVersion}, #{evidenceJson}, #{evidenceHash}
+        )
+    </insert>
+
+    <insert id="insertFailure">
+        INSERT INTO crawl_failure (
+            run_id, raw_record_id, external_record_id, failure_stage,
+            error_category, safe_message, retryable, evidence_hash
+        ) VALUES (
+            #{runId}, #{rawRecordId}, #{externalRecordId}, #{failureStage},
+            #{errorCategory}, #{safeMessage}, #{retryable}, #{evidenceHash}
+        )
+    </insert>
+
+    <update id="updateRunStatistics">
+        UPDATE crawl_run
+        SET read_count = read_count + #{statistics.readCount},
+            parsed_count = parsed_count + #{statistics.parsedCount},
+            created_count = created_count + #{statistics.createdCount},
+            updated_count = updated_count + #{statistics.updatedCount},
+            duplicate_count = duplicate_count + #{statistics.duplicateCount},
+            failure_count = failure_count + #{statistics.failureCount},
+            request_count = request_count + #{statistics.requestCount}
+        WHERE id = #{runId}
+    </update>
+    <insert id="upsertCheckpoint">
+        INSERT INTO crawl_checkpoint (
+            run_id, partition_key, cursor_value, cursor_hash,
+            committed_pages, committed_records, committed_at, version
+        ) VALUES (
+            #{runId}, 'default', #{cursorValue}, #{cursorHash},
+            1, #{statistics.readCount}, #{now}, 0
+        )
+        ON DUPLICATE KEY UPDATE
+            cursor_value = VALUES(cursor_value),
+            cursor_hash = VALUES(cursor_hash),
+            committed_pages = committed_pages + 1,
+            committed_records = committed_records + VALUES(committed_records),
+            committed_at = VALUES(committed_at),
+            version = version + 1
+    </insert>
+    <insert id="upsertQualityMetric">
+        INSERT INTO quality_metric_snapshot (
+            source_id, task_id, run_id, metric_code,
+            numerator, denominator, metric_value, measured_at
+        )
+        SELECT task.source_id,
+               run.task_id,
+               run.id,
+               #{metricCode},
+               #{numerator},
+               #{denominator},
+               CASE WHEN #{denominator} = 0 THEN NULL
+                    ELSE CAST(#{numerator} AS DECIMAL(20, 6)) / #{denominator}
+               END,
+               #{measuredAt}
+        FROM crawl_run run
+        JOIN crawl_task task ON task.id = run.task_id
+        WHERE run.id = #{runId}
+        ON DUPLICATE KEY UPDATE
+            numerator = numerator + VALUES(numerator),
+            denominator = denominator + VALUES(denominator),
+            metric_value = CASE
+                WHEN denominator = 0 THEN NULL
+                ELSE CAST(numerator AS DECIMAL(20, 6)) / denominator
+            END,
+            measured_at = VALUES(measured_at),
+            version = quality_metric_snapshot.version + 1
+    </insert>
+    <insert id="insertQualityIssueSample">
+        INSERT IGNORE INTO quality_issue_sample (
+            source_id, run_id, raw_record_id, metric_code, external_record_id, evidence_json
+        )
+        SELECT task.source_id, run.id, #{rawRecordId}, #{metricCode},
+               #{externalRecordId}, #{evidenceJson}
+        FROM crawl_run run
+        JOIN crawl_task task ON task.id = run.task_id
+        WHERE run.id = #{runId}
+    </insert>
+</mapper>

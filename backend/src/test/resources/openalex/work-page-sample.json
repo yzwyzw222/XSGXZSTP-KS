@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "count": 1,
+    "per_page": 100,
+    "cost_usd": 0.0001,
+    "next_cursor": "IlsxNjA5MzcyODAwMDAwLCdodHRwczovL29wZW5hbGV4Lm9yZy9XMjc0MTgwOTgwNydd"
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W2741809807",
+      "doi": "https://doi.org/10.7717/peerj.4375",
+      "title": "The state of OA: a large-scale analysis of the prevalence and impact of Open Access articles",
+      "type": "article",
+      "language": "en",
+      "publication_date": "2018-02-13",
+      "primary_location": {
+        "source": {
+          "id": "https://openalex.org/S1983995261",
+          "display_name": "PeerJ",
+          "issn_l": "2167-8359",
+          "type": "journal"
+        }
+      },
+      "authorships": [
+        {
+          "author": {
+            "id": "https://openalex.org/A5048491430",
+            "display_name": "Heather Piwowar",
+            "orcid": "https://orcid.org/0000-0003-1613-5981"
+          },
+          "institutions": [
+            {
+              "id": "https://openalex.org/I4200000001",
+              "display_name": "OpenAlex",
+              "country_code": "CA",
+              "type": "nonprofit"
+            }
+          ]
+        },
+        {
+          "author": {
+            "id": "https://openalex.org/A5023888391",
+            "display_name": "Jason R Priem",
+            "orcid": "https://orcid.org/0000-0001-6187-6610"
+          },
+          "institutions": []
+        }
+      ],
+      "topics": [
+        {
+          "id": "https://openalex.org/T10102",
+          "display_name": "scientometrics and bibliometrics research",
+          "subfield": {
+            "display_name": "Statistics, Probability and Uncertainty"
+          },
+          "field": {
+            "display_name": "Decision Sciences"
+          }
+        }
+      ],
+      "referenced_works": [
+        "https://openalex.org/W1560783210",
+        "https://openalex.org/W1724212071"
+      ],
+      "abstract_inverted_index": {
+        "Despite": [0],
+        "growing": [1],
+        "interest": [2],
+        "in": [3],
+        "Open": [4],
+        "Access": [5]
+      }
+    }
+  ],
+  "group_by": []
+}
