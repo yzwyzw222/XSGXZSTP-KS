@@ -1,0 +1,43 @@
+# 操作系统与开发工具
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# 后端构建产物
+backend/target/
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings/
+
+# 前端依赖与构建产物
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+
+# 本地缓存与日志
+.npm-cache/
+*.log
+
+# 本地凭据与配置覆盖
+.env
+.env.*
+!.env.example
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-local.yaml
+
+# 本地运行数据
+/.local/
+
+# 既有离线镜像只作为本机历史文件保留
+images/*.tar
+
+# 本地开发交接产物
+handoff-output/
+/AACV_System-history.bundle
+/SHA256SUMS.txt
+/new-computer-handoff-prompt.md
