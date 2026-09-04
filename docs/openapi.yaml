@@ -1,0 +1,2115 @@
+openapi: 3.1.0
+info:
+  title: AACV System 阶段 7 API
+  version: 7.0.0
+  description: 本契约描述认证、用户、审计、双源采集、MySQL 数据治理、规范目录、事务 Outbox、Neo4j 可重建投影、受限图查询、MySQL 聚合统计、异步导出和管理员运维接口；不包含服务器部署能力。
+servers:
+  - url: http://127.0.0.1:8080
+    description: Windows 本地开发后端
+tags:
+  - name: Auth
+  - name: Users
+  - name: Audits
+  - name: Sources
+  - name: Crawl Tasks
+  - name: Crawl Runs
+  - name: Catalog
+  - name: Governance
+  - name: Quality
+  - name: Graph
+  - name: Graph Operations
+  - name: Analytics
+  - name: Exports
+  - name: Operations
+paths:
+  /api/v1/auth/csrf:
+    get:
+      tags: [Auth]
+      summary: 获取当前会话的 CSRF Token
+      operationId: getCsrfToken
+      responses:
+        '200':
+          description: Token 已创建或读取
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: 使用本地账号登录
+      operationId: login
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功并创建服务端会话
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: 注销当前会话
+      operationId: logout
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: 会话已注销
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: 查询当前账号及权限
+      operationId: getCurrentUser
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: 当前账号
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: 管理员分页查询用户
+      operationId: listUsers
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 用户分页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Users]
+      summary: 管理员创建用户
+      operationId: createUser
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: 用户已创建
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{userId}/enable:
+    post:
+      tags: [Users]
+      summary: 启用用户
+      operationId: enableUser
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        $ref: '#/components/requestBodies/VersionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{userId}/disable:
+    post:
+      tags: [Users]
+      summary: 停用用户并使其会话失效
+      operationId: disableUser
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        $ref: '#/components/requestBodies/VersionRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{userId}/reset-password:
+    post:
+      tags: [Users]
+      summary: 重置密码并使旧会话失效
+      operationId: resetUserPassword
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/users/{userId}/roles:
+    post:
+      tags: [Users]
+      summary: 替换用户角色并使旧会话失效
+      operationId: replaceUserRoles
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceRolesRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/v1/operations/audits:
+    get:
+      tags: [Audits]
+      summary: 管理员分页查询审计记录
+      operationId: listAudits
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 审计分页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/v1/sources:
+    get:
+      tags: [Sources]
+      summary: 分页查询受控数据源
+      operationId: listSources
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 数据源分页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourcePage'
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Sources]
+      summary: 创建唯一的受控 OpenAlex 或 Crossref 数据源配置
+      operationId: createSource
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SourceConfigurationRequest'}
+      responses:
+        '201':
+          description: 数据源已创建
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataSource'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/sources/{sourceId}:
+    get:
+      tags: [Sources]
+      summary: 查询数据源详情
+      operationId: getSource
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+      responses:
+        '200':
+          description: 数据源详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataSource'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [Sources]
+      summary: 更新数据源受控配置
+      operationId: updateSource
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SourceConfigurationRequest'}
+      responses:
+        '200':
+          description: 数据源已更新
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataSource'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/sources/{sourceId}/enable:
+    post:
+      tags: [Sources]
+      summary: 启用数据源
+      operationId: enableSource
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody: {$ref: '#/components/requestBodies/VersionRequest'}
+      responses:
+        '200':
+          description: 数据源已启用
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataSource'}
+  /api/v1/sources/{sourceId}/disable:
+    post:
+      tags: [Sources]
+      summary: 停用数据源
+      operationId: disableSource
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody: {$ref: '#/components/requestBodies/VersionRequest'}
+      responses:
+        '200':
+          description: 数据源已停用
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DataSource'}
+  /api/v1/sources/{sourceId}/probe:
+    post:
+      tags: [Sources]
+      summary: 对来源对应的固定官方地址执行无数据写入探测
+      operationId: probeSource
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/SourceId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '200':
+          description: 探测结果
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SourceProbe'}
+  /api/v1/crawl/tasks:
+    get:
+      tags: [Crawl Tasks]
+      summary: 分页查询采集任务
+      operationId: listCrawlTasks
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 任务分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlTaskPage'}
+    post:
+      tags: [Crawl Tasks]
+      summary: 创建有界 OpenAlex 或 Crossref 采集任务
+      operationId: createCrawlTask
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateCrawlTaskRequest'}
+      responses:
+        '201':
+          description: 任务已创建
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlTask'}
+  /api/v1/crawl/tasks/{taskId}:
+    get:
+      tags: [Crawl Tasks]
+      summary: 查询采集任务详情
+      operationId: getCrawlTask
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+      responses:
+        '200':
+          description: 任务详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlTask'}
+    put:
+      tags: [Crawl Tasks]
+      summary: 更新尚未运行的采集任务
+      operationId: updateCrawlTask
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateCrawlTaskRequest'}
+      responses:
+        '200':
+          description: 任务已更新
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlTask'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/crawl/tasks/{taskId}/trigger:
+    post:
+      tags: [Crawl Tasks]
+      summary: 手动触发一次采集运行
+      operationId: triggerCrawlTask
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '202':
+          description: 运行已创建
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlRun'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/crawl/tasks/{taskId}/schedule:
+    put:
+      tags: [Crawl Tasks]
+      summary: 按来源能力配置每日滚动或封闭索引日期窗口计划
+      operationId: configureDailySchedule
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DailyScheduleRequest'}
+      responses:
+        '200':
+          description: 每日计划已配置
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlSchedule'}
+  /api/v1/crawl/runs/{runId}:
+    get:
+      tags: [Crawl Runs]
+      summary: 查询运行详情和检查点统计
+      operationId: getCrawlRun
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: 运行详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlRun'}
+  /api/v1/crawl/runs/{runId}/failures:
+    get:
+      tags: [Crawl Runs]
+      summary: 分页查询运行失败记录
+      operationId: listCrawlFailures
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 失败记录分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CrawlFailurePage'}
+  /api/v1/crawl/runs/{runId}/pause:
+    post:
+      tags: [Crawl Runs]
+      summary: 请求在当前 Chunk 提交后暂停
+      operationId: pauseCrawlRun
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '202': {description: 暂停意图已记录}
+  /api/v1/crawl/runs/{runId}/resume:
+    post:
+      tags: [Crawl Runs]
+      summary: 从最近成功检查点恢复运行
+      operationId: resumeCrawlRun
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '202': {description: 恢复已请求}
+  /api/v1/crawl/runs/{runId}/cancel:
+    post:
+      tags: [Crawl Runs]
+      summary: 请求在当前 Chunk 提交后取消
+      operationId: cancelCrawlRun
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '202': {description: 取消意图已记录}
+  /api/v1/crawl/runs/{runId}/retry-failures:
+    post:
+      tags: [Crawl Runs]
+      summary: 有限重试失败记录并保留原运行证据
+      operationId: retryCrawlFailures
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '202': {description: 重试运行已创建}
+  /api/v1/catalog/achievements:
+    get:
+      tags: [Catalog]
+      summary: 组合筛选并分页查询成果目录
+      operationId: listAchievements
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - {name: title, in: query, schema: {type: string, maxLength: 200}}
+        - {name: author, in: query, schema: {type: string, maxLength: 200}}
+        - {name: organization, in: query, schema: {type: string, maxLength: 200}}
+        - {name: publicationYear, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: achievementType, in: query, schema: {type: string, maxLength: 64}}
+        - {name: sourceCode, in: query, schema: {type: string, enum: [OPENALEX, CROSSREF]}}
+        - {name: venue, in: query, schema: {type: string, maxLength: 200}}
+        - {name: topic, in: query, schema: {type: string, maxLength: 200}}
+      responses:
+        '200':
+          description: 成果分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AchievementPage'}
+  /api/v1/catalog/achievements/{achievementId}:
+    get:
+      tags: [Catalog]
+      summary: 查询成果详情与来源追溯
+      operationId: getAchievement
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/AchievementId'
+      responses:
+        '200':
+          description: 成果详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AchievementDetail'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/catalog/{collection}:
+    get:
+      tags: [Catalog]
+      summary: 分页查询作者、机构、载体或主题
+      operationId: listCatalogEntities
+      security: [{sessionCookie: []}]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: {type: string, enum: [authors, organizations, venues, topics]}
+        - {name: name, in: query, schema: {type: string, maxLength: 200}}
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 目录实体分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CatalogEntityPage'}
+  /api/v1/catalog/{collection}/{entityId}/achievements:
+    get:
+      tags: [Catalog]
+      summary: 分页查询目录实体关联成果
+      operationId: listCatalogEntityAchievements
+      security: [{sessionCookie: []}]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: {type: string, enum: [authors, organizations, venues, topics]}
+        - name: entityId
+          in: path
+          required: true
+          schema: {type: integer, format: int64, minimum: 1}
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 关联成果分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AchievementPage'}
+  /api/v1/duplicate-candidates:
+    get:
+      tags: [Governance]
+      summary: 分页查询重复候选
+      operationId: listDuplicateCandidates
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: entityType, in: query, schema: {type: string, enum: [ACHIEVEMENT, AUTHOR, ORGANIZATION, VENUE]}}
+        - {name: status, in: query, schema: {type: string, enum: [PENDING, ACCEPTED, REJECTED]}}
+        - {name: sourceId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: ruleVersion, in: query, schema: {type: integer, minimum: 1}}
+        - {name: createdFrom, in: query, schema: {type: string, format: date-time}}
+        - {name: createdTo, in: query, schema: {type: string, format: date-time}}
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 仅含有限匹配证据的候选分页
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DuplicateCandidatePage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/duplicate-candidates/{candidateId}:
+    get:
+      tags: [Governance]
+      summary: 查询重复候选详情
+      operationId: getDuplicateCandidate
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200':
+          description: 候选详情
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DuplicateCandidate'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/duplicate-candidates/{candidateId}/accept:
+    post:
+      tags: [Governance]
+      summary: 接受候选并建立逻辑规范关联
+      operationId: acceptDuplicateCandidate
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CandidateAcceptRequest'}
+      responses:
+        '200': {description: 接受决定, content: {application/json: {schema: {$ref: '#/components/schemas/MergeDecision'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/duplicate-candidates/{candidateId}/reject:
+    post:
+      tags: [Governance]
+      summary: 拒绝候选并抑制同规则重复生成
+      operationId: rejectDuplicateCandidate
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/VersionReasonRequest'}
+      responses:
+        '200': {description: 拒绝决定, content: {application/json: {schema: {$ref: '#/components/schemas/MergeDecision'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/merge-decisions/{decisionId}/revert:
+    post:
+      tags: [Governance]
+      summary: 撤销当前生效且无后续依赖的治理决定
+      operationId: revertMergeDecision
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: decisionId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/VersionReasonRequest'}
+      responses:
+        '200': {description: 撤销决定, content: {application/json: {schema: {$ref: '#/components/schemas/MergeDecision'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/catalog/achievements/{achievementId}/field-overrides:
+    post:
+      tags: [Governance]
+      summary: 创建或更新成果人工字段修正
+      operationId: overrideAchievementField
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: achievementId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FieldOverrideRequest'}
+      responses:
+        '200': {description: 人工字段修正, content: {application/json: {schema: {$ref: '#/components/schemas/FieldOverride'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/catalog/achievements/{achievementId}/field-overrides/{revisionId}/revert:
+    post:
+      tags: [Governance]
+      summary: 撤销当前人工字段修正
+      operationId: revertAchievementFieldOverride
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: achievementId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: revisionId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/VersionReasonRequest'}
+      responses:
+        '200': {description: 已撤销的字段修正, content: {application/json: {schema: {$ref: '#/components/schemas/FieldOverride'}}}}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/quality-metrics:
+    get:
+      tags: [Quality]
+      summary: 分页查询来源运行质量指标
+      operationId: listQualityMetrics
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: sourceId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: runId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: metricCode, in: query, schema: {$ref: '#/components/schemas/QualityMetricCode'}}
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: 质量指标分页；分母为0时metricValue为null
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QualityMetricPage'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/quality-metrics/{metricId}:
+    get:
+      tags: [Quality]
+      summary: 查询质量指标及有限问题样本
+      operationId: getQualityMetric
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: metricId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: sampleLimit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+      responses:
+        '200': {description: 指标详情, content: {application/json: {schema: {$ref: '#/components/schemas/QualityMetricDetail'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/graph/subgraph:
+    get:
+      tags: [Graph]
+      summary: 加载受限局部子图
+      operationId: getGraphSubgraph
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: centerType, in: query, required: true, schema: {$ref: '#/components/schemas/GraphNodeType'}}
+        - {name: centerId, in: query, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: depth, in: query, schema: {type: integer, minimum: 1, maximum: 2, default: 1}}
+        - {name: nodeLimit, in: query, schema: {type: integer, minimum: 1, maximum: 300, default: 100}}
+        - {name: relationshipTypes, in: query, schema: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/GraphRelationshipType'}}}
+        - {name: nodeTypes, in: query, schema: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/GraphNodeType'}}}
+        - {name: publicationYearFrom, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: publicationYearTo, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: achievementTypes, in: query, schema: {type: array, uniqueItems: true, items: {type: string, maxLength: 64}}}
+      responses:
+        '200': {description: 局部子图, content: {application/json: {schema: {$ref: '#/components/schemas/GraphResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/GraphUnavailable'}
+        '504': {$ref: '#/components/responses/GraphQueryTimeout'}
+  /api/v1/graph/path:
+    get:
+      tags: [Graph]
+      summary: 查询一条确定性的受限最短路径
+      operationId: getGraphPath
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: sourceType, in: query, required: true, schema: {$ref: '#/components/schemas/GraphNodeType'}}
+        - {name: sourceId, in: query, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: targetType, in: query, required: true, schema: {$ref: '#/components/schemas/GraphNodeType'}}
+        - {name: targetId, in: query, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: maxHops, in: query, schema: {type: integer, minimum: 1, maximum: 6, default: 6}}
+      responses:
+        '200': {description: 最短路径, content: {application/json: {schema: {$ref: '#/components/schemas/GraphResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/GraphUnavailable'}
+        '504': {$ref: '#/components/responses/GraphQueryTimeout'}
+  /api/v1/graph/sync-status:
+    get:
+      tags: [Graph Operations]
+      summary: 查询图投影同步状态
+      operationId: getGraphSyncStatus
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: 同步状态, content: {application/json: {schema: {$ref: '#/components/schemas/GraphSyncStatus'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/operations/graph-events:
+    get:
+      tags: [Graph Operations]
+      summary: 分页查询安全图同步事件
+      operationId: getGraphEvents
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/GraphOutboxStatus'}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+      responses:
+        '200': {description: 事件分页, content: {application/json: {schema: {$ref: '#/components/schemas/GraphEventPage'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/operations/graph-events/{eventId}/replay:
+    post:
+      tags: [Graph Operations]
+      summary: 按MySQL当前状态重放单个失败事件
+      operationId: replayGraphEvent
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: eventId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {$ref: '#/components/parameters/CsrfHeader'}
+      responses:
+        '202': {description: 已创建新的刷新事件, content: {application/json: {schema: {$ref: '#/components/schemas/GraphEvent'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/operations/graph-maintenance/runs:
+    get:
+      tags: [Graph Operations]
+      summary: 分页查询图维护运行
+      operationId: getGraphMaintenanceRuns
+      security: [{sessionCookie: []}]
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+      responses:
+        '200': {description: 维护运行分页, content: {application/json: {schema: {$ref: '#/components/schemas/GraphMaintenanceRunPage'}}}}
+  /api/v1/operations/graph-maintenance/backfill:
+    post:
+      tags: [Graph Operations]
+      summary: 启动或恢复初始回填
+      operationId: startGraphBackfill
+      security: [{sessionCookie: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      responses:
+        '202': {description: 已创建维护运行, content: {application/json: {schema: {$ref: '#/components/schemas/GraphMaintenanceRun'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/operations/graph-maintenance/reconcile:
+    post:
+      tags: [Graph Operations]
+      summary: 启动图投影对账
+      operationId: startGraphReconciliation
+      security: [{sessionCookie: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      responses:
+        '202': {description: 已创建维护运行, content: {application/json: {schema: {$ref: '#/components/schemas/GraphMaintenanceRun'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/operations/graph-maintenance/rebuild:
+    post:
+      tags: [Graph Operations]
+      summary: 启动仅清理AACV受管投影的全量重建
+      operationId: startGraphRebuild
+      security: [{sessionCookie: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GraphRebuildRequest'}
+      responses:
+        '202': {description: 已创建维护运行, content: {application/json: {schema: {$ref: '#/components/schemas/GraphMaintenanceRun'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/analytics/overview:
+    get:
+      tags: [Analytics]
+      summary: 查询筛选范围内的核心总量
+      operationId: getAnalyticsOverview
+      x-required-permission: ANALYTICS_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: publicationYearFrom, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: publicationYearTo, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: achievementType, in: query, schema: {type: string, maxLength: 64}}
+        - {name: sourceType, in: query, schema: {type: string, enum: [OPENALEX, CROSSREF]}}
+        - {name: organizationId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: topicId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200': {description: 聚合总览, content: {application/json: {schema: {$ref: '#/components/schemas/AnalyticsOverview'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/analytics/trends:
+    get:
+      tags: [Analytics]
+      summary: 查询按年份统计的成果趋势
+      operationId: getAnalyticsTrends
+      x-required-permission: ANALYTICS_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: publicationYearFrom, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: publicationYearTo, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: achievementType, in: query, schema: {type: string, maxLength: 64}}
+        - {name: sourceType, in: query, schema: {type: string, enum: [OPENALEX, CROSSREF]}}
+        - {name: organizationId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: topicId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200': {description: 年度趋势, content: {application/json: {schema: {$ref: '#/components/schemas/AnalyticsTrendResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/analytics/distributions:
+    get:
+      tags: [Analytics]
+      summary: 查询成果类型、来源、机构和主题分布
+      operationId: getAnalyticsDistributions
+      x-required-permission: ANALYTICS_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: publicationYearFrom, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: publicationYearTo, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: achievementType, in: query, schema: {type: string, maxLength: 64}}
+        - {name: sourceType, in: query, schema: {type: string, enum: [OPENALEX, CROSSREF]}}
+        - {name: organizationId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: topicId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200': {description: 多维分布, content: {application/json: {schema: {$ref: '#/components/schemas/AnalyticsDistributionResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/analytics/collaboration:
+    get:
+      tags: [Analytics]
+      summary: 查询作者和机构合作统计
+      operationId: getAnalyticsCollaboration
+      x-required-permission: ANALYTICS_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: publicationYearFrom, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: publicationYearTo, in: query, schema: {type: integer, minimum: 1000, maximum: 9999}}
+        - {name: achievementType, in: query, schema: {type: string, maxLength: 64}}
+        - {name: sourceType, in: query, schema: {type: string, enum: [OPENALEX, CROSSREF]}}
+        - {name: organizationId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: topicId, in: query, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+      responses:
+        '200': {description: 合作统计, content: {application/json: {schema: {$ref: '#/components/schemas/AnalyticsCollaborationResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/exports:
+    post:
+      tags: [Exports]
+      summary: 创建当前筛选结果的异步导出
+      operationId: createExport
+      x-required-permission: EXPORT_CREATE
+      security: [{sessionCookie: []}]
+      parameters: [{$ref: '#/components/parameters/CsrfHeader'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ExportCreateRequest'}
+      responses:
+        '202': {description: 已创建导出任务, content: {application/json: {schema: {$ref: '#/components/schemas/ExportTask'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /api/v1/exports/{exportId}:
+    get:
+      tags: [Exports]
+      summary: 查询本人创建的导出任务状态，管理员可查询全部任务
+      operationId: getExport
+      x-required-permission: EXPORT_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: exportId, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200': {description: 导出任务状态, content: {application/json: {schema: {$ref: '#/components/schemas/ExportTask'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/exports/{exportId}/download:
+    get:
+      tags: [Exports]
+      summary: 下载本人已完成且未过期的导出文件，管理员可下载全部任务
+      operationId: downloadExport
+      x-required-permission: EXPORT_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: exportId, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: token, in: query, required: true, schema: {type: string, minLength: 32, maxLength: 128}}
+      responses:
+        '200':
+          description: 导出文件
+          content:
+            text/csv: {schema: {type: string, format: binary}}
+            application/json: {schema: {type: string, format: binary}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '410': {$ref: '#/components/responses/Gone'}
+  /api/v1/operations/overview:
+    get:
+      tags: [Operations]
+      summary: 查询管理员运维总览
+      operationId: getOperationsOverview
+      x-required-permission: OPERATIONS_READ
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: 运维总览, content: {application/json: {schema: {$ref: '#/components/schemas/OperationsOverview'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/operations/alerts:
+    get:
+      tags: [Operations]
+      summary: 分页查询系统内告警事件
+      operationId: getAlertEvents
+      x-required-permission: OPERATIONS_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/AlertStatus'}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/AlertType'}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+      responses:
+        '200': {description: 告警事件分页, content: {application/json: {schema: {$ref: '#/components/schemas/AlertEventPage'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/operations/alerts/{alertId}/acknowledge:
+    post:
+      tags: [Operations]
+      summary: 确认一个仍处于开放状态的告警事件
+      operationId: acknowledgeAlertEvent
+      x-required-permission: ALERT_MANAGE
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: alertId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {$ref: '#/components/parameters/CsrfHeader'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AlertAcknowledgeRequest'}
+      responses:
+        '200': {description: 已确认的告警事件, content: {application/json: {schema: {$ref: '#/components/schemas/AlertEvent'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION
+  parameters:
+    CsrfHeader:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema: {type: integer, format: int64, minimum: 1}
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema: {type: integer, format: int64, minimum: 1}
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: {type: integer, format: int64, minimum: 1}
+    AchievementId:
+      name: achievementId
+      in: path
+      required: true
+      schema: {type: integer, format: int64, minimum: 1}
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  requestBodies:
+    VersionRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/VersionRequest'
+  responses:
+    UserResponse:
+      description: 更新后的用户
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'
+    BadRequest:
+      description: 请求校验失败
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: 未登录、凭据错误或会话失效
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: 权限不足或 CSRF Token 无效
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: 资源状态、并发限制、用户名或乐观锁版本冲突
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: 请求的资源不存在
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Gone:
+      description: 请求的导出文件已经过期
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    GraphUnavailable:
+      description: Neo4j不可用或图投影正在重建
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    GraphQueryTimeout:
+      description: Neo4j图查询超过服务端限定时间
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    RoleCode:
+      type: string
+      enum: [ADMIN, DATA_OPERATOR, RESEARCHER]
+    Permission:
+      type: string
+      enum:
+        - ACCOUNT_SELF_READ
+        - USER_LIST
+        - USER_CREATE
+        - USER_ENABLE
+        - USER_DISABLE
+        - USER_PASSWORD_RESET
+        - USER_ROLE_CHANGE
+        - AUDIT_READ
+        - SOURCE_READ
+        - SOURCE_MANAGE
+        - SOURCE_PROBE
+        - CRAWL_TASK_READ
+        - CRAWL_TASK_CREATE
+        - CRAWL_TASK_UPDATE
+        - CRAWL_TASK_CONTROL
+        - CRAWL_SCHEDULE_MANAGE
+        - CRAWL_RUN_READ
+        - GOVERNANCE_READ
+        - GOVERNANCE_MANAGE
+        - CATALOG_READ
+        - GRAPH_READ
+        - GRAPH_SYNC_READ
+        - GRAPH_SYNC_MANAGE
+        - ANALYTICS_READ
+        - EXPORT_CREATE
+        - EXPORT_READ
+        - OPERATIONS_READ
+        - ALERT_MANAGE
+    CsrfToken:
+      type: object
+      required: [headerName, parameterName, token]
+      properties:
+        headerName:
+          type: string
+        parameterName:
+          type: string
+        token:
+          type: string
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          maxLength: 64
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          maxLength: 128
+    CurrentUser:
+      type: object
+      required: [id, username, roles, permissions]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        roles:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/RoleCode'
+        permissions:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Permission'
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password, roles]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 64
+        password:
+          type: string
+          format: password
+          writeOnly: true
+          minLength: 12
+          maxLength: 128
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/RoleCode'
+    VersionRequest:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+          minimum: 0
+    ResetPasswordRequest:
+      allOf:
+        - $ref: '#/components/schemas/VersionRequest'
+        - type: object
+          required: [newPassword]
+          properties:
+            newPassword:
+              type: string
+              format: password
+              writeOnly: true
+              minLength: 12
+              maxLength: 128
+    ReplaceRolesRequest:
+      allOf:
+        - $ref: '#/components/schemas/VersionRequest'
+        - type: object
+          required: [roles]
+          properties:
+            roles:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items:
+                $ref: '#/components/schemas/RoleCode'
+    User:
+      type: object
+      required: [id, username, status, version, credentialsChangedAt, createdAt, updatedAt, roles]
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, DISABLED, PASSWORD_RESET_REQUIRED]
+        version:
+          type: integer
+          format: int64
+        credentialsChangedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        roles:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/RoleCode'
+    UserPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+    AuditLog:
+      type: object
+      required: [id, action, targetType, result, traceId, summary, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        actorUserId:
+          type: [integer, 'null']
+          format: int64
+        action:
+          type: string
+        targetType:
+          type: string
+        targetId:
+          type: [string, 'null']
+        result:
+          type: string
+          enum: [SUCCESS, FAILURE]
+        traceId:
+          type: string
+        summary:
+          type: object
+          additionalProperties:
+            type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+    AuditPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLog'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+    SourceConfigurationRequest:
+      type: object
+      additionalProperties: false
+      required: [requestsPerSecond, maxConcurrency, connectTimeoutSeconds, responseTimeoutSeconds, maxRetries, maxResponseBytes, complianceNote]
+      properties:
+        sourceType: {type: [string, 'null'], enum: [OPENALEX, CROSSREF, null], description: 创建时省略则兼容为 OPENALEX；更新时保持既有来源类型}
+        requestsPerSecond: {type: integer, minimum: 1, maximum: 10}
+        maxConcurrency: {type: integer, minimum: 1, maximum: 4}
+        connectTimeoutSeconds: {type: integer, minimum: 1, maximum: 30}
+        responseTimeoutSeconds: {type: integer, minimum: 1, maximum: 120}
+        maxRetries: {type: integer, minimum: 0, maximum: 5}
+        maxResponseBytes: {type: integer, minimum: 1024, maximum: 20971520}
+        complianceNote: {type: string, minLength: 1, maxLength: 1000}
+        version: {type: integer, format: int64, minimum: 0}
+    DataSource:
+      type: object
+      required: [id, sourceCode, sourceType, baseUri, enabled, requestsPerSecond, maxConcurrency, connectTimeoutSeconds, responseTimeoutSeconds, maxRetries, maxResponseBytes, complianceNote, consecutiveFailures, version]
+      properties:
+        id: {type: integer, format: int64}
+        sourceCode: {type: string, enum: [OPENALEX, CROSSREF]}
+        sourceType: {type: string, enum: [OPENALEX, CROSSREF]}
+        baseUri: {type: string, format: uri, enum: ['https://api.openalex.org', 'https://api.crossref.org']}
+        enabled: {type: boolean}
+        requestsPerSecond: {type: integer}
+        maxConcurrency: {type: integer}
+        connectTimeoutSeconds: {type: integer}
+        responseTimeoutSeconds: {type: integer}
+        maxRetries: {type: integer}
+        maxResponseBytes: {type: integer}
+        complianceNote: {type: string}
+        lastSuccessAt: {type: [string, 'null'], format: date-time}
+        lastFailureAt: {type: [string, 'null'], format: date-time}
+        consecutiveFailures: {type: integer}
+        version: {type: integer, format: int64}
+    DataSourcePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/DataSource'}}
+    SourceProbe:
+      type: object
+      required: [reachable, rateLimitSummary, checkedAt]
+      properties:
+        reachable: {type: boolean}
+        statusCode: {type: [integer, 'null']}
+        errorCategory: {type: [string, 'null']}
+        rateLimitSummary: {type: object, additionalProperties: {type: string}}
+        checkedAt: {type: string, format: date-time}
+    CrawlTaskParameters:
+      type: object
+      additionalProperties: false
+      required: [maxPages, maxRecords]
+      properties:
+        publicationDateFrom: {type: [string, 'null'], format: date}
+        publicationDateTo: {type: [string, 'null'], format: date}
+        keyword: {type: [string, 'null'], maxLength: 200}
+        authorIds: {type: array, maxItems: 50, items: {type: string, maxLength: 128}}
+        institutionIds: {type: array, maxItems: 50, items: {type: string, maxLength: 128}}
+        dois: {type: array, maxItems: 50, items: {type: string, maxLength: 255}}
+        orcids: {type: array, maxItems: 50, items: {type: string, maxLength: 64}}
+        rorIds: {type: array, maxItems: 50, items: {type: string, maxLength: 128}}
+        updatedFrom: {type: [string, 'null'], format: date-time}
+        updatedUntil: {type: [string, 'null'], format: date-time}
+        maxPages: {type: integer, minimum: 1, maximum: 5}
+        maxRecords: {type: integer, minimum: 1, maximum: 500}
+    CreateCrawlTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [sourceId, name, parameters]
+      properties:
+        sourceId: {type: integer, format: int64, minimum: 1}
+        name: {type: string, minLength: 1, maxLength: 128}
+        parameters: {$ref: '#/components/schemas/CrawlTaskParameters'}
+    UpdateCrawlTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [name, parameters, version]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 128}
+        parameters: {$ref: '#/components/schemas/CrawlTaskParameters'}
+        version: {type: integer, format: int64, minimum: 0}
+    CrawlTask:
+      type: object
+      required: [id, sourceId, name, parameterVersion, parameters, enabled, version, createdAt, updatedAt]
+      properties:
+        id: {type: integer, format: int64}
+        sourceId: {type: integer, format: int64}
+        name: {type: string}
+        parameterVersion: {type: integer, enum: [1, 2], description: 版本 1 保持 OpenAlex 既有语义，版本 2 承载 Crossref 扩展过滤条件}
+        parameters: {$ref: '#/components/schemas/CrawlTaskParameters'}
+        enabled: {type: boolean}
+        version: {type: integer, format: int64}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    CrawlTaskPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/CrawlTask'}}
+    DailyScheduleRequest:
+      type: object
+      additionalProperties: false
+      required: [localTime, timeZone]
+      properties:
+        localTime: {type: string, pattern: '^(?:[01]\\d|2[0-3]):[0-5]\\d$'}
+        timeZone: {type: string, maxLength: 64}
+        version: {type: integer, format: int64, minimum: 0}
+    CrawlSchedule:
+      type: object
+      required: [taskId, localTime, timeZone, nextFireAt, version, incrementalMode]
+      properties:
+        taskId: {type: integer, format: int64}
+        localTime: {type: string}
+        timeZone: {type: string}
+        nextFireAt: {type: string, format: date-time}
+        version: {type: integer, format: int64}
+        incrementalMode: {type: string, enum: [ROLLING_PUBLICATION_DATE_WINDOW, CLOSED_INDEX_DATE_WINDOW]}
+    CrawlRun:
+      type: object
+      required: [id, taskId, runNumber, triggerType, status, readCount, parsedCount, createdCount, updatedCount, duplicateCount, failureCount, requestCount]
+      properties:
+        id: {type: integer, format: int64}
+        taskId: {type: integer, format: int64}
+        runNumber: {type: string}
+        triggerType: {type: string, enum: [MANUAL, SCHEDULED, RESUME, RETRY_FAILURES]}
+        parentRunId: {type: [integer, 'null'], format: int64}
+        status: {type: string, enum: [PENDING, RUNNING, PAUSING, PAUSED, SUCCEEDED, PARTIAL_SUCCESS, FAILED, CANCELLING, CANCELLED]}
+        batchJobExecutionId: {type: [integer, 'null'], format: int64}
+        readCount: {type: integer, format: int64}
+        parsedCount: {type: integer, format: int64}
+        createdCount: {type: integer, format: int64}
+        updatedCount: {type: integer, format: int64}
+        duplicateCount: {type: integer, format: int64}
+        failureCount: {type: integer, format: int64}
+        requestCount: {type: integer, format: int64}
+        checkpoint: {type: [string, 'null']}
+        startedAt: {type: [string, 'null'], format: date-time}
+        finishedAt: {type: [string, 'null'], format: date-time}
+    CrawlFailure:
+      type: object
+      required: [id, runId, failureStage, errorCategory, safeMessage, retryable, attemptCount, resolved, createdAt, updatedAt]
+      properties:
+        id: {type: integer, format: int64}
+        runId: {type: integer, format: int64}
+        rawRecordId: {type: [integer, 'null'], format: int64}
+        externalRecordId: {type: [string, 'null']}
+        failureStage: {type: string, enum: [FETCH, PARSE, VALIDATE, NORMALIZE, PERSIST, SYSTEM]}
+        errorCategory: {type: string}
+        safeMessage: {type: string, maxLength: 1000}
+        retryable: {type: boolean}
+        attemptCount: {type: integer, minimum: 0, maximum: 5}
+        resolved: {type: boolean}
+        evidenceHash: {type: [string, 'null'], pattern: '^[0-9a-f]{64}$'}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    CrawlFailurePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/CrawlFailure'}}
+    AchievementSummary:
+      type: object
+      required: [id, title, achievementType, authors, topics]
+      properties:
+        id: {type: integer, format: int64}
+        title: {type: string}
+        doi: {type: [string, 'null']}
+        achievementType: {type: string}
+        publicationDate: {type: [string, 'null'], format: date}
+        primaryVenue: {type: [string, 'null']}
+        authors: {type: array, items: {type: string}}
+        topics: {type: array, items: {type: string}}
+    AchievementPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/AchievementSummary'}}
+    AchievementDetail:
+      type: object
+      required: [summary, authorshipsMayBeIncomplete, authorships, referencedWorkIds, sources, fields]
+      properties:
+        summary: {$ref: '#/components/schemas/AchievementSummary'}
+        language: {type: [string, 'null']}
+        abstractText: {type: [string, 'null']}
+        authorshipsMayBeIncomplete: {type: boolean}
+        authorships:
+          type: array
+          items:
+            type: object
+            required: [authorId, displayName, position, organizations]
+            properties:
+              authorId: {type: integer, format: int64}
+              openAlexId: {type: [string, 'null']}
+              orcid: {type: [string, 'null']}
+              displayName: {type: [string, 'null']}
+              position: {type: integer, minimum: 1}
+              organizations:
+                type: array
+                items:
+                  type: object
+                  required: [id]
+                  properties:
+                    id: {type: integer, format: int64}
+                    openAlexId: {type: string}
+                    displayName: {type: [string, 'null']}
+        referencedWorkIds: {type: array, items: {type: string}}
+        sources:
+          type: array
+          items:
+            type: object
+            required: [sourceRecordId, rawRecordId, sourceCode, externalRecordId, sourceUrl, firstSeenAt, lastSeenAt, parserVersion]
+            properties:
+              sourceRecordId: {type: integer, format: int64}
+              rawRecordId: {type: integer, format: int64}
+              sourceCode: {type: string, enum: [OPENALEX, CROSSREF]}
+              externalRecordId: {type: string}
+              sourceUrl: {type: string, format: uri}
+              firstSeenAt: {type: string, format: date-time}
+              lastSeenAt: {type: string, format: date-time}
+              parserVersion: {type: string}
+        fields:
+          type: array
+          description: 当前规范字段的来源与人工覆盖状态
+          items:
+            type: object
+            required: [fieldName, manualOverride]
+            properties:
+              fieldName: {type: string, enum: [title, type, language, publicationDate, venueId]}
+              sourceCode: {type: [string, 'null'], enum: [OPENALEX, CROSSREF, null]}
+              rawRecordId: {type: [integer, 'null'], format: int64}
+              manualOverride: {type: boolean}
+    CatalogEntity:
+      type: object
+      required: [id, displayName, achievementCount]
+      properties:
+        id: {type: integer, format: int64}
+        externalId: {type: [string, 'null']}
+        displayName: {type: [string, 'null']}
+        entityType: {type: [string, 'null']}
+        achievementCount: {type: integer, format: int64}
+    CatalogEntityPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/CatalogEntity'}}
+    PageMetadata:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        page: {type: integer}
+        size: {type: integer}
+        totalElements: {type: integer, format: int64}
+        totalPages: {type: integer}
+    GraphNodeType:
+      type: string
+      enum: [ACHIEVEMENT, AUTHOR, INSTITUTION, VENUE, TOPIC]
+    GraphRelationshipType:
+      type: string
+      enum: [AUTHORED, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES]
+    GraphOutboxStatus:
+      type: string
+      enum: [PENDING, PROCESSING, SUCCEEDED, DEAD]
+    GraphNode:
+      type: object
+      required: [id, businessId, type, label, properties]
+      properties:
+        id: {type: string, description: 由固定节点类型和businessId组成的稳定响应ID}
+        businessId: {type: string}
+        type: {$ref: '#/components/schemas/GraphNodeType'}
+        label: {type: string}
+        properties: {type: object, additionalProperties: true, description: 仅包含展示所需的白名单摘要属性}
+    GraphEdge:
+      type: object
+      required: [id, type, source, target, properties]
+      properties:
+        id: {type: string}
+        type: {$ref: '#/components/schemas/GraphRelationshipType'}
+        source: {type: string}
+        target: {type: string}
+        properties: {type: object, additionalProperties: true}
+    GraphAppliedLimits:
+      type: object
+      required: [depth, nodeLimit, maxHops]
+      properties:
+        depth: {type: integer, minimum: 0, maximum: 2}
+        nodeLimit: {type: integer, minimum: 1, maximum: 300}
+        maxHops: {type: integer, minimum: 0, maximum: 6}
+    GraphResponse:
+      type: object
+      required: [nodes, edges, rootNodeId, truncated, narrowingSuggestion, appliedLimits, syncedAt, projectionLagSeconds, traceId]
+      properties:
+        nodes: {type: array, maxItems: 300, items: {$ref: '#/components/schemas/GraphNode'}}
+        edges: {type: array, items: {$ref: '#/components/schemas/GraphEdge'}}
+        rootNodeId: {type: string}
+        truncated: {type: boolean}
+        narrowingSuggestion: {type: [string, 'null']}
+        appliedLimits: {$ref: '#/components/schemas/GraphAppliedLimits'}
+        syncedAt: {type: [string, 'null'], format: date-time}
+        projectionLagSeconds: {type: [integer, 'null'], format: int64, minimum: 0}
+        traceId: {type: string}
+    GraphSyncStatus:
+      type: object
+      required: [neo4jAvailable, schemaVersion, pendingCount, processingCount, deadCount, oldestPendingAgeSeconds, lastSucceededAt, lagThresholdExceeded, rebuildInProgress]
+      properties:
+        neo4jAvailable: {type: boolean}
+        schemaVersion: {type: [integer, 'null']}
+        pendingCount: {type: integer, format: int64, minimum: 0}
+        processingCount: {type: integer, format: int64, minimum: 0}
+        deadCount: {type: integer, format: int64, minimum: 0}
+        oldestPendingAgeSeconds: {type: [integer, 'null'], format: int64, minimum: 0}
+        lastSucceededAt: {type: [string, 'null'], format: date-time}
+        lagThresholdExceeded: {type: boolean}
+        rebuildInProgress: {type: boolean}
+    GraphEvent:
+      type: object
+      required: [eventId, achievementId, desiredVersion, eventType, status, attempts, nextAttemptAt, createdAt, updatedAt]
+      properties:
+        eventId: {type: string, format: uuid}
+        achievementId: {type: integer, format: int64}
+        desiredVersion: {type: integer, format: int64, minimum: 1}
+        eventType: {type: string, enum: [REFRESH]}
+        status: {$ref: '#/components/schemas/GraphOutboxStatus'}
+        attempts: {type: integer, minimum: 0}
+        nextAttemptAt: {type: string, format: date-time}
+        errorCode: {type: [string, 'null']}
+        errorSummary: {type: [string, 'null']}
+        replayOfEventId: {type: [string, 'null'], format: uuid}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        completedAt: {type: [string, 'null'], format: date-time}
+    GraphEventPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/GraphEvent'}}
+    GraphMaintenanceRun:
+      type: object
+      required: [id, runType, status, cursorAchievementId, scannedCount, repairedCount, differenceCount, requestedBy, createdAt, updatedAt]
+      properties:
+        id: {type: integer, format: int64}
+        runType: {type: string, enum: [INITIAL_BACKFILL, RECONCILE, FULL_REBUILD]}
+        status: {type: string, enum: [PENDING, RUNNING, PAUSED, SUCCEEDED, FAILED]}
+        cursorAchievementId: {type: integer, format: int64, minimum: 0}
+        scannedCount: {type: integer, format: int64, minimum: 0}
+        repairedCount: {type: integer, format: int64, minimum: 0}
+        differenceCount: {type: integer, format: int64, minimum: 0}
+        requestedBy: {type: integer, format: int64}
+        errorCode: {type: [string, 'null']}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        completedAt: {type: [string, 'null'], format: date-time}
+    GraphMaintenanceRunPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/GraphMaintenanceRun'}}
+    GraphRebuildRequest:
+      type: object
+      additionalProperties: false
+      required: [confirmation]
+      properties:
+        confirmation: {type: string, enum: [REBUILD_AACV_MANAGED_GRAPH]}
+    AnalyticsFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        publicationYearFrom: {type: integer, minimum: 1000, maximum: 9999}
+        publicationYearTo: {type: integer, minimum: 1000, maximum: 9999}
+        achievementType: {type: string, maxLength: 64}
+        sourceType: {type: string, enum: [OPENALEX, CROSSREF]}
+        organizationId: {type: integer, format: int64, minimum: 1}
+        topicId: {type: integer, format: int64, minimum: 1}
+    AnalyticsScope:
+      type: object
+      required: [source, filters]
+      properties:
+        source: {type: string, enum: [MYSQL], description: 统计始终以MySQL规范数据为权威来源}
+        filters: {$ref: '#/components/schemas/AnalyticsFilter'}
+    AnalyticsOverview:
+      type: object
+      required: [achievementCount, authorCount, organizationCount, sourceCount, scope, updatedAt]
+      properties:
+        achievementCount: {type: integer, format: int64, minimum: 0}
+        authorCount: {type: integer, format: int64, minimum: 0}
+        organizationCount: {type: integer, format: int64, minimum: 0}
+        sourceCount: {type: integer, format: int64, minimum: 0}
+        scope: {$ref: '#/components/schemas/AnalyticsScope'}
+        updatedAt: {type: string, format: date-time}
+    AnalyticsTrendItem:
+      type: object
+      required: [publicationYear, achievementCount]
+      properties:
+        publicationYear: {type: integer, minimum: 1000, maximum: 9999}
+        achievementCount: {type: integer, format: int64, minimum: 0}
+    AnalyticsTrendResponse:
+      type: object
+      required: [items, scope, updatedAt]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/AnalyticsTrendItem'}}
+        scope: {$ref: '#/components/schemas/AnalyticsScope'}
+        updatedAt: {type: string, format: date-time}
+    AnalyticsDistributionItem:
+      type: object
+      required: [key, label, achievementCount]
+      properties:
+        key: {type: string}
+        label: {type: string}
+        achievementCount: {type: integer, format: int64, minimum: 0}
+    AnalyticsDistributionResponse:
+      type: object
+      required: [achievementTypes, sources, organizations, topics, scope, updatedAt]
+      properties:
+        achievementTypes: {type: array, items: {$ref: '#/components/schemas/AnalyticsDistributionItem'}}
+        sources: {type: array, items: {$ref: '#/components/schemas/AnalyticsDistributionItem'}}
+        organizations: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/AnalyticsDistributionItem'}}
+        topics: {type: array, maxItems: 20, items: {$ref: '#/components/schemas/AnalyticsDistributionItem'}}
+        scope: {$ref: '#/components/schemas/AnalyticsScope'}
+        updatedAt: {type: string, format: date-time}
+    AnalyticsCollaborationItem:
+      type: object
+      required: [leftId, leftLabel, rightId, rightLabel, sharedAchievementCount]
+      properties:
+        leftId: {type: integer, format: int64, minimum: 1}
+        leftLabel: {type: string}
+        rightId: {type: integer, format: int64, minimum: 1}
+        rightLabel: {type: string}
+        sharedAchievementCount: {type: integer, format: int64, minimum: 1}
+    AnalyticsCollaborationResponse:
+      type: object
+      required: [authors, organizations, scope, updatedAt]
+      properties:
+        authors: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AnalyticsCollaborationItem'}}
+        organizations: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AnalyticsCollaborationItem'}}
+        scope: {$ref: '#/components/schemas/AnalyticsScope'}
+        updatedAt: {type: string, format: date-time}
+    ExportFormat:
+      type: string
+      enum: [CSV, JSON]
+    ExportStatus:
+      type: string
+      enum: [PENDING, RUNNING, SUCCEEDED, FAILED, EXPIRED]
+    ExportFilter:
+      type: object
+      additionalProperties: false
+      properties:
+        title: {type: string, maxLength: 512}
+        authorId: {type: integer, format: int64, minimum: 1}
+        organizationId: {type: integer, format: int64, minimum: 1}
+        publicationYearFrom: {type: integer, minimum: 1000, maximum: 9999}
+        publicationYearTo: {type: integer, minimum: 1000, maximum: 9999}
+        achievementType: {type: string, maxLength: 64}
+        sourceType: {type: string, enum: [OPENALEX, CROSSREF]}
+        venueId: {type: integer, format: int64, minimum: 1}
+        topicId: {type: integer, format: int64, minimum: 1}
+    ExportCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [format, filters]
+      properties:
+        format: {$ref: '#/components/schemas/ExportFormat'}
+        filters: {$ref: '#/components/schemas/ExportFilter'}
+    ExportTask:
+      type: object
+      required: [id, format, status, requestedBy, requestedCount, exportedCount, downloadAvailable, downloadToken, createdAt, startedAt, completedAt, expiresAt, errorCode, errorMessage]
+      properties:
+        id: {type: string, format: uuid}
+        format: {$ref: '#/components/schemas/ExportFormat'}
+        status: {$ref: '#/components/schemas/ExportStatus'}
+        requestedBy: {type: integer, format: int64, minimum: 1}
+        requestedCount: {type: integer, format: int64, minimum: 0, maximum: 10000}
+        exportedCount: {type: integer, format: int64, minimum: 0, maximum: 10000}
+        downloadAvailable: {type: boolean}
+        downloadToken: {type: [string, 'null'], minLength: 32, maxLength: 128, description: 仅成功且未过期的任务返回服务端生成的不可预测令牌}
+        createdAt: {type: string, format: date-time}
+        startedAt: {type: [string, 'null'], format: date-time}
+        completedAt: {type: [string, 'null'], format: date-time}
+        expiresAt: {type: [string, 'null'], format: date-time}
+        errorCode: {type: [string, 'null']}
+        errorMessage: {type: [string, 'null'], description: 有限安全摘要，不包含文件路径、SQL或敏感配置}
+    HealthStatus:
+      type: string
+      enum: [UP, DOWN, DEGRADED, UNKNOWN]
+    OperationsOverview:
+      type: object
+      required: [generatedAt, applicationStatus, mysqlStatus, neo4jStatus, activeCrawlRunCount, recentCrawlFailureCount, graphPendingCount, graphProcessingCount, graphDeadCount, openAlertCount]
+      properties:
+        generatedAt: {type: string, format: date-time}
+        applicationStatus: {$ref: '#/components/schemas/HealthStatus'}
+        mysqlStatus: {$ref: '#/components/schemas/HealthStatus'}
+        neo4jStatus: {$ref: '#/components/schemas/HealthStatus'}
+        activeCrawlRunCount: {type: integer, format: int64, minimum: 0}
+        recentCrawlFailureCount: {type: integer, format: int64, minimum: 0, description: 最近24小时未解决失败数量}
+        graphPendingCount: {type: integer, format: int64, minimum: 0}
+        graphProcessingCount: {type: integer, format: int64, minimum: 0}
+        graphDeadCount: {type: integer, format: int64, minimum: 0}
+        openAlertCount: {type: integer, format: int64, minimum: 0}
+    AlertType:
+      type: string
+      enum: [CRAWL_CONSECUTIVE_FAILURES, PARSE_SUCCESS_RATE_DROP, GRAPH_SYNC_BACKLOG]
+    AlertSeverity:
+      type: string
+      enum: [WARNING, CRITICAL]
+    AlertStatus:
+      type: string
+      enum: [OPEN, ACKNOWLEDGED]
+    AlertEvent:
+      type: object
+      required: [id, type, severity, status, subjectType, subjectId, summary, evidence, firstDetectedAt, lastDetectedAt, occurrenceCount, acknowledgedBy, acknowledgedAt, acknowledgementReason, version]
+      properties:
+        id: {type: integer, format: int64, minimum: 1}
+        type: {$ref: '#/components/schemas/AlertType'}
+        severity: {$ref: '#/components/schemas/AlertSeverity'}
+        status: {$ref: '#/components/schemas/AlertStatus'}
+        subjectType: {type: string, enum: [SOURCE, CRAWL_TASK, GRAPH_SYNC]}
+        subjectId: {type: [string, 'null']}
+        summary: {type: string, maxLength: 500, description: 有限安全摘要}
+        evidence: {type: object, additionalProperties: true, description: 仅含计数、比例和时间等安全字段}
+        firstDetectedAt: {type: string, format: date-time}
+        lastDetectedAt: {type: string, format: date-time}
+        occurrenceCount: {type: integer, format: int64, minimum: 1}
+        acknowledgedBy: {type: [integer, 'null'], format: int64}
+        acknowledgedAt: {type: [string, 'null'], format: date-time}
+        acknowledgementReason: {type: [string, 'null'], maxLength: 1000}
+        version: {type: integer, format: int64, minimum: 0}
+    AlertEventPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/AlertEvent'}}
+    AlertAcknowledgeRequest:
+      type: object
+      additionalProperties: false
+      required: [reason, version]
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        version: {type: integer, format: int64, minimum: 0}
+    Problem:
+      type: object
+      required: [type, title, status, detail, instance, errorCode, traceId]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        errorCode:
+          type: string
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            required: [field, message]
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    DuplicateCandidate:
+      type: object
+      required: [id, entityType, leftEntityId, rightEntityId, matchBasis, evidence, status, ruleVersion, version, createdAt]
+      properties:
+        id: {type: integer, format: int64}
+        entityType: {type: string, enum: [ACHIEVEMENT, AUTHOR, ORGANIZATION, VENUE]}
+        leftEntityId: {type: integer, format: int64}
+        rightEntityId: {type: integer, format: int64}
+        matchBasis: {type: string, enum: [FINGERPRINT, TEXT_NAME, SOURCE_POSITION]}
+        evidence: {type: object, additionalProperties: true, description: 有限匹配证据，不含原始Payload}
+        status: {type: string, enum: [PENDING, ACCEPTED, REJECTED]}
+        sourceId: {type: [integer, 'null'], format: int64}
+        ruleVersion: {type: integer, minimum: 1}
+        version: {type: integer, format: int64, minimum: 0}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    DuplicateCandidatePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/DuplicateCandidate'}}
+    CandidateAcceptRequest:
+      type: object
+      required: [canonicalEntityId, reason, version]
+      properties:
+        canonicalEntityId: {type: integer, format: int64, minimum: 1}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        version: {type: integer, format: int64, minimum: 0}
+    VersionReasonRequest:
+      type: object
+      required: [reason, version]
+      properties:
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        version: {type: integer, format: int64, minimum: 0}
+    MergeDecision:
+      type: object
+      required: [id, candidateId, decision, revisionId, actorUserId, reason, version, decidedAt]
+      properties:
+        id: {type: integer, format: int64}
+        candidateId: {type: integer, format: int64}
+        decision: {type: string, enum: [ACCEPT, REJECT, REVERT]}
+        canonicalEntityId: {type: [integer, 'null'], format: int64}
+        revisionId: {type: integer, format: int64}
+        actorUserId: {type: integer, format: int64}
+        reason: {type: string}
+        version: {type: integer, format: int64}
+        decidedAt: {type: string, format: date-time}
+    FieldOverrideRequest:
+      type: object
+      required: [fieldName, value, reason, version]
+      properties:
+        fieldName: {type: string, enum: [title, type, language, publicationDate, venueId]}
+        value: {}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        version: {type: integer, format: int64, minimum: 0}
+    FieldOverride:
+      type: object
+      required: [achievementId, fieldName, value, revisionId, active, version, reason, updatedAt]
+      properties:
+        achievementId: {type: integer, format: int64}
+        fieldName: {type: string, enum: [title, type, language, publicationDate, venueId]}
+        value: {}
+        revisionId: {type: integer, format: int64}
+        active: {type: boolean}
+        version: {type: integer, format: int64}
+        reason: {type: string}
+        updatedAt: {type: string, format: date-time}
+    QualityMetricCode:
+      type: string
+      enum: [TOTAL_RECORDS, VALID_RECORDS, MISSING_OR_INVALID_DOI, MISSING_TITLE, MISSING_DATE, MISSING_AUTHORS, AUTHORS_WITHOUT_STABLE_ID, ORGANIZATIONS_WITHOUT_ROR, FIELD_CONFLICTS, AUTO_MATCHES, NEW_CANDIDATES]
+    QualityMetric:
+      type: object
+      required: [id, sourceId, taskId, runId, metricCode, numerator, denominator, measuredAt, version]
+      properties:
+        id: {type: integer, format: int64}
+        sourceId: {type: integer, format: int64}
+        taskId: {type: integer, format: int64}
+        runId: {type: integer, format: int64}
+        metricCode: {$ref: '#/components/schemas/QualityMetricCode'}
+        numerator: {type: integer, format: int64, minimum: 0}
+        denominator: {type: integer, format: int64, minimum: 0}
+        metricValue: {type: [number, 'null']}
+        measuredAt: {type: string, format: date-time}
+        version: {type: integer, format: int64, minimum: 0}
+    QualityMetricPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMetadata'
+        - type: object
+          properties:
+            items: {type: array, items: {$ref: '#/components/schemas/QualityMetric'}}
+    QualityIssueSample:
+      type: object
+      required: [id, rawRecordId, externalRecordId, evidence, createdAt]
+      properties:
+        id: {type: integer, format: int64}
+        rawRecordId: {type: integer, format: int64}
+        externalRecordId: {type: string}
+        evidence: {type: object, additionalProperties: true, description: 有限质量证据，不含原始Payload}
+        createdAt: {type: string, format: date-time}
+    QualityMetricDetail:
+      type: object
+      required: [metric, samples]
+      properties:
+        metric: {$ref: '#/components/schemas/QualityMetric'}
+        samples: {type: array, items: {$ref: '#/components/schemas/QualityIssueSample'}}

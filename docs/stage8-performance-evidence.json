@@ -1,0 +1,79 @@
+{
+  "measuredAt": "2026-09-04T01:07:57.4084488+08:00",
+  "measurementStartedAt": "2026-09-04T00:59:42.4260702+08:00",
+  "measurementDurationSeconds": 494.982,
+  "method": "nearest-rank-p95",
+  "baseUri": "http://127.0.0.1:18080/",
+  "warmup": {
+    "listPerScenario": 100,
+    "graph": 50
+  },
+  "environment": {
+    "windows": "Microsoft Windows 11 专业版 10.0.26200",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13700K",
+    "logicalProcessors": 24,
+    "memoryGiB": 31.72,
+    "workspaceDrive": "F",
+    "storageFreeGiBBefore": 527.37,
+    "storageFreeGiBAfter": 527.37,
+    "backendWorkingSetMiB": 408.89,
+    "backendCpuSeconds": 59.141,
+    "dockerResourceSnapshot": [
+      "aacv-stage8-mysql|1.35%|686.8MiB / 3GiB|0B / 0B",
+      "aacv-stage8-neo4j|0.36%|1.158GiB / 3GiB|0B / 0B"
+    ],
+    "jdk": "openjdk version \"21.0.7\" 2025-04-15 LTS",
+    "mysql": "8.0.42-container",
+    "neo4j": "5.26-community-container",
+    "achievements": 100000,
+    "graphNodes": 413000,
+    "graphRelationships": 1000000
+  },
+  "results": [
+    {
+      "name": "catalog-default-20",
+      "samples": 1000,
+      "concurrency": 4,
+      "minimumMs": 550.164,
+      "averageMs": 615.421,
+      "p95Ms": 653.49,
+      "maximumMs": 709.571,
+      "targetMs": 2000,
+      "passed": true
+    },
+    {
+      "name": "catalog-max-100",
+      "samples": 1000,
+      "concurrency": 4,
+      "minimumMs": 556.788,
+      "averageMs": 611.296,
+      "p95Ms": 650.899,
+      "maximumMs": 675.095,
+      "targetMs": 2000,
+      "passed": true
+    },
+    {
+      "name": "catalog-detail",
+      "samples": 1000,
+      "concurrency": 4,
+      "minimumMs": 460.127,
+      "averageMs": 506.693,
+      "p95Ms": 529.338,
+      "maximumMs": 556.41,
+      "targetMs": 2000,
+      "passed": true
+    },
+    {
+      "name": "graph-local-300",
+      "samples": 500,
+      "concurrency": 4,
+      "minimumMs": 91.314,
+      "averageMs": 114.889,
+      "p95Ms": 126.706,
+      "maximumMs": 215.831,
+      "targetMs": 3000,
+      "passed": true
+    }
+  ],
+  "passed": true
+}
