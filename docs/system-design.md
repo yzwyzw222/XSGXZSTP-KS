@@ -1154,6 +1154,12 @@ npm --prefix .\frontend run build
 docker compose -f .\deploy\compose.yaml config
 ~~~
 
+### 21.4 开发页面样例数据
+
+页面联合验收使用 `tools/development/Initialize-RenderingSampleData.ps1` 和 `rendering-sample-data.sql`，与 Flyway 迁移、阶段8容量数据和正式采集链路隔离。工具仅允许连接本机 `aacv_system`，要求 Flyway 恰好完成 V1 至 V11 且已有有效管理员，通过安全凭据提示连接，不保存数据库密码。样例业务写入使用单个事务，所有记录均带专用名称、外部标识、DOI、运行 UUID、事件 UUID 或审计 traceId，因此可以幂等重放且不会按模糊名称覆盖既有业务数据。
+
+MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而是创建版本化 `graph_projection_state` 和 `graph_outbox_event`，由现有消费者投影；其中保留一个明确标记的模拟死信，用于验证运行监控、告警确认和受控重放。样例还覆盖目录与详情、双来源追溯、实体列表、年度/类型/来源/机构/主题统计、作者和机构合作、治理候选、质量问题样本、采集失败、维护记录及审计列表。工具不创建账号、不触发外部 API，也不提供自动清库流程。
+
 ## 22. 实施阶段
 
 ### 阶段一：工程基础

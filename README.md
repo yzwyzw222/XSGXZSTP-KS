@@ -38,6 +38,18 @@ $env:Path = "$env:JAVA_HOME\bin;$env:Path"
 
 Neo4j Driver 的连接、连接池获取和事务重试默认都限制为5秒，避免Neo4j不可用时图查询长期占用请求线程。只有经过故障演练后，才应调整`.env`中的`AACV_NEO4J_CONNECTION_TIMEOUT`、`AACV_NEO4J_CONNECTION_ACQUISITION_TIMEOUT`和`AACV_NEO4J_MAX_TRANSACTION_RETRY_TIME`，不要为了掩盖依赖故障而禁用超时。
 
+## 加载页面测试数据
+
+开发库完成 Flyway V1 至 V11 迁移且已存在有效管理员后，可加载一套非敏感页面测试数据：
+
+~~~powershell
+.\tools\development\Initialize-RenderingSampleData.ps1
+~~~
+
+脚本只接受本机 `127.0.0.1`/`localhost` 上名为 `aacv_system` 的数据库，通过 `Get-Credential` 获取数据库密码，不读取或回显 `.env` 中的凭据。它会在写入前校验数据库名、迁移版本和有效管理员，并在单个事务中写入带 `[页面测试]`、`AACV-DEMO` 或 `10.9999/aacv-demo.*` 标识的数据。重复执行会复用同一批样例并刷新运行时间，不会重复创建成果，也不会修改已有 OpenAlex/Crossref 来源配置。
+
+样例覆盖两个来源、两个采集任务与运行、失败明细、12 条跨年份成果、作者/机构/载体/主题关系、双来源追溯、统计分布与合作、治理候选、质量指标及问题样本、图投影 Outbox、一个模拟死信、维护记录、开放与已确认告警和审计记录。脚本不会创建登录账号，也不会发起外部来源请求。其输出中的 `graph_center_achievement_id` 可直接用于知识图谱页面；Neo4j 与后端启动后，等待现有 Outbox 调度完成首轮投影即可查询样例子图。模拟死信和开放告警是运行监控页面的预期测试状态。
+
 ## 启动 Neo4j
 
 ~~~powershell
