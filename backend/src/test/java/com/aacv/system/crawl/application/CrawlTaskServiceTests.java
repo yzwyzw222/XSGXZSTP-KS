@@ -181,11 +181,11 @@ class CrawlTaskServiceTests {
 
         assertEquals(Instant.parse("2026-09-03T00:00:00Z"), schedule.nextFireAt());
         assertEquals(ZoneId.of("Asia/Shanghai"), schedule.timeZone());
-        assertEquals("ROLLING_PUBLICATION_DATE_WINDOW", schedule.incrementalMode());
+        assertEquals("FIXED_SCOPE_REFRESH", schedule.incrementalMode());
     }
 
     @Test
-    void crossrefDailyScheduleUsesClosedIndexWindow() {
+    void crossrefDailyScheduleTruthfullyReportsFixedScopeRefresh() {
         CrawlTask crossrefTask = new CrawlTask(
                 10, 2, "Crossref任务", scope(), 2, HASH, true, 0, 7, NOW, NOW);
         when(repository.lockTaskById(10)).thenReturn(Optional.of(crossrefTask));
@@ -196,7 +196,7 @@ class CrawlTaskServiceTests {
         CrawlSchedule schedule = service.configureDailySchedule(
                 10, LocalTime.of(8, 0), ZoneId.of("Asia/Shanghai"), null);
 
-        assertEquals("CLOSED_INDEX_DATE_WINDOW", schedule.incrementalMode());
+        assertEquals("FIXED_SCOPE_REFRESH", schedule.incrementalMode());
     }
 
     @Test

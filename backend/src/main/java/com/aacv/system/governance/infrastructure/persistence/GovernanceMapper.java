@@ -15,6 +15,8 @@ interface GovernanceMapper {
             @Param("size") int size);
     CandidateRow findCandidate(long candidateId);
     CandidateRow lockCandidate(long candidateId);
+    String findEntityComparison(@Param("entityType") String entityType, @Param("entityId") long entityId);
+    boolean hasExplicitVersionRelation(@Param("leftId") long leftId, @Param("rightId") long rightId);
     int countEntity(@Param("entityType") String entityType, @Param("entityId") long entityId);
     int countCanonicalLink(@Param("entityType") String entityType, @Param("entityId") long entityId);
     int updateCandidateStatus(

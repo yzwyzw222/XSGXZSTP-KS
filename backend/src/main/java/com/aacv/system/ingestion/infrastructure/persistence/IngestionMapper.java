@@ -54,6 +54,9 @@ interface IngestionMapper {
             @Param("observedAt") Instant observedAt);
 
     List<SourceSnapshotRow> findAchievementSnapshots(long achievementId);
+    int upsertOrganizationNameEvidence(
+            @Param("organizationId") long organizationId, @Param("sourceId") long sourceId,
+            @Param("displayName") String displayName, @Param("observedAt") Instant observedAt);
 
     int clearAchievementFieldSelection(long achievementId);
 

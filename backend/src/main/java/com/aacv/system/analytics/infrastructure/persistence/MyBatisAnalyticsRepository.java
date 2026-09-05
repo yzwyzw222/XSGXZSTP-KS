@@ -1,5 +1,6 @@
 package com.aacv.system.analytics.infrastructure.persistence;
 
+import com.aacv.system.analytics.domain.AnalyticsCoverage;
 import com.aacv.system.analytics.application.port.AnalyticsRepository;
 import com.aacv.system.analytics.domain.AnalyticsCollaboration;
 import com.aacv.system.analytics.domain.AnalyticsCollaborationItem;
@@ -24,8 +25,13 @@ class MyBatisAnalyticsRepository implements AnalyticsRepository {
     @Override
     public AnalyticsOverview overview(AnalyticsQuery query) {
         AnalyticsRow row = mapper.overview(query);
+        AnalyticsRow coverage = mapper.coverage(query);
         return new AnalyticsOverview(
-                row.getAchievementCount(), row.getAuthorCount(), row.getOrganizationCount(), row.getSourceCount());
+                row.getAchievementCount(), row.getAuthorCount(), row.getOrganizationCount(), row.getSourceCount(),
+                new AnalyticsCoverage(coverage.getWithDoiCount(),
+                        coverage.getWithPublicationYearCount(), coverage.getWithAbstractCount(), coverage.getWithCitationCount(),
+                        coverage.getWithOpenAccessStatusCount(), coverage.getWithRetractionStatusCount(),
+                        coverage.getAuthorshipsMayBeIncompleteCount()));
     }
 
     @Override

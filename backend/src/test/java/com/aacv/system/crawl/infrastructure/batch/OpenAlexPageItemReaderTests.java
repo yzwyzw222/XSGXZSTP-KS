@@ -84,6 +84,7 @@ class OpenAlexPageItemReaderTests {
         CrawlPageItem item = reader.read();
 
         assertEquals(0, item.page().records().size());
+        assertEquals(com.aacv.system.crawl.domain.CrawlCompletionReason.SOURCE_EXHAUSTED, item.completionReason());
         verify(adapter).fetchPage(any(), any(), org.mockito.ArgumentMatchers.eq(new OpaqueCursor("cursor-2")));
     }
 
@@ -135,5 +136,38 @@ class OpenAlexPageItemReaderTests {
 
         when(crawlRepository.findControlIntent(1)).thenReturn(CrawlControlIntent.CANCEL);
         assertNull(reader.read());
+    }
+
+    @Test
+    void lastAllowedPageWithMoreCursorIsReportedAsPageLimit() {
+        when(crawlRepository.findCheckpoint(1)).thenReturn(Optional.of(new CrawlCheckpointState("next", 4, 10, 0)));
+        when(adapter.fetchPage(any(), any(), any())).thenReturn(new SourcePage(List.of(), new OpaqueCursor("more"), 1, Map.of()));
+        reader.open(new ExecutionContext());
+        assertEquals(com.aacv.system.crawl.domain.CrawlCompletionReason.PAGE_LIMIT, reader.read().completionReason());
+        assertNull(reader.read());
+    }
+
+    @Test
+    void truncatedTerminalPageDoesNotClaimSourceExhaustion() {
+        when(crawlRepository.findCheckpoint(1)).thenReturn(Optional.of(new CrawlCheckpointState("next", 1, 499, 0)));
+        RawSourceRecord record = new RawSourceRecord(SourceType.CROSSREF, "10.1000/first",
+                URI.create("https://api.crossref.org/works/10.1000%2Ffirst"), "{}", Instant.EPOCH);
+        when(adapter.fetchPage(any(), any(), any())).thenReturn(new SourcePage(List.of(record, record), null, 1, Map.of()));
+        reader.open(new ExecutionContext());
+        CrawlPageItem item = reader.read();
+        assertEquals(1, item.page().records().size());
+        assertEquals(com.aacv.system.crawl.domain.CrawlCompletionReason.RECORD_LIMIT, item.completionReason());
+    }
+
+    @Test
+    void quotaFailureDoesNotAdvanceCheckpointOrConsumeRemainingLimit() {
+        when(adapter.fetchPage(any(), any(), any())).thenThrow(
+                new com.aacv.system.source.application.SourceQuotaExhaustedException(Instant.now().plusSeconds(60)));
+        ExecutionContext context = new ExecutionContext();
+        reader.open(context);
+        assertThrows(com.aacv.system.source.application.SourceQuotaExhaustedException.class, reader::read);
+        reader.update(context);
+        assertEquals("cursor-2", context.getString("source.cursor"));
+        assertEquals(1, context.getInt("source.committedPages"));
     }
 }

@@ -1,5 +1,6 @@
 package com.aacv.system.catalog.application;
 
+import com.aacv.system.catalog.domain.CatalogEntityEvidence;
 import com.aacv.system.catalog.application.port.CatalogRepository;
 import com.aacv.system.catalog.domain.AchievementCatalogDetail;
 import com.aacv.system.catalog.domain.AchievementCatalogItem;
@@ -49,5 +50,15 @@ public class CatalogService {
     public PageResult<CatalogEntityItem> findEntities(
             CatalogEntityKind kind, String name, int page, int size) {
         return repository.findEntities(kind, name, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CATALOG_READ')")
+    public CatalogEntityEvidence requireEntityEvidence(CatalogEntityKind kind, long entityId) {
+        if (entityId < 1 || (kind != CatalogEntityKind.AUTHOR && kind != CatalogEntityKind.ORGANIZATION)) {
+            throw new IllegalArgumentException("仅支持作者或机构的证据查询");
+        }
+        return repository.findEntityEvidence(kind, entityId)
+                .orElseThrow(() -> new ResourceNotFoundException("目录实体不存在"));
     }
 }

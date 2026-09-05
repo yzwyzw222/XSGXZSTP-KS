@@ -1,5 +1,7 @@
 package com.aacv.system.identity.application;
 
+import com.aacv.system.identity.domain.UserStatistics;
+
 import com.aacv.system.identity.domain.RoleCode;
 import com.aacv.system.identity.domain.UserAccount;
 import com.aacv.system.shared.domain.PageResult;
@@ -19,6 +21,16 @@ public class AdminUserService {
     @PreAuthorize("hasAuthority('USER_LIST')")
     public PageResult<UserAccount> findPage(int page, int size) {
         return userAccountService.findPage(page, size);
+    }
+
+    @PreAuthorize("hasAuthority('USER_LIST')")
+    public UserStatistics statistics() {
+        return userAccountService.statistics();
+    }
+
+    @PreAuthorize("hasAuthority('USER_UPDATE')")
+    public UserAccount updateUser(long userId, UpdateUserCommand command) {
+        return userAccountService.updateUser(userId, command);
     }
 
     @PreAuthorize("hasAuthority('USER_CREATE')")

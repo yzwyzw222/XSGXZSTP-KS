@@ -7,6 +7,7 @@ public class SourceSnapshotRow {
     private String sourceType;
     private int sourcePriority;
     private String normalizedPayload;
+    private java.time.Instant observedAt;
 
     public long getSourceId() { return sourceId; }
     public void setSourceId(long sourceId) { this.sourceId = sourceId; }
@@ -18,4 +19,6 @@ public class SourceSnapshotRow {
     public void setSourcePriority(int sourcePriority) { this.sourcePriority = sourcePriority; }
     public String getNormalizedPayload() { return normalizedPayload; }
     public void setNormalizedPayload(String normalizedPayload) { this.normalizedPayload = normalizedPayload; }
+    public java.time.Instant getObservedAt() { return observedAt; }
+    public void setObservedAt(java.time.Instant observedAt) { this.observedAt = observedAt; }
 }

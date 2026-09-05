@@ -1,5 +1,9 @@
 package com.aacv.system.identity.infrastructure.persistence;
 
+import com.aacv.system.identity.domain.UserStatistics;
+
+import com.aacv.system.identity.domain.UserProfile;
+
 import java.time.Instant;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -9,6 +13,16 @@ import org.apache.ibatis.annotations.Param;
 public interface UserAccountMapper {
 
     long countUsers();
+
+    UserStatistics statistics();
+
+    Long lockAdministratorRole();
+
+    long countActiveAdministrators();
+
+    int updateUser(@Param("userId") long userId, @Param("expectedVersion") long expectedVersion,
+            @Param("profile") UserProfile profile, @Param("status") String status,
+            @Param("securityChanged") boolean securityChanged, @Param("now") Instant now);
 
     UserAccountRow findById(@Param("userId") long userId);
 

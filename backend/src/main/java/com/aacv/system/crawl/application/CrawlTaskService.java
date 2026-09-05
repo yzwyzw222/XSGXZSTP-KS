@@ -198,9 +198,7 @@ public class CrawlTaskService {
                 current == null ? "crawl-task-" + task.id() : current.scheduleKey(),
                 localTime,
                 zoneId,
-                source.sourceType() == com.aacv.system.source.domain.SourceType.CROSSREF
-                        ? "CLOSED_INDEX_DATE_WINDOW"
-                        : "ROLLING_PUBLICATION_DATE_WINDOW",
+                "FIXED_SCOPE_REFRESH",
                 nextFireAt,
                 true,
                 current == null ? 0 : current.version());

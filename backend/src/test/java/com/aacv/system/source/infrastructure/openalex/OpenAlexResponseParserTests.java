@@ -70,6 +70,18 @@ class OpenAlexResponseParserTests {
     }
 
     @Test
+    void scholarlySignalsSurviveAdapterParsingAndNormalization() {
+        SourceWork work = parser.parseWork(raw("""
+                {"id":"https://openalex.org/W1","cited_by_count":15,"is_retracted":true,
+                 "open_access":{"is_oa":false,"oa_status":"closed"}}
+                """));
+        var normalized = new com.aacv.system.ingestion.application.SourceWorkNormalizer().normalize(work);
+        assertEquals(15L, normalized.scholarlyMetadata().citedByCount());
+        assertEquals(true, normalized.scholarlyMetadata().retracted());
+        assertEquals(false, normalized.scholarlyMetadata().openAccess());
+    }
+
+    @Test
     void oneHundredAuthorshipsAreMarkedAsPotentiallyIncomplete() {
         String authorships = IntStream.rangeClosed(1, 100)
                 .mapToObj(index -> "{\"author\":{\"id\":\"https://openalex.org/A" + index

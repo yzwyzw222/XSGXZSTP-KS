@@ -26,7 +26,8 @@ class OpenAlexHttpTransport {
 
     static final String SELECT_FIELDS = String.join(",",
             "id", "doi", "title", "type", "language", "publication_date", "primary_location",
-            "authorships", "topics", "referenced_works", "abstract_inverted_index");
+            "authorships", "topics", "referenced_works", "abstract_inverted_index",
+            "cited_by_count", "is_retracted", "open_access");
 
     private final OpenAlexRestClientFactory clientFactory;
     private final OpenAlexRequestGate requestGate;
@@ -67,11 +68,12 @@ class OpenAlexHttpTransport {
     private OpenAlexHttpResponse execute(
             SourceConnectionSettings settings,
             java.util.function.Function<UriBuilder, java.net.URI> uriFunction) {
-        RestClient client = clientFactory.create(settings);
         try (OpenAlexRequestGate.Permit ignored = requestGate.acquire(settings)) {
+            RestClient client = clientFactory.create(settings);
             return client.get().uri(uriFunction).exchange((request, response) -> {
                 int status = response.getStatusCode().value();
                 Map<String, String> metadata = responseMetadata(response.getHeaders());
+                if (status == 429 || (status >= 200 && status < 300)) requestGate.observeQuota(metadata);
                 Duration retryAfter = retryAfter(response.getHeaders()).orElse(null);
                 if (status < 200 || status >= 300) {
                     return new OpenAlexHttpResponse(status, new byte[0], retryAfter, metadata);

@@ -1,5 +1,6 @@
 package com.aacv.system.catalog.api;
 
+import com.aacv.system.catalog.domain.CatalogEntityEvidence;
 import com.aacv.system.catalog.application.CatalogService;
 import com.aacv.system.catalog.domain.CatalogEntityKind;
 import com.aacv.system.catalog.domain.CatalogQuery;
@@ -65,6 +66,12 @@ public class CatalogController {
                 null, null, null, null, null, null, null, null, page, size);
         return AchievementPageResponse.from(
                 service.findRelatedAchievements(kind(collection), entityId, query));
+    }
+
+    @GetMapping("/{collection:authors|organizations}/{entityId}/evidence")
+    public CatalogEntityEvidence findEntityEvidence(
+            @PathVariable String collection, @PathVariable @Min(1) long entityId) {
+        return service.requireEntityEvidence(kind(collection), entityId);
     }
 
     private CatalogQuery query(

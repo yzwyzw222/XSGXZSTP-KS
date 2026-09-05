@@ -1,5 +1,6 @@
 package com.aacv.system.catalog.application.port;
 
+import com.aacv.system.catalog.domain.CatalogEntityEvidence;
 import com.aacv.system.catalog.domain.AchievementCatalogDetail;
 import com.aacv.system.catalog.domain.AchievementCatalogItem;
 import com.aacv.system.catalog.domain.CatalogEntityItem;
@@ -17,4 +18,6 @@ public interface CatalogRepository {
 
     PageResult<CatalogEntityItem> findEntities(
             CatalogEntityKind kind, String name, int page, int size);
+
+    Optional<CatalogEntityEvidence> findEntityEvidence(CatalogEntityKind kind, long entityId);
 }

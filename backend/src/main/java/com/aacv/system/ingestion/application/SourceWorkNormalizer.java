@@ -46,7 +46,7 @@ public class SourceWorkNormalizer {
                 source.publicationDate(), normalizeDatePrecision(source),
                 fingerprint(title, source.publicationDate() == null ? null : source.publicationDate().getYear(), authorships),
                 normalizeVenue(source.primaryVenue()), authorships, topics, source.referencedWorkIds(),
-                source.abstractText(), source.authorshipsMayBeIncomplete(), source.fieldWarnings());
+                source.abstractText(), source.authorshipsMayBeIncomplete(), source.fieldWarnings(), source.scholarlyMetadata());
     }
 
     private NormalizedAuthorship normalizeAuthorship(SourceWork.SourceAuthorship authorship) {

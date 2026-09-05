@@ -47,7 +47,7 @@ class UserAccountServiceTests {
                 sessionInvalidator,
                 passwordEncoder,
                 Clock.fixed(NOW, ZoneOffset.UTC),
-                auditService);
+                auditService, mock(com.aacv.system.operations.application.port.CurrentActorProvider.class));
     }
 
     @Test

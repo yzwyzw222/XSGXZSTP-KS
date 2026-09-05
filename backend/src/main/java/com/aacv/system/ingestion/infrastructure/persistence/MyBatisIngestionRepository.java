@@ -136,6 +136,7 @@ public class MyBatisIngestionRepository implements IngestionRepository {
         int candidateCount = venue.candidateCount()
                 + replaceRelations(achievementId, selection)
                 + createAchievementCandidates(achievementId, sourceId, selection.work());
+        preserveOrganizationNames(snapshots);
         List<Long> citingAchievementIds = List.of();
         if (selection.work().doi() != null) {
             citingAchievementIds = mapper.findCitingAchievementIdsByDoi(selection.work().doi());
@@ -233,7 +234,7 @@ public class MyBatisIngestionRepository implements IngestionRepository {
             Instant now) {
         requireSingleRow(mapper.updateRunStatistics(runId, statistics), "采集运行统计更新");
         for (QualityMetricIncrement metric : qualityMetrics) {
-            requireSingleRow(
+            requireUpsertRows(
                     mapper.upsertQualityMetric(
                             runId, metric.metricCode(), metric.numerator(), metric.denominator(), now),
                     "质量指标写入");
@@ -249,7 +250,7 @@ public class MyBatisIngestionRepository implements IngestionRepository {
                 throw new IllegalStateException("质量问题样本写入数量异常");
             }
         }
-        requireSingleRow(
+        requireUpsertRows(
                 mapper.upsertCheckpoint(runId, cursorValue, cursorHash, statistics, now),
                 "采集检查点写入");
     }
@@ -479,6 +480,35 @@ public class MyBatisIngestionRepository implements IngestionRepository {
         return created;
     }
 
+    private void preserveOrganizationNames(List<SourceSnapshot> snapshots) {
+        for (SourceSnapshot snapshot : snapshots) {
+            for (NormalizedAuthorship authorship : snapshot.work().authorships()) {
+                int organizationPosition = 0;
+                for (NormalizedOrganization organization : authorship.organizations()) {
+                    organizationPosition++;
+                    if (organization.displayName() == null || organization.displayName().isBlank()) {
+                        continue;
+                    }
+                    Long organizationId = organization.rorId() == null ? null
+                            : mapper.findOrganizationByExternalId("ROR", organization.rorId());
+                    if (organizationId == null) {
+                        String externalId = organization.externalId();
+                        if (externalId == null) {
+                            externalId = snapshot.work().externalId() + "#author:" + authorship.position()
+                                    + "#organization:" + organizationPosition;
+                        }
+                        organizationId = mapper.findOrganizationByExternalId(snapshot.sourceType().name(), externalId);
+                    }
+                    // 仅按已确认的标识归属名称，缺少身份映射时不按同名猜测。
+                    if (organizationId != null) {
+                        requireUpsertRows(mapper.upsertOrganizationNameEvidence(organizationId, snapshot.sourceId(),
+                                organization.displayName(), snapshot.observedAt()), "机构来源名称写入");
+                    }
+                }
+            }
+        }
+    }
+
     private int createNameCandidates(
             String entityType,
             long sourceId,
@@ -554,6 +584,7 @@ public class MyBatisIngestionRepository implements IngestionRepository {
                         row.getSourceId(),
                         row.getRawRecordId(),
                         SourceType.valueOf(row.getSourceType()),
+                        row.getObservedAt(),
                         deserialize(row.getNormalizedPayload())))
                 .toList();
     }
@@ -726,7 +757,7 @@ public class MyBatisIngestionRepository implements IngestionRepository {
     }
 
     private record SourceSnapshot(
-            long sourceId, long rawRecordId, SourceType sourceType, NormalizedWork work) {
+            long sourceId, long rawRecordId, SourceType sourceType, Instant observedAt, NormalizedWork work) {
     }
 
     private record EntityUpsert(Long entityId, int candidateCount) {

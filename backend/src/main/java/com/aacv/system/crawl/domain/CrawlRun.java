@@ -20,15 +20,28 @@ public record CrawlRun(
         String checkpoint,
         Instant startedAt,
         Instant finishedAt,
-        long version) {
+        long version,
+        CrawlCompletionReason completionReason,
+        Instant deferredUntil,
+        int quotaDeferrals) {
 
     public CrawlRun {
         if (taskId < 1 || runNumber == null || runNumber.isBlank()
-                || triggerType == null || status == null || version < 0) {
+                || triggerType == null || status == null || version < 0 || quotaDeferrals < 0 || quotaDeferrals > 3) {
             throw new IllegalArgumentException("采集运行状态无效");
         }
         if ((triggerType == CrawlTriggerType.RETRY_FAILURES) != (parentRunId != null)) {
             throw new IllegalArgumentException("失败重试运行与父运行关联不一致");
         }
+    }
+
+    public CrawlRun(
+            long id, long taskId, String runNumber, CrawlTriggerType triggerType, Long parentRunId,
+            CrawlRunStatus status, Long batchJobExecutionId, long readCount, long parsedCount,
+            long createdCount, long updatedCount, long duplicateCount, long failureCount, long requestCount,
+            String checkpoint, Instant startedAt, Instant finishedAt, long version) {
+        this(id, taskId, runNumber, triggerType, parentRunId, status, batchJobExecutionId,
+                readCount, parsedCount, createdCount, updatedCount, duplicateCount, failureCount,
+                requestCount, checkpoint, startedAt, finishedAt, version, null, null, 0);
     }
 }

@@ -7,6 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import com.aacv.system.identity.application.UpdateUserCommand;
+import com.aacv.system.identity.domain.UserProfile;
+import com.aacv.system.identity.domain.UserStatus;
+import com.aacv.system.identity.infrastructure.security.UserPrincipal;
+import com.aacv.system.shared.application.ResourceConflictException;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -82,6 +89,15 @@ class SecurityIntegrationTests {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    private com.aacv.system.operations.application.port.AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private com.aacv.system.operations.application.AuditService auditService;
+
+    @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     @MockitoBean
     private ExportTaskDispatcher exportTaskDispatcher;
@@ -170,6 +186,14 @@ class SecurityIntegrationTests {
         userAccountService.createUser(
                 new CreateUserCommand("stage4-researcher", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
         AuthSession researcher = login("stage4-researcher", USER_PASSWORD);
+        mockMvc.perform(get("/api/v1/duplicate-candidates/1/comparison"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/catalog/authors/1/evidence"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/duplicate-candidates/1/comparison").cookie(researcher.cookie()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/catalog/authors/1/evidence").cookie(researcher.cookie()))
+                .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/duplicate-candidates").cookie(researcher.cookie()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
@@ -191,6 +215,8 @@ class SecurityIntegrationTests {
         userAccountService.createUser(
                 new CreateUserCommand("stage4-operator", USER_PASSWORD, Set.of(RoleCode.DATA_OPERATOR)));
         AuthSession operator = login("stage4-operator", USER_PASSWORD);
+        mockMvc.perform(get("/api/v1/duplicate-candidates/1/comparison").cookie(operator.cookie()))
+                .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/duplicate-candidates").cookie(operator.cookie()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray());
@@ -551,7 +577,8 @@ class SecurityIntegrationTests {
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Callable<Class<?>> enable = () -> updateResult(ready, start, () -> userAccountService.enableUser(user.id(), 0));
+            Callable<Class<?>> enable = () -> updateResult(ready, start, () -> userAccountService.updateUser(user.id(), new UpdateUserCommand(0,
+                    new UserProfile("并发资料", null, null, null, null, null), user.roles(), user.status())));
             Callable<Class<?>> disable = () -> updateResult(ready, start, () -> userAccountService.disableUser(user.id(), 0));
             Future<Class<?>> first = executor.submit(enable);
             Future<Class<?>> second = executor.submit(disable);
@@ -564,6 +591,202 @@ class SecurityIntegrationTests {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void unifiedProfileEditKeepsSessionAndSecurityEditInvalidatesIt() throws Exception {
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        UserAccount user = userAccountService.createUser(new CreateUserCommand("profile-user", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
+        AuthSession loggedIn = login(user.username().value(), USER_PASSWORD);
+        Map<String, Object> body = editBody(user, "资料用户");
+        mockMvc.perform(put("/api/v1/users/" + user.id()).cookie(admin.cookie())
+                        .header(admin.csrfHeader(), admin.csrfToken()).contentType(MediaType.APPLICATION_JSON).content(json(body)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.realName").value("资料用户"))
+                .andExpect(jsonPath("$.version").value(1));
+        mockMvc.perform(get("/api/v1/auth/me").cookie(loggedIn.cookie())).andExpect(status().isOk());
+        UserAccount updated = userAccountService.getById(user.id());
+        assertEquals(0, updated.securityVersion());
+        userAccountService.updateUser(user.id(), new UpdateUserCommand(updated.version(), updated.profile(),
+                Set.of(RoleCode.DATA_OPERATOR), UserStatus.ACTIVE));
+        assertEquals(1, userAccountService.getById(user.id()).securityVersion());
+        mockMvc.perform(get("/api/v1/auth/me").cookie(loggedIn.cookie())).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void unchangedEditDoesNotAdvanceVersionAndStaleEditKeepsAllFields() throws Exception {
+        UserAccount user = userAccountService.createUser(new CreateUserCommand("unchanged-user", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
+        var noChange = new UpdateUserCommand(0, user.profile(), user.roles(), user.status());
+        assertEquals(0, userAccountService.updateUser(user.id(), noChange).version());
+        UserAccount changed = userAccountService.updateUser(user.id(), new UpdateUserCommand(0,
+                new UserProfile("已更新", null, null, "测试单位", null, null), user.roles(), user.status()));
+        assertThrows(VersionConflictException.class, () -> userAccountService.updateUser(user.id(),
+                new UpdateUserCommand(0, UserProfile.EMPTY, Set.of(RoleCode.ADMIN), UserStatus.DISABLED)));
+        assertEquals(changed, userAccountService.getById(user.id()));
+    }
+
+    @Test
+    void updateAndStatisticsEnforcePermissionCsrfAndProfileValidation() throws Exception {
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        UserAccount user = userAccountService.createUser(new CreateUserCommand("boundary-user", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
+        AuthSession researcher = login(user.username().value(), USER_PASSWORD);
+        mockMvc.perform(get("/api/v1/users/statistics")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/users/statistics").cookie(researcher.cookie())).andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/users/" + user.id()).cookie(admin.cookie())
+                        .contentType(MediaType.APPLICATION_JSON).content(json(editBody(user, "姓名"))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/users/" + user.id()).cookie(researcher.cookie())
+                        .header(researcher.csrfHeader(), researcher.csrfToken()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json(editBody(user, "姓名"))))
+                .andExpect(status().isForbidden());
+        for (Map.Entry<String, Object> invalid : Map.<String, Object>of(
+                "realName", "长".repeat(65), "email", "invalid", "phone", "<script>", "roles", java.util.List.of()).entrySet()) {
+            var body = new java.util.HashMap<>(editBody(user, "姓名"));
+            body.put(invalid.getKey(), invalid.getValue());
+            mockMvc.perform(put("/api/v1/users/" + user.id()).cookie(admin.cookie())
+                            .header(admin.csrfHeader(), admin.csrfToken()).contentType(MediaType.APPLICATION_JSON).content(json(body)))
+                    .andExpect(status().isBadRequest());
+        }
+        assertEquals(0, userAccountService.getById(user.id()).version());
+        assertTrue(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_log WHERE action='OPERATION_FAILED'", Long.class) >= 6);
+    }
+
+    @Test
+    void administratorCannotDisableOrDemoteSelfThroughEitherEntryPoint() throws Exception {
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        UserAccount self = userAccountService.findByUsername(ADMIN_USERNAME).orElseThrow();
+        for (String path : java.util.List.of("disable", "roles")) {
+            mockMvc.perform(post("/api/v1/users/" + self.id() + "/" + path).cookie(admin.cookie())
+                            .header(admin.csrfHeader(), admin.csrfToken()).contentType(MediaType.APPLICATION_JSON)
+                            .content(json(Map.of("version", self.version(), "roles", Set.of("RESEARCHER")))))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.errorCode").value("RESOURCE_CONFLICT"));
+        }
+        var body = new java.util.HashMap<>(editBody(self, "管理员")); body.put("status", "DISABLED");
+        mockMvc.perform(put("/api/v1/users/" + self.id()).cookie(admin.cookie())
+                        .header(admin.csrfHeader(), admin.csrfToken()).contentType(MediaType.APPLICATION_JSON).content(json(body)))
+                .andExpect(status().isConflict());
+        assertEquals(self, userAccountService.getById(self.id()));
+    }
+
+    @Test
+    void concurrentAdministratorRemovalAlwaysLeavesOneActiveAdministrator() throws Exception {
+        UserAccount first = userAccountService.findByUsername(ADMIN_USERNAME).orElseThrow();
+        UserAccount second = userAccountService.createUser(new CreateUserCommand("second-admin", USER_PASSWORD, Set.of(RoleCode.ADMIN)));
+        CountDownLatch ready = new CountDownLatch(2); CountDownLatch start = new CountDownLatch(1);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            var futures = java.util.List.of(first, second).stream().map(user -> executor.submit(() -> {
+                ready.countDown(); start.await();
+                try { userAccountService.disableUser(user.id(), user.version()); return true; }
+                catch (ResourceConflictException expected) { return false; }
+            })).toList();
+            assertTrue(ready.await(5, java.util.concurrent.TimeUnit.SECONDS)); start.countDown();
+            int successes = 0;
+            for (var future : futures) if (future.get(10, java.util.concurrent.TimeUnit.SECONDS)) successes++;
+            assertEquals(1, successes);
+            assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sys_user WHERE status='ACTIVE'", Long.class));
+        }
+    }
+
+    @Test
+    void statisticsDeduplicateRolesAcrossEveryPageAndIncludeDisabledUsers() throws Exception {
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        jdbcTemplate.update("""
+                INSERT INTO sys_user(username,password_hash,status) SELECT CONCAT('stats-',n), 'unusable-test-hash', 'DISABLED'
+                FROM (SELECT 1 n UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 UNION ALL SELECT 5
+                UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9 UNION ALL SELECT 10
+                UNION ALL SELECT 11 UNION ALL SELECT 12 UNION ALL SELECT 13 UNION ALL SELECT 14 UNION ALL SELECT 15
+                UNION ALL SELECT 16 UNION ALL SELECT 17 UNION ALL SELECT 18 UNION ALL SELECT 19 UNION ALL SELECT 20
+                UNION ALL SELECT 21) nums
+                """);
+        jdbcTemplate.update("INSERT INTO sys_user_role(user_id,role_id) SELECT u.id,r.id FROM sys_user u CROSS JOIN sys_role r WHERE u.username LIKE 'stats-%' AND r.role_code IN ('RESEARCHER','DATA_OPERATOR')");
+        mockMvc.perform(get("/api/v1/users/statistics").cookie(admin.cookie())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalUsers").value(22)).andExpect(jsonPath("$.admin").value(1))
+                .andExpect(jsonPath("$.dataOperator").value(21)).andExpect(jsonPath("$.researcher").value(0));
+    }
+
+    @Test
+    void logsExposeSafeConnectionContextAndFilterOldAndNewEvents() throws Exception {
+        CsrfSession csrf = csrfSession();
+        mockMvc.perform(post("/api/v1/auth/login").cookie(csrf.cookie()).header(csrf.csrfHeader(), csrf.csrfToken())
+                        .header("User-Agent", "Mozilla/5.0 Chrome/130.0").header("X-Forwarded-For", "203.0.113.99")
+                        .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("username", "missing-user", "password", USER_PASSWORD))))
+                .andExpect(status().isUnauthorized());
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie()).param("category", "LOGIN")
+                        .param("username", "missing-user").param("result", "FAILURE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].username").value("missing-user"))
+                .andExpect(jsonPath("$.items[0].clientIp").value("127.0.0.1"))
+                .andExpect(jsonPath("$.items[0].userAgent").value("Mozilla/5.0 Chrome/130.0"));
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie()).param("category", "INVALID"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie())
+                        .param("from", "2026-09-06T00:00:00Z").param("to", "2026-09-05T00:00:00Z"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie()).param("username", "%"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        String content = mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertFalse(content.contains(USER_PASSWORD));
+        assertFalse(content.contains(csrf.csrfToken()));
+    }
+
+    @Test
+    void malformedLoginIsAuditedOnceWithoutReadingRequestBody() throws Exception {
+        CsrfSession csrf = csrfSession();
+        mockMvc.perform(post("/api/v1/auth/login").cookie(csrf.cookie()).header(csrf.csrfHeader(), csrf.csrfToken())
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_log WHERE action='LOGIN_FAILED'", Long.class));
+    }
+
+    @Test
+    void successAuditFailureRollsBackEditButFailureAuditSurvives() throws Exception {
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        UserAccount user = userAccountService.createUser(new CreateUserCommand("rollback-user", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataAccessResourceFailureException("模拟成功审计写入失败"))
+                .when(auditLogRepository).append(org.mockito.ArgumentMatchers.argThat(
+                        record -> record.action() == com.aacv.system.operations.domain.AuditAction.USER_UPDATED));
+        mockMvc.perform(put("/api/v1/users/" + user.id()).cookie(admin.cookie())
+                        .header(admin.csrfHeader(), admin.csrfToken()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json(editBody(user, "不能持久化"))))
+                .andExpect(status().isInternalServerError());
+        assertEquals(user, userAccountService.getById(user.id()));
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie()).param("category", "OPERATION")
+                        .param("action", "USER_UPDATED").param("result", "FAILURE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].summary.errorCode").value("INTERNAL_ERROR"));
+    }
+
+    @Test
+    void failureAuditUsesIndependentTransaction() {
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        assertThrows(IllegalStateException.class, () -> transaction.execute(status -> {
+            auditService.recordFailure(null, "USER_UPDATED", "123", 409, "VERSION_CONFLICT",
+                    new com.aacv.system.operations.infrastructure.web.AuditRequestMetadata(null, null));
+            throw new IllegalStateException("模拟外围事务回滚");
+        }));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_log WHERE action='OPERATION_FAILED'", Long.class));
+    }
+
+    @Test
+    void lastAdministratorRoleCannotBeRemovedByApplicationService() {
+        UserAccount administrator = userAccountService.findByUsername(ADMIN_USERNAME).orElseThrow();
+        assertThrows(ResourceConflictException.class, () -> userAccountService.replaceRoles(
+                administrator.id(), administrator.version(), Set.of(RoleCode.RESEARCHER)));
+    }
+
+    @Test
+    void emptyDatabaseStatisticsReportZeroWithoutInventingRoleMemberships() {
+        jdbcTemplate.update("DELETE FROM audit_log");
+        jdbcTemplate.update("DELETE FROM sys_user_role");
+        jdbcTemplate.update("DELETE FROM sys_user");
+        assertEquals(new com.aacv.system.identity.domain.UserStatistics(0, 0, 0, 0), userAccountService.statistics());
+    }
+
+    private Map<String, Object> editBody(UserAccount user, String name) {
+        return Map.of("version", user.version(), "roles", user.roles(), "status", user.status(), "realName", name,
+                "email", "profile@example.invalid", "phone", "+86 (010) 1234-5678", "organization", "测试单位",
+                "department", "测试院系", "remark", "内部测试资料");
     }
 
     private AuthSession login(String username, String password) throws Exception {

@@ -76,4 +76,46 @@ public class UserAccountRow {
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
     }
+    private String realName;
+
+    public String getRealName() { return realName; }
+
+    public void setRealName(String value) { realName = value; }
+
+    private String email;
+
+    public String getEmail() { return email; }
+
+    public void setEmail(String value) { email = value; }
+
+    private String phone;
+
+    public String getPhone() { return phone; }
+
+    public void setPhone(String value) { phone = value; }
+
+    private String organization;
+
+    public String getOrganization() { return organization; }
+
+    public void setOrganization(String value) { organization = value; }
+
+    private String department;
+
+    public String getDepartment() { return department; }
+
+    public void setDepartment(String value) { department = value; }
+
+    private String remark;
+
+    public String getRemark() { return remark; }
+
+    public void setRemark(String value) { remark = value; }
+
+    private Long securityVersion;
+
+    public Long getSecurityVersion() { return securityVersion; }
+
+    public void setSecurityVersion(Long value) { securityVersion = value; }
+
 }

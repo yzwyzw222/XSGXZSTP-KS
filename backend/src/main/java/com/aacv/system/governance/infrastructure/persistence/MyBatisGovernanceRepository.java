@@ -56,6 +56,19 @@ public class MyBatisGovernanceRepository implements GovernanceRepository {
     }
 
     @Override
+    public Optional<Map<String, Object>> findEntityComparison(GovernedEntityType entityType, long entityId) {
+        if (entityType == null || entityId < 1) {
+            throw new IllegalArgumentException("候选实体标识无效");
+        }
+        return Optional.ofNullable(mapper.findEntityComparison(entityType.name(), entityId)).map(this::readEvidence);
+    }
+
+    @Override
+    public boolean hasExplicitVersionRelation(long leftAchievementId, long rightAchievementId) {
+        return mapper.hasExplicitVersionRelation(leftAchievementId, rightAchievementId);
+    }
+
+    @Override
     public boolean entityExists(GovernedEntityType entityType, long entityId) {
         return mapper.countEntity(entityType.name(), entityId) == 1;
     }

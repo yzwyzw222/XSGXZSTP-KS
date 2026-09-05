@@ -13,6 +13,9 @@
         <result property="traceId" column="trace_id"/>
         <result property="summaryJson" column="summary_json"/>
         <result property="createdAt" column="created_at"/>
+        <result property="username" column="username"/>
+        <result property="clientIp" column="client_ip"/>
+        <result property="userAgent" column="user_agent"/>
     </resultMap>
 
     <insert id="insert" parameterType="com.aacv.system.operations.infrastructure.persistence.AuditLogRow"
@@ -25,7 +28,7 @@
             result,
             trace_id,
             summary_json,
-            created_at
+            created_at, client_ip, user_agent
         )
         VALUES (
             #{actorUserId},
@@ -35,27 +38,35 @@
             #{result},
             #{traceId},
             #{summaryJson},
-            #{createdAt}
+            #{createdAt}, #{clientIp}, #{userAgent}
         )
     </insert>
 
+    <sql id="accountName">
+        CASE WHEN a.action = 'LOGIN_FAILED' THEN a.target_id ELSE u.username END
+    </sql>
+    <sql id="filteredAudits">
+        FROM audit_log a LEFT JOIN sys_user u ON u.id = a.actor_user_id
+        <where>
+            <if test="query.category != null">
+                <choose>
+                    <when test="query.category.name() == 'LOGIN'">a.action IN ('LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'LOGOUT')</when>
+                    <otherwise>a.action NOT IN ('LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'LOGOUT')</otherwise>
+                </choose>
+            </if>
+            <if test="query.username != null">AND <include refid="accountName"/> LIKE CONCAT('%', #{query.escapedUsername}, '%') ESCAPE '!'</if>
+            <if test="query.from != null">AND a.created_at &gt;= #{query.from}</if>
+            <if test="query.to != null">AND a.created_at &lt; #{query.to}</if>
+            <if test="query.result != null">AND a.result = #{query.result}</if>
+            <if test="query.action != null">AND (a.action = #{query.action} OR (a.action = 'OPERATION_FAILED' AND JSON_UNQUOTE(JSON_EXTRACT(a.summary_json, '$.operation')) = #{query.action}))</if>
+        </where>
+    </sql>
     <select id="countAll" resultType="long">
-        SELECT COUNT(*)
-        FROM audit_log
+        SELECT COUNT(*) <include refid="filteredAudits"/>
     </select>
-
     <select id="findPage" resultMap="auditLogRow">
-        SELECT id,
-               actor_user_id,
-               action,
-               target_type,
-               target_id,
-               result,
-               trace_id,
-               summary_json,
-               created_at
-        FROM audit_log
-        ORDER BY created_at DESC, id DESC
-        LIMIT #{size} OFFSET #{offset}
+        SELECT a.*, <include refid="accountName"/> AS username
+        <include refid="filteredAudits"/>
+        ORDER BY a.created_at DESC, a.id DESC LIMIT #{size} OFFSET #{offset}
     </select>
 </mapper>

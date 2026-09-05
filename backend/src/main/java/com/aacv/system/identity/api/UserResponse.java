@@ -15,7 +15,8 @@ public record UserResponse(
         Instant credentialsChangedAt,
         Instant createdAt,
         Instant updatedAt,
-        Set<RoleCode> roles) {
+        Set<RoleCode> roles,
+        String realName, String email, String phone, String organization, String department, String remark) {
 
     public static UserResponse from(UserAccount account) {
         return new UserResponse(
@@ -26,6 +27,8 @@ public record UserResponse(
                 account.credentialsChangedAt(),
                 account.createdAt(),
                 account.updatedAt(),
-                new TreeSet<>(account.roles()));
+                new TreeSet<>(account.roles()),
+                account.profile().realName(), account.profile().email(), account.profile().phone(),
+                account.profile().organization(), account.profile().department(), account.profile().remark());
     }
 }

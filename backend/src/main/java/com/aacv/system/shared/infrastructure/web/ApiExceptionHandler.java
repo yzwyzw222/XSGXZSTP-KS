@@ -50,6 +50,7 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler({
+        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
         ConstraintViolationException.class,
         HandlerMethodValidationException.class,
         HttpMessageNotReadableException.class,
@@ -148,6 +149,7 @@ public class ApiExceptionHandler {
 
     private ProblemDetail problem(
             HttpServletRequest request, HttpStatus status, ErrorCode errorCode, String detail) {
+        request.setAttribute(com.aacv.system.operations.infrastructure.web.FailedOperationAuditFilter.ERROR_CODE, errorCode.name());
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(status.getReasonPhrase());
         problem.setInstance(URI.create(request.getRequestURI()));

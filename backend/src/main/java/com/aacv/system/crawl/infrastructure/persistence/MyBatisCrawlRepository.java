@@ -235,7 +235,31 @@ public class MyBatisCrawlRepository implements CrawlRepository {
                 CrawlRunStatus.valueOf(row.getStatus()),
                 row.getBatchJobExecutionId(), row.getReadCount(), row.getParsedCount(), row.getCreatedCount(),
                 row.getUpdatedCount(), row.getDuplicateCount(), row.getFailureCount(), row.getRequestCount(),
-                row.getCheckpoint(), row.getStartedAt(), row.getFinishedAt(), row.getVersion());
+                row.getCheckpoint(), row.getStartedAt(), row.getFinishedAt(), row.getVersion(),
+                row.getCompletionReason() == null ? null
+                        : com.aacv.system.crawl.domain.CrawlCompletionReason.valueOf(row.getCompletionReason()),
+                row.getDeferredUntil(), row.getQuotaDeferrals());
+    }
+
+    @Override
+    public void recordCompletionReason(long runId, com.aacv.system.crawl.domain.CrawlCompletionReason reason) {
+        if (mapper.recordCompletionReason(runId, reason == null ? null : reason.name()) != 1) {
+            throw new IllegalStateException("采集运行结束原因写入失败");
+        }
+    }
+
+    @Override
+    public void recordQuotaDeferral(long runId, java.time.Instant deferredUntil, int quotaDeferrals) {
+        if (quotaDeferrals < 0 || quotaDeferrals > 3) throw new IllegalArgumentException("额度恢复次数无效");
+        if (mapper.recordQuotaDeferral(runId, deferredUntil, quotaDeferrals) != 1) {
+            throw new IllegalStateException("采集运行额度恢复时间写入失败");
+        }
+    }
+
+    @Override
+    public java.util.List<Long> findDueQuotaRuns(java.time.Instant now, int limit) {
+        if (now == null || limit < 1 || limit > 20) throw new IllegalArgumentException("额度恢复查询范围无效");
+        return mapper.findDueQuotaRuns(now, limit);
     }
 
     private CrawlSchedule toSchedule(CrawlScheduleRow row) {

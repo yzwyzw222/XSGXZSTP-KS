@@ -37,6 +37,68 @@
         SELECT <include refid="candidateColumns"/>
         FROM duplicate_candidate WHERE id = #{candidateId} FOR UPDATE
     </select>
+    <select id="findEntityComparison" resultType="string">
+        <choose>
+            <when test="entityType == 'ACHIEVEMENT'">
+                SELECT CAST(JSON_OBJECT(
+                    'displayName', COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_original, a.title_normalized),
+                    'sourceTitle', COALESCE(a.title_original, a.title_normalized),
+                    'doi', a.doi_normalized,
+                    'type', COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type),
+                    'language', COALESCE(JSON_UNQUOTE(language_override.field_value), a.language),
+                    'publicationDate', COALESCE(JSON_UNQUOTE(date_override.field_value), a.publication_date),
+                    'datePrecision', a.date_precision,
+                    'version', a.version,
+                    'sourceCount', (SELECT COUNT(*) FROM achievement_source s WHERE s.achievement_id = a.id),
+                    'authorCount', (SELECT COUNT(*) FROM achievement_author au WHERE au.achievement_id = a.id)
+                ) AS CHAR CHARACTER SET utf8mb4) FROM achievement a
+                LEFT JOIN manual_field_override title_override ON title_override.achievement_id = a.id
+                    AND title_override.field_name = 'title' AND title_override.active = TRUE
+                LEFT JOIN manual_field_override type_override ON type_override.achievement_id = a.id
+                    AND type_override.field_name = 'type' AND type_override.active = TRUE
+                LEFT JOIN manual_field_override language_override ON language_override.achievement_id = a.id
+                    AND language_override.field_name = 'language' AND language_override.active = TRUE
+                LEFT JOIN manual_field_override date_override ON date_override.achievement_id = a.id
+                    AND date_override.field_name = 'publicationDate' AND date_override.active = TRUE
+                WHERE a.id = #{entityId}
+            </when>
+            <when test="entityType == 'AUTHOR'">
+                SELECT CAST(JSON_OBJECT(
+                    'displayName', a.display_name, 'version', a.version,
+                    'openAlexId', (SELECT e.external_id FROM author_external_id e WHERE e.author_id = a.id AND e.id_type = 'OPENALEX'),
+                    'orcid', (SELECT e.external_id FROM author_external_id e WHERE e.author_id = a.id AND e.id_type = 'ORCID'),
+                    'achievementCount', (SELECT COUNT(*) FROM achievement_author au WHERE au.author_id = a.id)
+                ) AS CHAR CHARACTER SET utf8mb4) FROM author a WHERE a.id = #{entityId}
+            </when>
+            <when test="entityType == 'ORGANIZATION'">
+                SELECT CAST(JSON_OBJECT(
+                    'displayName', o.display_name, 'version', o.version, 'type', o.organization_type,
+                    'openAlexId', o.openalex_id, 'countryCode', o.country_code,
+                    'ror', (SELECT e.external_id FROM organization_external_id e WHERE e.organization_id = o.id AND e.id_type = 'ROR')
+                ) AS CHAR CHARACTER SET utf8mb4) FROM organization o WHERE o.id = #{entityId}
+            </when>
+            <when test="entityType == 'VENUE'">
+                SELECT CAST(JSON_OBJECT(
+                    'displayName', v.display_name, 'version', v.version, 'type', v.venue_type,
+                    'openAlexId', v.openalex_id, 'issnL', v.issn_l
+                ) AS CHAR CHARACTER SET utf8mb4) FROM venue v WHERE v.id = #{entityId}
+            </when>
+            <otherwise>SELECT NULL</otherwise>
+        </choose>
+    </select>
+    <select id="hasExplicitVersionRelation" resultType="boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM achievement_source s
+            JOIN achievement_source_snapshot snapshot ON snapshot.achievement_source_id = s.id
+            JOIN achievement target ON target.id = CASE
+                WHEN s.achievement_id = #{leftId} THEN #{rightId} ELSE #{leftId} END
+            JOIN JSON_TABLE(snapshot.normalized_payload, '$.scholarlyMetadata.versionRelations[*]'
+                COLUMNS (relation_type VARCHAR(32) PATH '$.relationType', target_doi VARCHAR(255) PATH '$.targetDoi')) relation_value
+            WHERE s.achievement_id IN (#{leftId}, #{rightId})
+              AND target.doi_normalized = relation_value.target_doi
+              AND relation_value.relation_type IN ('is-preprint-of', 'has-preprint', 'is-version-of', 'has-version')
+        )
+    </select>
     <select id="countEntity" resultType="int">
         <choose>
             <when test="entityType == 'ACHIEVEMENT'">SELECT COUNT(*) FROM achievement WHERE id = #{entityId}</when>

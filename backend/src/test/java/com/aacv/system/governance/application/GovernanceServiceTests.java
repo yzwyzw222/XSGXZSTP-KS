@@ -91,6 +91,41 @@ class GovernanceServiceTests {
     }
 
     @Test
+    void comparisonPreservesCandidateIdentityAndMissingFields() {
+        when(repository.findCandidate(11)).thenReturn(Optional.of(candidate(CandidateStatus.PENDING, 2)));
+        Map<String, Object> left = new java.util.LinkedHashMap<>();
+        left.put("displayName", "预印本");
+        left.put("doi", null);
+        when(repository.findEntityComparison(GovernedEntityType.ACHIEVEMENT, 20)).thenReturn(Optional.of(left));
+        when(repository.findEntityComparison(GovernedEntityType.ACHIEVEMENT, 30))
+                .thenReturn(Optional.of(Map.of("displayName", "正式版")));
+        when(repository.hasExplicitVersionRelation(20, 30)).thenReturn(true);
+
+        var result = service.compareCandidate(11);
+        assertEquals(2, result.candidateVersion());
+        assertEquals(20, result.leftEntityId());
+        assertEquals(left, result.left());
+        assertEquals(true, result.explicitVersionRelation());
+        assertThrows(UnsupportedOperationException.class, () -> result.left().put("doi", "changed"));
+        when(repository.findEntityComparison(GovernedEntityType.ACHIEVEMENT, 30)).thenReturn(Optional.empty());
+        assertThrows(com.aacv.system.shared.application.ResourceNotFoundException.class,
+                () -> service.compareCandidate(11));
+    }
+
+    @Test
+    void explicitVersionsCannotBeMergedEvenWhenCandidateIsPending() {
+        when(repository.lockCandidate(11)).thenReturn(Optional.of(candidate(CandidateStatus.PENDING, 2)));
+        for (long id : new long[] {20, 30}) {
+            when(repository.entityExists(GovernedEntityType.ACHIEVEMENT, id)).thenReturn(true);
+            when(repository.isCanonicalEntity(GovernedEntityType.ACHIEVEMENT, id)).thenReturn(true);
+        }
+        when(repository.hasExplicitVersionRelation(20, 30)).thenReturn(true);
+        assertThrows(ResourceConflictException.class, () -> service.acceptCandidate(11, 20, "标题相似", 2));
+        verify(repository, never()).createCanonicalLink(any(), anyLong(), anyLong(), anyLong());
+        verify(repository, never()).updateCandidateStatus(anyLong(), any(), anyLong());
+    }
+
+    @Test
     void staleCandidateCannotBeAcceptedTwice() {
         when(repository.lockCandidate(11)).thenReturn(Optional.of(candidate(CandidateStatus.ACCEPTED, 3)));
 

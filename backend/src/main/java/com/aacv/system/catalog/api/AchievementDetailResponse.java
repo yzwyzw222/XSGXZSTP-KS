@@ -59,7 +59,8 @@ public record AchievementDetailResponse(
             String sourceUrl,
             Instant firstSeenAt,
             Instant lastSeenAt,
-            String parserVersion) {
+            String parserVersion,
+            com.aacv.system.source.domain.ScholarlyMetadata scholarlyMetadata) {
         static SourceTraceResponse from(AchievementCatalogDetail.SourceTrace source) {
             return new SourceTraceResponse(
                     source.sourceRecordId(),
@@ -69,7 +70,7 @@ public record AchievementDetailResponse(
                     source.sourceUrl(),
                     source.firstSeenAt(),
                     source.lastSeenAt(),
-                    source.parserVersion());
+                    source.parserVersion(), source.scholarlyMetadata());
         }
     }
 

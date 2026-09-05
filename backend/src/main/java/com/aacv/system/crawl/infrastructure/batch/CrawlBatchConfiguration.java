@@ -64,6 +64,10 @@ class CrawlBatchConfiguration {
                         .sourceType();
                 IngestionPageResult result = ingestionPageService.processPage(
                         sourceType, sourceId, runId, item.page());
+                if (item.completionReason() != null) {
+                    // 结束原因与本页数据、检查点在同一事务提交，重启后仍能区分截断和来源耗尽。
+                    crawlRepository.recordCompletionReason(runId, item.completionReason());
+                }
                 if (item.retryFailureId() != null) {
                     ingestionRepository.recordRetryAttempt(item.retryFailureId(), result.failureCount() == 0);
                 }

@@ -37,7 +37,8 @@ public class AccountFreshnessFilter extends OncePerRequestFilter {
             Optional<UserAccount> current = repository.findById(principal.userId());
             if (current.isEmpty()
                     || !current.orElseThrow().canAuthenticate()
-                    || current.orElseThrow().version() != principal.version()) {
+                    || principal.securityVersion() == null
+                    || current.orElseThrow().securityVersion() != principal.securityVersion()) {
                 HttpSession session = request.getSession(false);
                 if (session != null) {
                     session.invalidate();

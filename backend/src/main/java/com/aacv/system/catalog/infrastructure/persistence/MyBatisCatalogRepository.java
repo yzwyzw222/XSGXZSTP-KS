@@ -1,5 +1,9 @@
 package com.aacv.system.catalog.infrastructure.persistence;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import com.aacv.system.source.domain.ScholarlyMetadata;
+import com.aacv.system.catalog.domain.CatalogEntityEvidence;
 import com.aacv.system.catalog.application.port.CatalogRepository;
 import com.aacv.system.catalog.domain.AchievementCatalogDetail;
 import com.aacv.system.catalog.domain.AchievementCatalogDetail.Authorship;
@@ -22,9 +26,11 @@ import org.springframework.stereotype.Repository;
 class MyBatisCatalogRepository implements CatalogRepository {
 
     private final CatalogMapper mapper;
+    private final ObjectMapper objectMapper;
 
-    MyBatisCatalogRepository(CatalogMapper mapper) {
+    MyBatisCatalogRepository(CatalogMapper mapper, ObjectMapper objectMapper) {
         this.mapper = mapper;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -84,7 +90,7 @@ class MyBatisCatalogRepository implements CatalogRepository {
                         row.getSourceUrl(),
                         row.getFirstSeenAt(),
                         row.getLastSeenAt(),
-                        row.getParserVersion()))
+                        row.getParserVersion(), scholarlyMetadata(row.getScholarlyMetadata())))
                 .toList();
         AchievementCatalogItem summary = toItem(
                 base,
@@ -108,6 +114,15 @@ class MyBatisCatalogRepository implements CatalogRepository {
                         .toList()));
     }
 
+    private ScholarlyMetadata scholarlyMetadata(String json) {
+        if (json == null || "null".equals(json)) return null;
+        try {
+            return objectMapper.readValue(json, ScholarlyMetadata.class);
+        } catch (JacksonException exception) {
+            throw new IllegalStateException("来源学术指标快照无效", exception);
+        }
+    }
+
     @Override
     public PageResult<CatalogEntityItem> findEntities(
             CatalogEntityKind kind, String name, int page, int size) {
@@ -127,6 +142,24 @@ class MyBatisCatalogRepository implements CatalogRepository {
                         row.getAchievementCount()))
                 .toList();
         return PageResult.of(items, page, size, total);
+    }
+
+    @Override
+    public Optional<CatalogEntityEvidence> findEntityEvidence(CatalogEntityKind kind, long entityId) {
+        if (kind != CatalogEntityKind.AUTHOR && kind != CatalogEntityKind.ORGANIZATION) {
+            throw new IllegalArgumentException("仅支持作者或机构的证据查询");
+        }
+        Long canonicalId = mapper.findEvidenceEntityId(kind.name(), entityId);
+        if (canonicalId == null) return Optional.empty();
+        var names = kind == CatalogEntityKind.ORGANIZATION ? mapper.findOrganizationNames(canonicalId) : List.<CatalogEvidenceRow>of();
+        var affiliations = kind == CatalogEntityKind.AUTHOR ? mapper.findAuthorAffiliations(canonicalId) : List.<CatalogEvidenceRow>of();
+        return Optional.of(new CatalogEntityEvidence(canonicalId, kind,
+                names.stream().limit(100).map(row -> new CatalogEntityEvidence.OrganizationName(
+                        row.getDisplayName(), row.getSourceCode(), row.getFirstObservedAt(), row.getLastObservedAt())).toList(),
+                affiliations.stream().limit(100).map(row -> new CatalogEntityEvidence.AffiliationObservation(
+                        row.getOrganizationId(), row.getDisplayName(), row.getFirstPublicationYear(), row.getLastPublicationYear(),
+                        row.getAchievementCount(), row.getDatedAchievementCount())).toList(),
+                names.size() > 100, affiliations.size() > 100));
     }
 
     private AchievementCatalogItem toItem(

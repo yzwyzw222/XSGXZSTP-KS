@@ -12,6 +12,13 @@
         <result property="credentialsChangedAt" column="credentials_changed_at"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="realName" column="real_name"/>
+        <result property="email" column="email"/>
+        <result property="phone" column="phone"/>
+        <result property="organization" column="organization"/>
+        <result property="department" column="department"/>
+        <result property="remark" column="remark"/>
+        <result property="securityVersion" column="security_version"/>
     </resultMap>
 
     <sql id="userColumns">
@@ -22,7 +29,7 @@
         version,
         credentials_changed_at,
         created_at,
-        updated_at
+        updated_at, real_name, email, phone, organization, department, remark, security_version
     </sql>
 
     <select id="countUsers" resultType="long">
@@ -79,7 +86,7 @@
             version,
             credentials_changed_at,
             created_at,
-            updated_at
+            updated_at, real_name, email, phone, organization, department, remark
         )
         VALUES (
             #{username},
@@ -88,7 +95,7 @@
             0,
             #{credentialsChangedAt},
             #{createdAt},
-            #{updatedAt}
+            #{updatedAt}, #{realName}, #{email}, #{phone}, #{organization}, #{department}, #{remark}
         )
     </insert>
 
@@ -103,6 +110,7 @@
         UPDATE sys_user
         SET status = #{status},
             version = version + 1,
+            security_version = security_version + 1,
             updated_at = #{now}
         WHERE id = #{userId}
           AND version = #{expectedVersion}
@@ -114,6 +122,7 @@
             status = #{status},
             credentials_changed_at = #{credentialsChangedAt},
             version = version + 1,
+            security_version = security_version + 1,
             updated_at = #{credentialsChangedAt}
         WHERE id = #{userId}
           AND version = #{expectedVersion}
@@ -122,6 +131,7 @@
     <update id="incrementVersion">
         UPDATE sys_user
         SET version = version + 1,
+            security_version = security_version + 1,
             updated_at = #{now}
         WHERE id = #{userId}
           AND version = #{expectedVersion}
@@ -139,4 +149,31 @@
     <select id="releaseInitialAdminLock" resultType="integer">
         SELECT RELEASE_LOCK('aacv.initial-admin')
     </select>
+    <select id="lockAdministratorRole" resultType="long">
+        SELECT id FROM sys_role WHERE role_code = 'ADMIN' FOR UPDATE
+    </select>
+    <select id="countActiveAdministrators" resultType="long">
+        SELECT COUNT(*) FROM sys_user u
+        WHERE u.status = 'ACTIVE' AND EXISTS (
+            SELECT 1 FROM sys_user_role ur JOIN sys_role r ON r.id = ur.role_id
+            WHERE ur.user_id = u.id AND r.role_code = 'ADMIN')
+    </select>
+    <select id="statistics" resultType="com.aacv.system.identity.domain.UserStatistics">
+        SELECT COUNT(*) AS totalUsers,
+               COALESCE(SUM(role_rank = 3), 0) AS admin,
+               COALESCE(SUM(role_rank = 2), 0) AS dataOperator,
+               COALESCE(SUM(role_rank = 1), 0) AS researcher
+        FROM (SELECT u.id, MAX(CASE r.role_code WHEN 'ADMIN' THEN 3
+                  WHEN 'DATA_OPERATOR' THEN 2 WHEN 'RESEARCHER' THEN 1 ELSE 0 END) AS role_rank
+              FROM sys_user u LEFT JOIN sys_user_role ur ON ur.user_id = u.id
+              LEFT JOIN sys_role r ON r.id = ur.role_id GROUP BY u.id) classified
+    </select>
+    <update id="updateUser">
+        UPDATE sys_user SET real_name = #{profile.realName}, email = #{profile.email}, phone = #{profile.phone},
+            organization = #{profile.organization}, department = #{profile.department}, remark = #{profile.remark},
+            status = #{status}, version = version + 1,
+            security_version = security_version + CASE WHEN #{securityChanged} THEN 1 ELSE 0 END,
+            updated_at = #{now}
+        WHERE id = #{userId} AND version = #{expectedVersion}
+    </update>
 </mapper>

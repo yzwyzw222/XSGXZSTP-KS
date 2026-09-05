@@ -34,6 +34,31 @@ class FlywayMigrationTests {
     static final MySQLContainer STAGE_FOUR_MYSQL = new MySQLContainer("mysql:8.0.42")
             .withDatabaseName("aacv_stage_four_upgrade_test");
 
+    @Container
+    static final MySQLContainer PROFILE_MYSQL = new MySQLContainer("mysql:8.0.42")
+            .withDatabaseName("aacv_profile_upgrade_test");
+
+    @Test
+    void v14PreservesExistingAccountRolesAndHistoricalAudit() throws Exception {
+        Flyway baseline = Flyway.configure().dataSource(PROFILE_MYSQL.getJdbcUrl(), PROFILE_MYSQL.getUsername(),
+                PROFILE_MYSQL.getPassword()).locations("classpath:db/migration").target("13").load();
+        assertEquals(13, baseline.migrate().migrationsExecuted);
+        try (Connection connection = PROFILE_MYSQL.createConnection(""); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("INSERT INTO sys_user(id,username,password_hash,status,version) VALUES (99,'legacy-user','unusable-test-hash','ACTIVE',7)");
+            statement.executeUpdate("INSERT INTO sys_user_role(user_id,role_id) SELECT 99,id FROM sys_role WHERE role_code='ADMIN'");
+            statement.executeUpdate("INSERT INTO audit_log(actor_user_id,action,target_type,target_id,result,trace_id) VALUES (99,'LOGIN_SUCCEEDED','USER_ACCOUNT','99','SUCCESS','migration-test')");
+        }
+        Flyway upgraded = Flyway.configure().dataSource(PROFILE_MYSQL.getJdbcUrl(), PROFILE_MYSQL.getUsername(),
+                PROFILE_MYSQL.getPassword()).locations("classpath:db/migration").load();
+        assertEquals(1, upgraded.migrate().migrationsExecuted);
+        assertTrue(upgraded.validateWithResult().validationSuccessful);
+        try (Connection connection = PROFILE_MYSQL.createConnection(""); Statement statement = connection.createStatement()) {
+            assertEquals(1, scalarCount(statement, "SELECT COUNT(*) FROM sys_user WHERE id=99 AND username='legacy-user' AND version=7 AND security_version=0 AND real_name IS NULL AND email IS NULL"));
+            assertEquals(1, scalarCount(statement, "SELECT COUNT(*) FROM sys_user_role WHERE user_id=99"));
+            assertEquals(1, scalarCount(statement, "SELECT COUNT(*) FROM audit_log WHERE actor_user_id=99 AND client_ip IS NULL AND user_agent IS NULL"));
+        }
+    }
+
     @Test
     void migratesEmptySchemaAndValidatesStageFiveTablesAndConstraints() throws Exception {
         Flyway flyway = Flyway.configure()
@@ -41,7 +66,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(11, flyway.migrate().migrationsExecuted);
+        assertEquals(14, flyway.migrate().migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
 
         try (Connection connection = MYSQL.createConnection("");
@@ -161,7 +186,7 @@ class FlywayMigrationTests {
                 .dataSource(UPGRADE_MYSQL.getJdbcUrl(), UPGRADE_MYSQL.getUsername(), UPGRADE_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(8, stageThree.migrate().migrationsExecuted);
+        assertEquals(11, stageThree.migrate().migrationsExecuted);
         assertTrue(stageThree.validateWithResult().validationSuccessful);
     }
 
@@ -222,7 +247,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(4, stageFour.migrate().migrationsExecuted);
+        assertEquals(7, stageFour.migrate().migrationsExecuted);
         assertTrue(stageFour.validateWithResult().validationSuccessful);
         try (Connection connection = STAGE_THREE_MYSQL.createConnection("");
                 Statement statement = connection.createStatement()) {
@@ -265,7 +290,7 @@ class FlywayMigrationTests {
                         STAGE_FOUR_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(3, stageFive.migrate().migrationsExecuted);
+        assertEquals(6, stageFive.migrate().migrationsExecuted);
         assertTrue(stageFive.validateWithResult().validationSuccessful);
 
         try (Connection connection = STAGE_FOUR_MYSQL.createConnection("");

@@ -7,6 +7,7 @@ import com.aacv.system.crawl.domain.CrawlRun;
 import com.aacv.system.crawl.domain.CrawlScope;
 import com.aacv.system.crawl.domain.CrawlTask;
 import com.aacv.system.crawl.domain.CrawlTriggerType;
+import com.aacv.system.crawl.domain.CrawlCompletionReason;
 import com.aacv.system.ingestion.application.IngestionPageService;
 import com.aacv.system.ingestion.application.port.IngestionRepository;
 import com.aacv.system.ingestion.domain.RetryFailureRecord;
@@ -90,12 +91,13 @@ class OpenAlexPageItemReader implements ItemStreamReader<CrawlPageItem> {
             finished = retryIndex >= retryFailures.size();
             return new CrawlPageItem(
                     new SourcePage(List.of(retry.rawRecord()), null, 0, java.util.Map.of()),
-                    retry.failureId());
+                    retry.failureId(), finished ? CrawlCompletionReason.RETRY_BATCH_COMPLETED : null);
         }
         SourcePage fetched = adapter.fetchPage(source.settings(), scope, new OpaqueCursor(cursor));
         reconcileTotalResults(fetched);
         long remaining = scope.maxRecords() - committedRecords;
         List<com.aacv.system.ingestion.domain.RawSourceRecord> records = fetched.records();
+        boolean truncated = records.size() > remaining;
         if (records.size() > remaining) {
             records = List.copyOf(records.subList(0, Math.toIntExact(remaining)));
         }
@@ -109,7 +111,12 @@ class OpenAlexPageItemReader implements ItemStreamReader<CrawlPageItem> {
         finished = IngestionPageService.TERMINAL_CURSOR.equals(cursor)
                 || committedPages >= scope.maxPages()
                 || committedRecords >= scope.maxRecords();
-        return new CrawlPageItem(bounded, null);
+        CrawlCompletionReason reason = null;
+        if (truncated) reason = CrawlCompletionReason.RECORD_LIMIT;
+        else if (IngestionPageService.TERMINAL_CURSOR.equals(cursor)) reason = CrawlCompletionReason.SOURCE_EXHAUSTED;
+        else if (committedRecords >= scope.maxRecords()) reason = CrawlCompletionReason.RECORD_LIMIT;
+        else if (committedPages >= scope.maxPages()) reason = CrawlCompletionReason.PAGE_LIMIT;
+        return new CrawlPageItem(bounded, null, reason);
     }
 
     @Override

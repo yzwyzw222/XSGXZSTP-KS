@@ -34,7 +34,7 @@ class CrossrefHttpTransport {
     static final String SELECT_FIELDS = String.join(",",
             "DOI", "URL", "title", "type", "published", "issued",
             "container-title", "ISSN", "issn-type", "author", "subject", "reference",
-            "abstract", "indexed", "publisher");
+            "abstract", "indexed", "publisher", "is-referenced-by-count", "relation");
 
     private final CrossrefRestClientFactory clientFactory;
     private final CrossrefRequestGate requestGate;

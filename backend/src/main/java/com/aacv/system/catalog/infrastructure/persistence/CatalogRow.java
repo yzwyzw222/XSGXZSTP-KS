@@ -29,6 +29,9 @@ public class CatalogRow {
     private String externalRecordId;
     private String sourceUrl;
     private String parserVersion;
+    private String scholarlyMetadata;
+    public String getScholarlyMetadata() { return scholarlyMetadata; }
+    public void setScholarlyMetadata(String scholarlyMetadata) { this.scholarlyMetadata = scholarlyMetadata; }
     private Instant firstSeenAt;
     private Instant lastSeenAt;
     private String referencedExternalWorkId;

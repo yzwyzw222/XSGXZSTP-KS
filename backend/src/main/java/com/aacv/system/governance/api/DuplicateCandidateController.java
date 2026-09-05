@@ -1,5 +1,6 @@
 package com.aacv.system.governance.api;
 
+import com.aacv.system.governance.domain.CandidateComparison;
 import com.aacv.system.governance.application.GovernanceService;
 import com.aacv.system.governance.domain.CandidateStatus;
 import com.aacv.system.governance.domain.DuplicateCandidateQuery;
@@ -50,6 +51,11 @@ public class DuplicateCandidateController {
     @GetMapping("/{candidateId}")
     public DuplicateCandidateResponse findCandidate(@PathVariable @Min(1) long candidateId) {
         return DuplicateCandidateResponse.from(service.requireCandidate(candidateId));
+    }
+
+    @GetMapping("/{candidateId}/comparison")
+    public CandidateComparison compareCandidate(@PathVariable @Min(1) long candidateId) {
+        return service.compareCandidate(candidateId);
     }
 
     @PostMapping("/{candidateId}/accept")

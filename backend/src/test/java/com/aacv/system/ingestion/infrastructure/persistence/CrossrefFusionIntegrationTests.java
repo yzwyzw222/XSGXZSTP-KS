@@ -61,6 +61,12 @@ class CrossrefFusionIntegrationTests {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private com.aacv.system.catalog.application.port.CatalogRepository catalogRepository;
+
+    @Autowired
+    private com.aacv.system.governance.application.port.GovernanceRepository governanceRepository;
+
     @Test
     void deterministicIdentifiersFuseRegardlessOfOrderAndTextOnlyValuesStayCandidates() {
         long actorId = createActor();
@@ -90,6 +96,17 @@ class CrossrefFusionIntegrationTests {
         assertCanonical("10.1000/order-a", "Crossref A", "OpenAlex abstract A");
         assertCanonical("10.1000/order-b", "Crossref B", "OpenAlex abstract B");
         assertEquals(4, count("achievement_source"));
+        long workId = jdbcTemplate.queryForObject("SELECT id FROM achievement WHERE doi_normalized = '10.1000/order-a'", Long.class);
+        var sourceSignals = catalogRepository.findAchievement(workId).orElseThrow().sources();
+        var openAlexSignals = sourceSignals.stream().filter(value -> value.sourceCode().equals("OPENALEX"))
+                .findFirst().orElseThrow().scholarlyMetadata();
+        var crossrefSignals = sourceSignals.stream().filter(value -> value.sourceCode().equals("CROSSREF"))
+                .findFirst().orElseThrow().scholarlyMetadata();
+        assertEquals(12L, openAlexSignals.citedByCount());
+        assertEquals(8L, crossrefSignals.citedByCount());
+        assertEquals(false, openAlexSignals.retracted());
+        org.junit.jupiter.api.Assertions.assertNull(crossrefSignals.retracted());
+        org.junit.jupiter.api.Assertions.assertNotNull(openAlexSignals.observedAt());
         assertEquals(2, jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
                 FROM entity_field_provenance provenance
@@ -136,6 +153,31 @@ class CrossrefFusionIntegrationTests {
         assertEquals(achievementsBeforeReplay, count("achievement"));
         assertEquals(candidatesBeforeReplay, count("duplicate_candidate"));
 
+        long knownOrganizationId = jdbcTemplate.queryForObject(
+                "SELECT organization_id FROM organization_external_id WHERE id_type = 'ROR' AND external_id = 'https://ror.org/03yrm5c26'", Long.class);
+        var originalNames = catalogRepository.findEntityEvidence(
+                com.aacv.system.catalog.domain.CatalogEntityKind.ORGANIZATION, knownOrganizationId).orElseThrow().names();
+        assertEquals(2, originalNames.size());
+        org.junit.jupiter.api.Assertions.assertTrue(originalNames.stream().allMatch(name -> name.displayName().equals("Example University")));
+        ingest(crossref, run(crossrefTask, actorId), crossrefRecord(
+                "10.1000/order-a", "Crossref A", "<jats:p>Crossref abstract A</jats:p>",
+                "Ada", "Lovelace", "Renamed Research University", true));
+        var renamedNames = catalogRepository.findEntityEvidence(
+                com.aacv.system.catalog.domain.CatalogEntityKind.ORGANIZATION, knownOrganizationId).orElseThrow().names();
+        assertEquals(3, renamedNames.size());
+        org.junit.jupiter.api.Assertions.assertTrue(renamedNames.stream().anyMatch(name -> name.displayName().equals("Example University")));
+        org.junit.jupiter.api.Assertions.assertTrue(renamedNames.stream().allMatch(name -> !name.firstObservedAt().isAfter(name.lastObservedAt())));
+        assertEquals(1, catalogRepository.findEntities(com.aacv.system.catalog.domain.CatalogEntityKind.ORGANIZATION,
+                "Renamed Research University", 0, 20).totalElements());
+        assertEquals(2, catalogRepository.findAchievements(new com.aacv.system.catalog.domain.CatalogQuery(
+                null, null, "Example University", null, null, null, null, null, 0, 20), null, null).totalElements());
+        var textOrganizations = catalogRepository.findEntities(com.aacv.system.catalog.domain.CatalogEntityKind.ORGANIZATION,
+                "Text Only Institute", 0, 20).items();
+        for (var textOrganization : textOrganizations) {
+            assertEquals(1, catalogRepository.findEntityEvidence(com.aacv.system.catalog.domain.CatalogEntityKind.ORGANIZATION,
+                    textOrganization.id()).orElseThrow().names().size());
+        }
+
         RawSourceRecord citingRecord = crossrefRecord(
                 "10.1000/citing", "Citing Work", null,
                 "Reference", "Author", "Reference Institute", false);
@@ -154,6 +196,18 @@ class CrossrefFusionIntegrationTests {
                   AND reference_value.referenced_id_value = '10.1000/cited'
                   AND cited.doi_normalized = '10.1000/cited'
                 """, Integer.class));
+        long otherWorkId = jdbcTemplate.queryForObject("SELECT id FROM achievement WHERE doi_normalized = '10.1000/order-b'", Long.class);
+        org.junit.jupiter.api.Assertions.assertFalse(governanceRepository.hasExplicitVersionRelation(workId, otherWorkId));
+        ingest(crossref, run(crossrefTask, actorId), withVersionRelation(crossrefRecord(
+                "10.1000/order-a", "Crossref A", "<jats:p>Crossref abstract A</jats:p>",
+                "Ada", "Lovelace", "Renamed Research University", true), "is-preprint-of", "10.1000/order-b"));
+        org.junit.jupiter.api.Assertions.assertTrue(governanceRepository.hasExplicitVersionRelation(workId, otherWorkId));
+        org.junit.jupiter.api.Assertions.assertTrue(governanceRepository.hasExplicitVersionRelation(otherWorkId, workId));
+        org.junit.jupiter.api.Assertions.assertFalse(governanceRepository.hasExplicitVersionRelation(workId, Long.MAX_VALUE));
+        ingest(crossref, run(crossrefTask, actorId), withVersionRelation(crossrefRecord(
+                "10.1000/order-a", "Crossref A", "<jats:p>Crossref abstract A</jats:p>",
+                "Ada", "Lovelace", "Renamed Research University", true), "cites", "10.1000/order-b"));
+        org.junit.jupiter.api.Assertions.assertFalse(governanceRepository.hasExplicitVersionRelation(workId, otherWorkId));
     }
 
     private long createActor() {
@@ -224,6 +278,7 @@ class CrossrefFusionIntegrationTests {
                 {
                   "id":"%s",
                   "doi":"https://doi.org/%s",
+                  "cited_by_count":12,"is_retracted":false,"open_access":{"is_oa":true,"oa_status":"gold"},
                   "title":"%s",
                   "type":"article",
                   "language":"en",
@@ -282,6 +337,7 @@ class CrossrefFusionIntegrationTests {
         String payload = """
                 {
                   "DOI":"%s",
+                  "is-referenced-by-count":8,
                   "title":["%s"],
                   "type":"journal-article",
                   "language":"en",
@@ -322,6 +378,12 @@ class CrossrefFusionIntegrationTests {
                         "\"reference\":[]",
                         "\"reference\":[{\"DOI\":\"" + referencedDoi + "\"}]"),
                 record.fetchedAt());
+    }
+
+    private RawSourceRecord withVersionRelation(RawSourceRecord record, String relationType, String targetDoi) {
+        return new RawSourceRecord(record.sourceType(), record.externalRecordId(), record.sourceLocation(),
+                record.payload().replace("\"reference\":[]", "\"reference\":[],\"relation\":{\"" + relationType
+                        + "\":[{\"id-type\":\"doi\",\"id\":\"" + targetDoi + "\"}]}"), record.fetchedAt());
     }
 
     private void assertCanonical(String doi, String title, String abstractText) {

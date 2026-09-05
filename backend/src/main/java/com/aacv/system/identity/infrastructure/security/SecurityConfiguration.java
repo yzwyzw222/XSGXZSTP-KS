@@ -1,6 +1,8 @@
 package com.aacv.system.identity.infrastructure.security;
 
 import com.aacv.system.identity.application.port.UserAccountRepository;
+import com.aacv.system.operations.application.AuditService;
+import com.aacv.system.operations.infrastructure.web.FailedOperationAuditFilter;
 import com.aacv.system.shared.infrastructure.web.ProblemResponseWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -48,6 +50,7 @@ public class SecurityConfiguration {
             HttpSecurity http,
             CsrfTokenRepository csrfTokenRepository,
             UserAccountRepository userAccountRepository,
+            AuditService auditService,
             ProblemResponseWriter problemResponseWriter)
             throws Exception {
         AccountFreshnessFilter accountFreshnessFilter =
@@ -100,7 +103,8 @@ public class SecurityConfiguration {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
-                .addFilterAfter(accountFreshnessFilter, SecurityContextHolderFilter.class);
+                .addFilterAfter(new FailedOperationAuditFilter(auditService), SecurityContextHolderFilter.class)
+                .addFilterAfter(accountFreshnessFilter, FailedOperationAuditFilter.class);
         return http.build();
     }
 }

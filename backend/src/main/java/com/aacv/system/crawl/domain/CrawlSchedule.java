@@ -32,6 +32,6 @@ public record CrawlSchedule(
             boolean enabled,
             long version) {
         this(id, taskId, scheduleKey, localTime, timeZone,
-                "ROLLING_PUBLICATION_DATE_WINDOW", nextFireAt, enabled, version);
+                "FIXED_SCOPE_REFRESH", nextFireAt, enabled, version);
     }
 }

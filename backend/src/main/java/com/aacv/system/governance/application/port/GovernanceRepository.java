@@ -1,5 +1,6 @@
 package com.aacv.system.governance.application.port;
 
+import java.util.Map;
 import com.aacv.system.governance.domain.CandidateStatus;
 import com.aacv.system.governance.domain.DuplicateCandidate;
 import com.aacv.system.governance.domain.DuplicateCandidateQuery;
@@ -18,6 +19,10 @@ public interface GovernanceRepository {
     Optional<DuplicateCandidate> findCandidate(long candidateId);
 
     Optional<DuplicateCandidate> lockCandidate(long candidateId);
+
+    Optional<Map<String, Object>> findEntityComparison(GovernedEntityType entityType, long entityId);
+
+    boolean hasExplicitVersionRelation(long leftAchievementId, long rightAchievementId);
 
     boolean entityExists(GovernedEntityType entityType, long entityId);
 

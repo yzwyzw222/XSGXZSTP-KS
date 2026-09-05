@@ -1,5 +1,9 @@
 package com.aacv.system.identity.infrastructure.persistence;
 
+import com.aacv.system.identity.domain.UserStatistics;
+
+import com.aacv.system.identity.domain.UserProfile;
+
 import com.aacv.system.identity.application.port.UserAccountRepository;
 import com.aacv.system.identity.domain.RoleCode;
 import com.aacv.system.identity.domain.UserAccount;
@@ -22,6 +26,28 @@ public class MyBatisUserAccountRepository implements UserAccountRepository {
 
     public MyBatisUserAccountRepository(UserAccountMapper mapper) {
         this.mapper = mapper;
+    }
+
+    @Override
+    public UserStatistics statistics() { return mapper.statistics(); }
+
+    @Override
+    public void lockAdministratorRole() {
+        if (mapper.lockAdministratorRole() == null) throw new IllegalStateException("管理员角色不存在");
+    }
+
+    @Override
+    public long countActiveAdministrators() { return mapper.countActiveAdministrators(); }
+
+    @Override
+    public boolean updateUser(long userId, long expectedVersion, UserProfile profile,
+            UserStatus status, Set<RoleCode> roles, boolean rolesChanged, boolean securityChanged, Instant now) {
+        if (mapper.updateUser(userId, expectedVersion, profile, status.name(), securityChanged, now) != 1) return false;
+        if (rolesChanged) {
+            mapper.deleteUserRoles(userId);
+            roles.stream().sorted().forEach(role -> mapper.insertUserRole(userId, role.name()));
+        }
+        return true;
     }
 
     @Override
@@ -62,7 +88,20 @@ public class MyBatisUserAccountRepository implements UserAccountRepository {
     @Override
     public UserAccount create(
             Username username, String passwordHash, UserStatus status, Set<RoleCode> roles, Instant now) {
+        return createWithProfile(username, passwordHash, status, roles,
+                UserProfile.EMPTY, now);
+    }
+
+    @Override
+    public UserAccount createWithProfile(Username username, String passwordHash, UserStatus status, Set<RoleCode> roles,
+            UserProfile profile, Instant now) {
         UserAccountRow row = new UserAccountRow();
+        row.setRealName(profile.realName());
+        row.setEmail(profile.email());
+        row.setPhone(profile.phone());
+        row.setOrganization(profile.organization());
+        row.setDepartment(profile.department());
+        row.setRemark(profile.remark());
         row.setUsername(username.value());
         row.setPasswordHash(passwordHash);
         row.setStatus(status.name());
@@ -127,6 +166,8 @@ public class MyBatisUserAccountRepository implements UserAccountRepository {
                 row.getCredentialsChangedAt(),
                 row.getCreatedAt(),
                 row.getUpdatedAt(),
-                roles);
+                roles, new UserProfile(row.getRealName(), row.getEmail(),
+                        row.getPhone(), row.getOrganization(), row.getDepartment(), row.getRemark()),
+                row.getSecurityVersion());
     }
 }

@@ -76,4 +76,10 @@ public interface CrawlRepository {
     List<CrawlSchedule> findEnabledSchedules();
 
     List<CrawlRecoveryCandidate> findRecoveryCandidates();
+
+    void recordCompletionReason(long runId, com.aacv.system.crawl.domain.CrawlCompletionReason reason);
+
+    void recordQuotaDeferral(long runId, java.time.Instant deferredUntil, int quotaDeferrals);
+
+    List<Long> findDueQuotaRuns(java.time.Instant now, int limit);
 }

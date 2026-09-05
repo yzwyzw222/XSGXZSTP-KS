@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 interface AnalyticsMapper {
+    AnalyticsRow coverage(@Param("query") AnalyticsQuery query);
     AnalyticsRow overview(@Param("query") AnalyticsQuery query);
 
     List<AnalyticsRow> trends(@Param("query") AnalyticsQuery query);

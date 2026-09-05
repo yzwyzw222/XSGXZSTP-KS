@@ -12,9 +12,24 @@
         r.duplicate_count, r.failure_count, r.request_count,
         (SELECT c.cursor_value FROM crawl_checkpoint c
          WHERE c.run_id = r.id ORDER BY c.committed_at DESC LIMIT 1) AS checkpoint,
-        r.started_at, r.finished_at, r.version
+        r.started_at, r.finished_at, r.version, r.completion_reason, r.deferred_until, r.quota_deferrals
     </sql>
 
+    <update id="recordCompletionReason">
+        UPDATE crawl_run SET completion_reason = #{reason}, updated_at = UTC_TIMESTAMP(6) WHERE id = #{runId}
+    </update>
+    <update id="recordQuotaDeferral">
+        UPDATE crawl_run SET deferred_until = #{deferredUntil}, quota_deferrals = #{quotaDeferrals},
+            updated_at = UTC_TIMESTAMP(6) WHERE id = #{runId}
+    </update>
+    <select id="findDueQuotaRuns" resultType="long">
+        SELECT r.id FROM crawl_run r
+        JOIN crawl_task t ON t.id = r.task_id AND t.enabled = TRUE
+        JOIN data_source s ON s.id = t.source_id AND s.enabled = TRUE
+        WHERE r.status = 'PAUSED' AND r.completion_reason = 'QUOTA_EXHAUSTED'
+          AND r.deferred_until &lt;= #{now}
+        ORDER BY r.deferred_until, r.id LIMIT #{limit}
+    </select>
     <select id="countTasks" resultType="long">SELECT COUNT(*) FROM crawl_task</select>
     <select id="countTaskName" resultType="int">
         SELECT COUNT(*) FROM crawl_task WHERE source_id = #{sourceId} AND task_name = #{taskName}

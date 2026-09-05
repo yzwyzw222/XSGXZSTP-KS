@@ -1,6 +1,8 @@
 package com.aacv.system.crawl.infrastructure.batch;
 
 import com.aacv.system.crawl.application.CrawlRunService;
+import com.aacv.system.source.application.SourceQuotaExhaustedException;
+import java.time.Instant;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.job.JobExecution;
 import org.springframework.batch.core.listener.JobExecutionListener;
@@ -22,7 +24,19 @@ class CrawlJobExecutionListener implements JobExecutionListener {
     @Override
     public void afterJob(JobExecution jobExecution) {
         crawlRunServiceProvider.getObject().completeBatch(
-                runId(jobExecution), jobExecution.getStatus() == BatchStatus.COMPLETED);
+                runId(jobExecution), jobExecution.getStatus() == BatchStatus.COMPLETED, quotaResumeAt(jobExecution));
+    }
+
+    private Instant quotaResumeAt(JobExecution execution) {
+        for (Throwable failure : execution.getAllFailureExceptions()) {
+            Throwable cause = failure;
+            for (int depth = 0; cause != null && depth < 16; depth++, cause = cause.getCause()) {
+                if (cause instanceof SourceQuotaExhaustedException quota) {
+                    return quota.resumeAt();
+                }
+            }
+        }
+        return null;
     }
 
     private long runId(JobExecution jobExecution) {

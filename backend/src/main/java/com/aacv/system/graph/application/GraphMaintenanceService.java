@@ -18,6 +18,7 @@ import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 @Service
 public class GraphMaintenanceService {
@@ -79,6 +80,8 @@ public class GraphMaintenanceService {
         return requireRun(runId);
     }
 
+    // 每页独立提交后必须读取新游标，避免复用Batch外层事务的旧快照而重复处理同一页。
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void execute(long runId) {
         GraphMaintenanceRun run = requireRun(runId);
         try {
@@ -92,7 +95,11 @@ public class GraphMaintenanceService {
             do {
                 processed = pageService.processNext(runId, cursor, force);
                 if (processed > 0) {
-                    cursor = requireRun(runId).cursorAchievementId();
+                    long nextCursor = stateService.currentCursor(runId);
+                    if (nextCursor <= cursor) {
+                        throw new IllegalStateException("图维护游标未向前推进");
+                    }
+                    cursor = nextCursor;
                 }
             } while (processed > 0);
             stateService.markSucceeded(runId);

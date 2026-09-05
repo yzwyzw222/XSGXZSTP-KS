@@ -21,6 +21,16 @@ public class CrawlRunRow {
     private Instant startedAt;
     private Instant finishedAt;
     private long version;
+    private String completionReason;
+    private Instant deferredUntil;
+    private int quotaDeferrals;
+
+    public String getCompletionReason() { return completionReason; }
+    public void setCompletionReason(String completionReason) { this.completionReason = completionReason; }
+    public Instant getDeferredUntil() { return deferredUntil; }
+    public void setDeferredUntil(Instant deferredUntil) { this.deferredUntil = deferredUntil; }
+    public int getQuotaDeferrals() { return quotaDeferrals; }
+    public void setQuotaDeferrals(int quotaDeferrals) { this.quotaDeferrals = quotaDeferrals; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

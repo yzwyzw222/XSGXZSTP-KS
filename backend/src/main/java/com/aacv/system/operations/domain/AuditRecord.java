@@ -14,7 +14,12 @@ public record AuditRecord(
         AuditResult result,
         String traceId,
         Map<String, String> summary,
-        Instant createdAt) {
+        Instant createdAt, String clientIp, String userAgent) {
+
+    public AuditRecord(Long actorUserId, AuditAction action, String targetType, String targetId, AuditResult result,
+            String traceId, Map<String, String> summary, Instant createdAt) {
+        this(actorUserId, action, targetType, targetId, result, traceId, summary, createdAt, null, null);
+    }
 
     private static final Set<String> FORBIDDEN_KEY_PARTS =
             Set.of("password", "cookie", "session", "token", "authorization", "secret");
@@ -31,6 +36,9 @@ public record AuditRecord(
         }
         if (traceId == null || traceId.isBlank() || traceId.length() > 64) {
             throw new IllegalArgumentException("审计traceId无效");
+        }
+        if ((clientIp != null && clientIp.length() > 64) || (userAgent != null && userAgent.length() > 512)) {
+            throw new IllegalArgumentException("审计来源信息过长");
         }
         summary = sanitizeSummary(summary);
     }

@@ -83,6 +83,8 @@ class IngestionPipelineIntegrationTests {
     void pageTransactionSupportsIdempotencyRowFailureAndSystemRollback() throws Exception {
         long actorId = createActor();
         DataSourceConfiguration source = createSource();
+        // 刻意错开旧主题ID，验证目录与图投影统一使用subject的规范ID。
+        jdbcTemplate.execute("ALTER TABLE subject AUTO_INCREMENT = 1001");
         CrawlTask task = createTask(source.id(), actorId);
         String officialPayload = officialPayload();
 
@@ -200,6 +202,14 @@ class IngestionPipelineIntegrationTests {
         assertEquals(1, catalogRepository.findEntities(CatalogEntityKind.ORGANIZATION, null, 0, 20).totalElements());
         assertEquals(1, catalogRepository.findEntities(CatalogEntityKind.VENUE, null, 0, 20).totalElements());
         assertEquals(1, catalogRepository.findEntities(CatalogEntityKind.TOPIC, null, 0, 20).totalElements());
+        var topics = catalogRepository.findEntities(CatalogEntityKind.TOPIC, "scientometrics", 0, 20);
+        assertEquals(1001L, topics.items().getFirst().id());
+        assertEquals(1, topics.items().getFirst().achievementCount());
+        var topicAchievements = catalogRepository.findAchievements(
+                new CatalogQuery(null, null, null, null, null, null, null, null, 0, 20),
+                CatalogEntityKind.TOPIC, 1001L);
+        assertEquals(1, topicAchievements.totalElements());
+        assertEquals(achievementId, topicAchievements.items().getFirst().id());
 
         long rawRecordId = detail.sources().getFirst().rawRecordId();
         jdbcTemplate.update(

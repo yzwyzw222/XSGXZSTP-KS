@@ -104,7 +104,8 @@ class CrossrefResponseParser {
                     false,
                     warnings,
                     date.precision(),
-                    parseIndexedAt(root.get("indexed"), warnings));
+                    parseIndexedAt(root.get("indexed"), warnings),
+                    com.aacv.system.source.infrastructure.ScholarlyMetadataParser.crossref(root, rawRecord.fetchedAt(), warnings));
         } catch (JacksonException exception) {
             throw parseFailure("Crossref成果Payload不是有效JSON", exception);
         }

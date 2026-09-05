@@ -7,12 +7,15 @@ import com.aacv.system.crawl.domain.CrawlRun;
 import com.aacv.system.crawl.domain.CrawlRunStateMachine;
 import com.aacv.system.crawl.domain.CrawlRunStatus;
 import com.aacv.system.crawl.domain.CrawlFailure;
+import com.aacv.system.crawl.domain.CrawlCompletionReason;
 import com.aacv.system.operations.application.AuditService;
 import com.aacv.system.operations.application.port.CurrentActorProvider;
 import com.aacv.system.operations.domain.AuditAction;
 import com.aacv.system.operations.domain.AuditResult;
 import com.aacv.system.shared.application.ResourceConflictException;
 import com.aacv.system.shared.application.ResourceNotFoundException;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,22 +30,33 @@ public class CrawlRunService {
     private final CrawlRunLaunchPort launchPort;
     private final AuditService auditService;
     private final CurrentActorProvider currentActorProvider;
+    private final Clock clock;
 
     public CrawlRunService(
             CrawlRepository repository,
             CrawlRunLaunchPort launchPort,
             AuditService auditService,
-            CurrentActorProvider currentActorProvider) {
+            CurrentActorProvider currentActorProvider,
+            Clock clock) {
         this.repository = repository;
         this.launchPort = launchPort;
         this.auditService = auditService;
         this.currentActorProvider = currentActorProvider;
+        this.clock = clock;
     }
 
     @Transactional
     @PreAuthorize("hasAuthority('CRAWL_TASK_CONTROL')")
     public CrawlRun requestPause(long runId) {
         CrawlRun current = lock(runId);
+        if (current.status() == CrawlRunStatus.PAUSED
+                && current.completionReason() == CrawlCompletionReason.QUOTA_EXHAUSTED) {
+            repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
+            repository.recordCompletionReason(runId, CrawlCompletionReason.USER_PAUSED);
+            auditService.record(AuditAction.CRAWL_RUN_PAUSE_REQUESTED, "CRAWL_RUN", Long.toString(runId),
+                    AuditResult.SUCCESS, Map.of("automaticResume", "disabled"));
+            return lock(runId);
+        }
         CrawlRun updated = transition(current, CrawlRunStatus.PAUSING, CrawlControlIntent.PAUSE, null, false, false);
         auditService.record(
                 AuditAction.CRAWL_RUN_PAUSE_REQUESTED,
@@ -57,6 +71,8 @@ public class CrawlRunService {
     @PreAuthorize("hasAuthority('CRAWL_TASK_CONTROL')")
     public CrawlRun requestCancel(long runId) {
         CrawlRun current = lock(runId);
+        repository.recordCompletionReason(runId, CrawlCompletionReason.USER_CANCELLED);
+        repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
         CrawlRunStatus target = current.status() == CrawlRunStatus.PENDING
                 ? CrawlRunStatus.CANCELLED
                 : CrawlRunStatus.CANCELLING;
@@ -67,6 +83,9 @@ public class CrawlRunService {
                 null,
                 false,
                 target == CrawlRunStatus.CANCELLED);
+        if (current.status() == CrawlRunStatus.PAUSED) {
+            updated = transition(updated, CrawlRunStatus.CANCELLED, null, null, false, true);
+        }
         auditService.record(
                 AuditAction.CRAWL_RUN_CANCEL_REQUESTED,
                 "CRAWL_RUN",
@@ -80,6 +99,11 @@ public class CrawlRunService {
     @PreAuthorize("hasAuthority('CRAWL_TASK_CONTROL')")
     public CrawlRun resume(long runId) {
         CrawlRun current = lock(runId);
+        if (current.deferredUntil() != null && clock.instant().isBefore(current.deferredUntil())) {
+            throw new ResourceConflictException("来源额度尚未恢复，请等待页面提示的恢复时间");
+        }
+        repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
+        repository.recordCompletionReason(runId, null);
         CrawlRun updated = transition(current, CrawlRunStatus.RUNNING, null, null, false, false);
         launchPort.launchAfterCommit(runId);
         auditService.record(
@@ -151,25 +175,50 @@ public class CrawlRunService {
 
     @Transactional
     public CrawlRun completeBatch(long runId, boolean batchSucceeded) {
+        return completeBatch(runId, batchSucceeded, null);
+    }
+
+    @Transactional
+    public CrawlRun completeBatch(long runId, boolean batchSucceeded, Instant quotaResumeAt) {
         CrawlRun current = lock(runId);
+        if (CrawlRunStateMachine.isTerminal(current.status()) || current.status() == CrawlRunStatus.PAUSED) {
+            return current;
+        }
+        boolean quotaExhausted = !batchSucceeded && quotaResumeAt != null;
+        if (quotaExhausted && current.status() == CrawlRunStatus.RUNNING && current.quotaDeferrals() < 3) {
+            Instant boundedResumeAt = quotaResumeAt.isBefore(clock.instant().plusSeconds(5))
+                    ? clock.instant().plusSeconds(5) : quotaResumeAt;
+            if (boundedResumeAt.isAfter(clock.instant().plusSeconds(86_405))) {
+                throw new IllegalArgumentException("来源额度恢复时间超过一天的上限");
+            }
+            repository.recordCompletionReason(runId, CrawlCompletionReason.QUOTA_EXHAUSTED);
+            repository.recordQuotaDeferral(runId, boundedResumeAt, current.quotaDeferrals() + 1);
+            CrawlRun pausing = transition(current, CrawlRunStatus.PAUSING, null, null, false, false);
+            return transition(pausing, CrawlRunStatus.PAUSED, null, null, false, false);
+        }
         CrawlRunStatus target;
-        if (current.status() == CrawlRunStatus.PAUSING && batchSucceeded) {
+        CrawlCompletionReason reason = current.completionReason();
+        if (current.status() == CrawlRunStatus.PAUSING && (batchSucceeded || quotaExhausted)) {
             target = CrawlRunStatus.PAUSED;
-        } else if (current.status() == CrawlRunStatus.CANCELLING && batchSucceeded) {
+            reason = CrawlCompletionReason.USER_PAUSED;
+        } else if (current.status() == CrawlRunStatus.CANCELLING && (batchSucceeded || quotaExhausted)) {
             target = CrawlRunStatus.CANCELLED;
+            reason = CrawlCompletionReason.USER_CANCELLED;
         } else if (current.status() == CrawlRunStatus.RUNNING && batchSucceeded) {
-            target = current.failureCount() > 0
+            if (reason == null) reason = checkpointCompletionReason(current);
+            target = current.failureCount() > 0 || (reason != null && reason.limited())
                     ? CrawlRunStatus.PARTIAL_SUCCESS
                     : CrawlRunStatus.SUCCEEDED;
         } else if (current.status() == CrawlRunStatus.RUNNING
                 || current.status() == CrawlRunStatus.PAUSING
                 || current.status() == CrawlRunStatus.CANCELLING) {
             target = CrawlRunStatus.FAILED;
-        } else if (CrawlRunStateMachine.isTerminal(current.status()) || current.status() == CrawlRunStatus.PAUSED) {
-            return current;
+            reason = quotaExhausted ? CrawlCompletionReason.QUOTA_RETRY_LIMIT : CrawlCompletionReason.BATCH_FAILED;
         } else {
             throw new ResourceConflictException("Batch完成状态与业务运行状态不一致");
         }
+        repository.recordCompletionReason(runId, reason);
+        repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
         return transition(
                 current,
                 target,
@@ -185,7 +234,39 @@ public class CrawlRunService {
         if (current.status() != CrawlRunStatus.PENDING && current.status() != CrawlRunStatus.RUNNING) {
             return current;
         }
+        repository.recordCompletionReason(runId, CrawlCompletionReason.BATCH_FAILED);
+        repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
         return transition(current, CrawlRunStatus.FAILED, null, null, false, true);
+    }
+
+    @Transactional
+    public boolean resumeQuotaIfDue(long runId) {
+        CrawlRun current = lock(runId);
+        if (current.status() != CrawlRunStatus.PAUSED
+                || current.completionReason() != CrawlCompletionReason.QUOTA_EXHAUSTED
+                || current.deferredUntil() == null || current.deferredUntil().isAfter(clock.instant())) {
+            return false;
+        }
+        repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
+        repository.recordCompletionReason(runId, null);
+        transition(current, CrawlRunStatus.RUNNING, null, null, false, false);
+        launchPort.launchAfterCommit(runId);
+        auditService.record(AuditAction.CRAWL_RUN_RESUMED, "CRAWL_RUN", Long.toString(runId),
+                AuditResult.SUCCESS, Map.of("trigger", "QUOTA_RESET"));
+        return true;
+    }
+
+    private CrawlCompletionReason checkpointCompletionReason(CrawlRun run) {
+        if (run.triggerType() == com.aacv.system.crawl.domain.CrawlTriggerType.RETRY_FAILURES) {
+            return CrawlCompletionReason.RETRY_BATCH_COMPLETED;
+        }
+        var checkpoint = repository.findCheckpoint(run.id()).orElse(null);
+        var task = repository.findTaskById(run.taskId()).orElse(null);
+        if (checkpoint == null || task == null) return null;
+        // 历史检查点缺少截断标记时保守报告上限，避免把截断的末页认作完整来源。
+        if (checkpoint.committedRecords() >= task.scope().maxRecords()) return CrawlCompletionReason.RECORD_LIMIT;
+        if (checkpoint.committedPages() >= task.scope().maxPages()) return CrawlCompletionReason.PAGE_LIMIT;
+        return "__END__".equals(checkpoint.cursor()) ? CrawlCompletionReason.SOURCE_EXHAUSTED : null;
     }
 
     private CrawlRun lock(long runId) {

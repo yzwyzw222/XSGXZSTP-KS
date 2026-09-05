@@ -1,5 +1,7 @@
 package com.aacv.system.operations.infrastructure.persistence;
 
+import com.aacv.system.operations.domain.AuditQuery;
+
 import com.aacv.system.operations.application.port.AuditLogRepository;
 import com.aacv.system.operations.domain.AuditAction;
 import com.aacv.system.operations.domain.AuditLogEntry;
@@ -37,16 +39,18 @@ public class MyBatisAuditLogRepository implements AuditLogRepository {
         row.setTraceId(record.traceId());
         row.setSummaryJson(objectMapper.writeValueAsString(record.summary()));
         row.setCreatedAt(record.createdAt());
+        row.setClientIp(record.clientIp());
+        row.setUserAgent(record.userAgent());
         if (mapper.insert(row) != 1) {
             throw new IllegalStateException("审计记录写入数量异常");
         }
     }
 
     @Override
-    public PageResult<AuditLogEntry> findPage(int page, int size) {
-        long total = mapper.countAll();
+    public PageResult<AuditLogEntry> findPage(int page, int size, AuditQuery query) {
+        long total = mapper.countAll(query);
         long offset = Math.multiplyExact((long) page, size);
-        List<AuditLogEntry> items = mapper.findPage(offset, size).stream().map(this::toDomain).toList();
+        List<AuditLogEntry> items = mapper.findPage(offset, size, query).stream().map(this::toDomain).toList();
         return PageResult.of(items, page, size, total);
     }
 
@@ -63,6 +67,6 @@ public class MyBatisAuditLogRepository implements AuditLogRepository {
                 AuditResult.valueOf(row.getResult()),
                 row.getTraceId(),
                 summary,
-                row.getCreatedAt());
+                row.getCreatedAt(), row.getUsername(), row.getClientIp(), row.getUserAgent());
     }
 }

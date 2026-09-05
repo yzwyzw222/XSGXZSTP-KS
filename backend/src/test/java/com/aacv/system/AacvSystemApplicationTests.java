@@ -59,7 +59,7 @@ class AacvSystemApplicationTests {
     @Test
     void startsWithIsolatedInfrastructureAndExposesHealthGroups() throws Exception {
         assertEquals(1, databaseProbeMapper.selectOne());
-        assertEquals(11, flyway.info().applied().length);
+        assertEquals(14, flyway.info().applied().length);
         assertTrue(flyway.validateWithResult().validationSuccessful);
         neo4jDriver.verifyConnectivity();
         assertInstanceOf(JdbcTransactionManager.class, transactionManager);

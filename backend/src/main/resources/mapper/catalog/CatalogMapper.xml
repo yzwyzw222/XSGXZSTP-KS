@@ -11,8 +11,9 @@
                 ) &gt; 0
             </if>
             <if test="query.author != null">
-                AND EXISTS (
-                    SELECT 1 FROM achievement_author aa
+                AND a.id IN (SELECT matched_author.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(member_link.canonical_entity_id, aa.achievement_id) AS achievement_id
+                    FROM achievement_author aa
                     LEFT JOIN canonical_entity_link member_link
                            ON member_link.entity_type = 'ACHIEVEMENT'
                           AND member_link.entity_id = aa.achievement_id
@@ -20,13 +21,13 @@
                            ON author_link.entity_type = 'AUTHOR'
                           AND author_link.entity_id = aa.author_id
                     JOIN author au ON au.id = COALESCE(author_link.canonical_entity_id, aa.author_id)
-                    WHERE COALESCE(member_link.canonical_entity_id, aa.achievement_id) = a.id
-                      AND LOCATE(LOWER(#{query.author}), LOWER(au.display_name)) &gt; 0
-                )
+                    WHERE LOCATE(LOWER(#{query.author}), LOWER(au.display_name)) &gt; 0
+                ) matched_author)
             </if>
             <if test="query.organization != null">
-                AND EXISTS (
-                    SELECT 1 FROM authorship_organization ao
+                AND a.id IN (SELECT matched_organization.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(member_link.canonical_entity_id, ao.achievement_id) AS achievement_id
+                    FROM authorship_organization ao
                     LEFT JOIN canonical_entity_link member_link
                            ON member_link.entity_type = 'ACHIEVEMENT'
                           AND member_link.entity_id = ao.achievement_id
@@ -35,9 +36,14 @@
                           AND organization_link.entity_id = ao.organization_id
                     JOIN organization o
                       ON o.id = COALESCE(organization_link.canonical_entity_id, ao.organization_id)
-                    WHERE COALESCE(member_link.canonical_entity_id, ao.achievement_id) = a.id
-                      AND LOCATE(LOWER(#{query.organization}), LOWER(o.display_name)) &gt; 0
-                )
+                    WHERE (LOCATE(LOWER(#{query.organization}), LOWER(o.display_name)) &gt; 0 OR o.id IN (
+                          SELECT COALESCE(alias_link.canonical_entity_id, evidence.organization_id)
+                          FROM organization_name_evidence evidence
+                          LEFT JOIN canonical_entity_link alias_link ON alias_link.entity_type = 'ORGANIZATION'
+                              AND alias_link.entity_id = evidence.organization_id
+                          WHERE LOCATE(LOWER(#{query.organization}), LOWER(evidence.display_name)) &gt; 0
+                      ))
+                ) matched_organization)
             </if>
             <if test="query.publicationYear != null">
                 AND YEAR(COALESCE(
@@ -50,29 +56,29 @@
                     = #{query.achievementType}
             </if>
             <if test="query.sourceCode != null">
-                AND EXISTS (
-                    SELECT 1 FROM achievement_source axs
+                AND a.id IN (SELECT matched_source.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(member_link.canonical_entity_id, axs.achievement_id) AS achievement_id
+                    FROM achievement_source axs
                     JOIN data_source ds ON ds.id = axs.source_id
                     LEFT JOIN canonical_entity_link member_link
                            ON member_link.entity_type = 'ACHIEVEMENT'
                           AND member_link.entity_id = axs.achievement_id
-                    WHERE COALESCE(member_link.canonical_entity_id, axs.achievement_id) = a.id
-                      AND ds.source_code = #{query.sourceCode}
-                )
+                    WHERE ds.source_code = #{query.sourceCode}
+                ) matched_source)
             </if>
             <if test="query.venue != null">
                 AND LOCATE(LOWER(#{query.venue}), LOWER(v.display_name)) &gt; 0
             </if>
             <if test="query.topic != null">
-                AND EXISTS (
-                    SELECT 1 FROM achievement_subject ats
+                AND a.id IN (SELECT matched_topic.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(member_link.canonical_entity_id, ats.achievement_id) AS achievement_id
+                    FROM achievement_subject ats
                     JOIN subject subject_value ON subject_value.id = ats.subject_id
                     LEFT JOIN canonical_entity_link member_link
                            ON member_link.entity_type = 'ACHIEVEMENT'
                           AND member_link.entity_id = ats.achievement_id
-                    WHERE COALESCE(member_link.canonical_entity_id, ats.achievement_id) = a.id
-                      AND LOCATE(LOWER(#{query.topic}), LOWER(subject_value.display_name)) &gt; 0
-                )
+                    WHERE LOCATE(LOWER(#{query.topic}), LOWER(subject_value.display_name)) &gt; 0
+                ) matched_topic)
             </if>
             <if test="relatedId != null">
                 <choose>
@@ -107,12 +113,12 @@
                     </when>
                     <when test="relatedKind == 'TOPIC'">
                         AND EXISTS (
-                            SELECT 1 FROM achievement_topic x
+                            SELECT 1 FROM achievement_subject x
                             LEFT JOIN canonical_entity_link member_link
                                    ON member_link.entity_type = 'ACHIEVEMENT'
                                   AND member_link.entity_id = x.achievement_id
                             WHERE COALESCE(member_link.canonical_entity_id, x.achievement_id) = a.id
-                              AND x.topic_id = #{relatedId}
+                              AND x.subject_id = #{relatedId}
                         )
                     </when>
                 </choose>
@@ -267,9 +273,11 @@
     <select id="findAchievementSources"
             resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
         SELECT axs.id, axs.raw_record_id, ds.source_code, axs.external_record_id,
-               axs.source_url, axs.parser_version, axs.first_seen_at, axs.last_seen_at
+               axs.source_url, axs.parser_version, axs.first_seen_at, axs.last_seen_at,
+               CAST(JSON_EXTRACT(snapshot.normalized_payload, '$.scholarlyMetadata') AS CHAR CHARACTER SET utf8mb4) AS scholarly_metadata
         FROM achievement_source axs
         JOIN data_source ds ON ds.id = axs.source_id
+        LEFT JOIN achievement_source_snapshot snapshot ON snapshot.achievement_source_id = axs.id
         LEFT JOIN canonical_entity_link member_link
                ON member_link.entity_type = 'ACHIEVEMENT' AND member_link.entity_id = axs.achievement_id
         WHERE COALESCE(member_link.canonical_entity_id, axs.achievement_id) = #{id}
@@ -306,6 +314,57 @@
         ORDER BY field_name, manual_override DESC
     </select>
 
+    <select id="findEvidenceEntityId" resultType="long">
+        SELECT COALESCE(entity_link.canonical_entity_id, e.id)
+        <choose>
+            <when test="kind == 'AUTHOR'">FROM author e</when>
+            <otherwise>FROM organization e</otherwise>
+        </choose>
+        LEFT JOIN canonical_entity_link entity_link ON entity_link.entity_type = #{kind} AND entity_link.entity_id = e.id
+        WHERE e.id = #{entityId}
+    </select>
+    <select id="findOrganizationNames" resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogEvidenceRow">
+        SELECT evidence.display_name, source.source_code,
+               MIN(evidence.first_observed_at) AS first_observed_at, MAX(evidence.last_observed_at) AS last_observed_at
+        FROM organization_name_evidence evidence
+        JOIN data_source source ON source.id = evidence.source_id
+        LEFT JOIN canonical_entity_link entity_link ON entity_link.entity_type = 'ORGANIZATION'
+            AND entity_link.entity_id = evidence.organization_id
+        WHERE COALESCE(entity_link.canonical_entity_id, evidence.organization_id) = #{entityId}
+        GROUP BY evidence.name_hash, evidence.display_name, source.source_code
+        ORDER BY last_observed_at DESC, source.source_code, evidence.name_hash
+        LIMIT 101
+    </select>
+    <select id="findAuthorAffiliations" resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogEvidenceRow">
+        SELECT organization.id AS organization_id, organization.display_name,
+               MIN(YEAR(COALESCE(STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'), a.publication_date))) AS first_publication_year,
+               MAX(YEAR(COALESCE(STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'), a.publication_date))) AS last_publication_year,
+               COUNT(DISTINCT a.id) AS achievement_count,
+               COUNT(DISTINCT CASE WHEN COALESCE(date_override.field_value, a.publication_date) IS NOT NULL THEN a.id END) AS dated_achievement_count
+        FROM authorship_organization relation_value
+        LEFT JOIN canonical_entity_link author_link ON author_link.entity_type = 'AUTHOR' AND author_link.entity_id = relation_value.author_id
+        LEFT JOIN canonical_entity_link organization_link ON organization_link.entity_type = 'ORGANIZATION' AND organization_link.entity_id = relation_value.organization_id
+        LEFT JOIN canonical_entity_link achievement_link ON achievement_link.entity_type = 'ACHIEVEMENT' AND achievement_link.entity_id = relation_value.achievement_id
+        JOIN organization ON organization.id = COALESCE(organization_link.canonical_entity_id, relation_value.organization_id)
+        JOIN achievement a ON a.id = COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
+        LEFT JOIN manual_field_override date_override ON date_override.achievement_id = a.id
+            AND date_override.field_name = 'publicationDate' AND date_override.active = TRUE
+        WHERE COALESCE(author_link.canonical_entity_id, relation_value.author_id) = #{entityId}
+        GROUP BY organization.id, organization.display_name
+        ORDER BY achievement_count DESC, organization.id
+        LIMIT 101
+    </select>
+    <sql id="organizationNameFilter">
+        <if test="name != null">
+            AND (LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0 OR EXISTS (
+                SELECT 1 FROM organization_name_evidence evidence
+                LEFT JOIN canonical_entity_link alias_link ON alias_link.entity_type = 'ORGANIZATION'
+                    AND alias_link.entity_id = evidence.organization_id
+                WHERE COALESCE(alias_link.canonical_entity_id, evidence.organization_id) = e.id
+                  AND LOCATE(LOWER(#{name}), LOWER(evidence.display_name)) &gt; 0
+            ))
+        </if>
+    </sql>
     <select id="countEntities" resultType="long">
         <choose>
             <when test="kind == 'AUTHOR'">
@@ -320,7 +379,7 @@
                 LEFT JOIN canonical_entity_link entity_link
                        ON entity_link.entity_type = 'ORGANIZATION' AND entity_link.entity_id = e.id
                 WHERE entity_link.entity_id IS NULL
-                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+                <include refid="organizationNameFilter"/>
             </when>
             <when test="kind == 'VENUE'">
                 SELECT COUNT(*) FROM venue e
@@ -330,7 +389,7 @@
                 <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
             </when>
             <otherwise>
-                SELECT COUNT(*) FROM topic e
+                SELECT COUNT(*) FROM subject e
                 <if test="name != null">WHERE LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
             </otherwise>
         </choose>
@@ -380,7 +439,7 @@
                           AND achievement_link.entity_id = ao.achievement_id
                 ) relation_value ON relation_value.entity_id = e.id
                 WHERE entity_link.entity_id IS NULL
-                <if test="name != null">AND LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
+                <include refid="organizationNameFilter"/>
                 GROUP BY e.id, e.openalex_id, e.display_name, e.organization_type
             </when>
             <when test="kind == 'VENUE'">
@@ -404,17 +463,17 @@
                 GROUP BY e.id, e.openalex_id, e.display_name, e.venue_type
             </when>
             <otherwise>
-                SELECT e.id, e.openalex_id AS external_id, e.display_name,
+                SELECT e.id, e.external_id, e.display_name,
                        'TOPIC' AS entity_type,
                        COUNT(DISTINCT COALESCE(achievement_link.canonical_entity_id, atp.achievement_id))
                            AS achievement_count
-                FROM topic e
-                LEFT JOIN achievement_topic atp ON atp.topic_id = e.id
+                FROM subject e
+                LEFT JOIN achievement_subject atp ON atp.subject_id = e.id
                 LEFT JOIN canonical_entity_link achievement_link
                        ON achievement_link.entity_type = 'ACHIEVEMENT'
                       AND achievement_link.entity_id = atp.achievement_id
                 <if test="name != null">WHERE LOCATE(LOWER(#{name}), LOWER(e.display_name)) &gt; 0</if>
-                GROUP BY e.id, e.openalex_id, e.display_name
+                GROUP BY e.id, e.external_id, e.display_name
             </otherwise>
         </choose>
         ORDER BY display_name, id

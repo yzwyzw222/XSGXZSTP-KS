@@ -35,7 +35,8 @@ class CrawlRunServiceTests {
         launchPort = mock(CrawlRunLaunchPort.class);
         CurrentActorProvider actorProvider = mock(CurrentActorProvider.class);
         when(actorProvider.currentUserId()).thenReturn(java.util.OptionalLong.of(7));
-        service = new CrawlRunService(repository, launchPort, mock(AuditService.class), actorProvider);
+        service = new CrawlRunService(repository, launchPort, mock(AuditService.class), actorProvider,
+                java.time.Clock.systemUTC());
     }
 
     @Test

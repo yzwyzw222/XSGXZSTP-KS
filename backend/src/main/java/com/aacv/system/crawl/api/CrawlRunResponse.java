@@ -19,5 +19,8 @@ public record CrawlRunResponse(
         long requestCount,
         String checkpoint,
         Instant startedAt,
-        Instant finishedAt) {
+        Instant finishedAt,
+        String completionReason,
+        Instant deferredUntil,
+        int quotaDeferrals) {
 }

@@ -129,7 +129,7 @@ class CrossrefDataSourceAdapterTests {
 
     @Test
     void declaresCrossrefParserAndClosedIndexCapabilities() {
-        assertEquals("crossref-v1", adapter.parserVersion());
+        assertEquals("crossref-v2", adapter.parserVersion());
         assertEquals(
                 com.aacv.system.source.domain.SourceCapabilities.IncrementalMode.CLOSED_INDEX_DATE_WINDOW,
                 adapter.capabilities().incrementalMode());

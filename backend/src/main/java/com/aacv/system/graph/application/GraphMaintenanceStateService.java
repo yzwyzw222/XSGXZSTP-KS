@@ -15,6 +15,16 @@ public class GraphMaintenanceStateService {
         this.mapper = mapper;
     }
 
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    public long currentCursor(long runId) {
+        // 使用独立SqlSession读取分页已提交的进度，不复用长任务会话中的一级缓存。
+        var run = mapper.findRun(runId);
+        if (run == null) {
+            throw new ResourceConflictException("图维护运行不存在");
+        }
+        return run.cursorAchievementId();
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markRunning(long runId) {
         if (mapper.markRunning(runId) != 1) {

@@ -113,7 +113,10 @@ class OpenAlexResponseParser {
                     references,
                     abstractText,
                     authorshipsMayBeIncomplete,
-                    warnings);
+                    warnings,
+                    publicationDate == null ? null : SourceWork.SourceDatePrecision.DAY,
+                    null,
+                    com.aacv.system.source.infrastructure.ScholarlyMetadataParser.openAlex(root, rawRecord.fetchedAt(), warnings));
         } catch (JacksonException exception) {
             throw parseFailure("OpenAlex成果Payload不是有效JSON", exception);
         }

@@ -19,7 +19,8 @@ public record NormalizedWork(
         List<String> referencedWorkIds,
         String abstractText,
         boolean authorshipsMayBeIncomplete,
-        List<String> fieldWarnings) {
+        List<String> fieldWarnings,
+        com.aacv.system.source.domain.ScholarlyMetadata scholarlyMetadata) {
 
     public NormalizedWork {
         authorships = authorships == null ? List.of() : List.copyOf(authorships);
@@ -30,6 +31,17 @@ public record NormalizedWork(
                 || matchFingerprint == null || matchFingerprint.length() != 64) {
             throw new IllegalArgumentException("规范化成果缺少必要标识");
         }
+    }
+
+    public NormalizedWork(
+            String externalId, String doi, String titleOriginal, String titleNormalized,
+            String achievementType, String language, LocalDate publicationDate, DatePrecision datePrecision,
+            String matchFingerprint, NormalizedVenue primaryVenue, List<NormalizedAuthorship> authorships,
+            List<NormalizedTopic> topics, List<String> referencedWorkIds, String abstractText,
+            boolean authorshipsMayBeIncomplete, List<String> fieldWarnings) {
+        this(externalId, doi, titleOriginal, titleNormalized, achievementType, language, publicationDate,
+                datePrecision, matchFingerprint, primaryVenue, authorships, topics, referencedWorkIds,
+                abstractText, authorshipsMayBeIncomplete, fieldWarnings, null);
     }
 
     public enum DatePrecision {

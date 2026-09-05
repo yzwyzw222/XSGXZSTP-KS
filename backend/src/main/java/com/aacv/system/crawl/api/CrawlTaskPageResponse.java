@@ -36,6 +36,8 @@ public record CrawlTaskPageResponse(
                 run.id(), run.taskId(), run.runNumber(), run.triggerType().name(), run.parentRunId(),
                 run.status().name(), run.batchJobExecutionId(),
                 run.readCount(), run.parsedCount(), run.createdCount(), run.updatedCount(), run.duplicateCount(),
-                run.failureCount(), run.requestCount(), run.checkpoint(), run.startedAt(), run.finishedAt());
+                run.failureCount(), run.requestCount(), run.checkpoint(), run.startedAt(), run.finishedAt(),
+                run.completionReason() == null ? null : run.completionReason().name(),
+                run.deferredUntil(), run.quotaDeferrals());
     }
 }

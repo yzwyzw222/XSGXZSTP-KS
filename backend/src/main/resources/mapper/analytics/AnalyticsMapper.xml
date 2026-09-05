@@ -2,8 +2,9 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.aacv.system.analytics.infrastructure.persistence.AnalyticsMapper">
     <sql id="scopedAchievementCte">
+        <!-- 显式去重使筛选集合可被物化复用，避免每类关系重复筛选全库。 -->
         WITH scoped_achievement AS (
-            SELECT achievement.id,
+            SELECT DISTINCT achievement.id,
                    COALESCE(JSON_UNQUOTE(type_override.field_value), achievement.achievement_type)
                        AS achievement_type,
                    YEAR(COALESCE(
@@ -38,22 +39,19 @@
                     = #{query.achievementType}
             </if>
             <if test="query.sourceType != null">
-                AND EXISTS (
-                    SELECT 1
+                AND achievement.id IN (SELECT matched_source.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(source_achievement_link.canonical_entity_id, source_relation.achievement_id) AS achievement_id
                     FROM achievement_source source_relation
                     JOIN data_source source_value ON source_value.id = source_relation.source_id
                     LEFT JOIN canonical_entity_link source_achievement_link
                            ON source_achievement_link.entity_type = 'ACHIEVEMENT'
                           AND source_achievement_link.entity_id = source_relation.achievement_id
-                    WHERE COALESCE(
-                              source_achievement_link.canonical_entity_id,
-                              source_relation.achievement_id) = achievement.id
-                      AND source_value.source_type = #{query.sourceType}
-                )
+                    WHERE source_value.source_type = #{query.sourceType}
+                ) matched_source)
             </if>
             <if test="query.organizationId != null">
-                AND EXISTS (
-                    SELECT 1
+                AND achievement.id IN (SELECT matched_organization.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(organization_achievement_link.canonical_entity_id, organization_relation.achievement_id) AS achievement_id
                     FROM authorship_organization organization_relation
                     LEFT JOIN canonical_entity_link organization_achievement_link
                            ON organization_achievement_link.entity_type = 'ACHIEVEMENT'
@@ -62,25 +60,19 @@
                            ON organization_link.entity_type = 'ORGANIZATION'
                           AND organization_link.entity_id = organization_relation.organization_id
                     WHERE COALESCE(
-                              organization_achievement_link.canonical_entity_id,
-                              organization_relation.achievement_id) = achievement.id
-                      AND COALESCE(
                               organization_link.canonical_entity_id,
                               organization_relation.organization_id) = #{query.organizationId}
-                )
+                ) matched_organization)
             </if>
             <if test="query.topicId != null">
-                AND EXISTS (
-                    SELECT 1
+                AND achievement.id IN (SELECT matched_topic.achievement_id FROM (
+                    SELECT DISTINCT COALESCE(topic_achievement_link.canonical_entity_id, topic_relation.achievement_id) AS achievement_id
                     FROM achievement_subject topic_relation
                     LEFT JOIN canonical_entity_link topic_achievement_link
                            ON topic_achievement_link.entity_type = 'ACHIEVEMENT'
                           AND topic_achievement_link.entity_id = topic_relation.achievement_id
-                    WHERE COALESCE(
-                              topic_achievement_link.canonical_entity_id,
-                              topic_relation.achievement_id) = achievement.id
-                      AND topic_relation.subject_id = #{query.topicId}
-                )
+                    WHERE topic_relation.subject_id = #{query.topicId}
+                ) matched_topic)
             </if>
         )
     </sql>
@@ -97,6 +89,8 @@
             LEFT JOIN canonical_entity_link author_link
                    ON author_link.entity_type = 'AUTHOR'
                   AND author_link.entity_id = relation_value.author_id
+            JOIN scoped_achievement filtered_scope
+              ON filtered_scope.id = COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
         )
     </sql>
 
@@ -113,6 +107,8 @@
             LEFT JOIN canonical_entity_link organization_link
                    ON organization_link.entity_type = 'ORGANIZATION'
                   AND organization_link.entity_id = relation_value.organization_id
+            JOIN scoped_achievement filtered_scope
+              ON filtered_scope.id = COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
         )
     </sql>
 
@@ -125,6 +121,8 @@
             LEFT JOIN canonical_entity_link achievement_link
                    ON achievement_link.entity_type = 'ACHIEVEMENT'
                   AND achievement_link.entity_id = relation_value.achievement_id
+            WHERE COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
+                IN (SELECT id FROM scoped_achievement)
         )
     </sql>
 
@@ -137,6 +135,8 @@
             LEFT JOIN canonical_entity_link achievement_link
                    ON achievement_link.entity_type = 'ACHIEVEMENT'
                   AND achievement_link.entity_id = relation_value.achievement_id
+            JOIN scoped_achievement filtered_scope
+              ON filtered_scope.id = COALESCE(achievement_link.canonical_entity_id, relation_value.achievement_id)
         )
     </sql>
 
@@ -146,14 +146,38 @@
         <include refid="authorRelationCte"/>
         <include refid="organizationRelationCte"/>
         <include refid="sourceRelationCte"/>
-        SELECT COUNT(DISTINCT scoped.id) AS achievement_count,
-               COUNT(DISTINCT authors.author_id) AS author_count,
-               COUNT(DISTINCT organizations.organization_id) AS organization_count,
-               COUNT(DISTINCT sources.source_id) AS source_count
+        <!-- 各关系已限定到同一成果范围，分别计数避免作者、机构与来源连接后相乘。 -->
+        SELECT (SELECT COUNT(*) FROM scoped_achievement) AS achievement_count,
+               (SELECT COUNT(DISTINCT author_id) FROM author_relation) AS author_count,
+               (SELECT COUNT(DISTINCT organization_id) FROM organization_relation) AS organization_count,
+               (SELECT COUNT(DISTINCT source_id) FROM source_relation) AS source_count
+    </select>
+
+    <select id="coverage" resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
+        <include refid="scopedAchievementCte"/>
+        , source_signals AS (
+            SELECT COALESCE(member_link.canonical_entity_id, source_value.achievement_id) AS achievement_id,
+                   MAX(JSON_TYPE(JSON_EXTRACT(snapshot.normalized_payload, '$.scholarlyMetadata.citedByCount')) = 'INTEGER') AS has_citation_count,
+                   MAX(JSON_TYPE(JSON_EXTRACT(snapshot.normalized_payload, '$.scholarlyMetadata.openAccess')) = 'BOOLEAN') AS has_open_access_status,
+                   MAX(JSON_TYPE(JSON_EXTRACT(snapshot.normalized_payload, '$.scholarlyMetadata.retracted')) = 'BOOLEAN') AS has_retraction_status
+            FROM achievement_source source_value
+            JOIN achievement_source_snapshot snapshot ON snapshot.achievement_source_id = source_value.id
+            LEFT JOIN canonical_entity_link member_link ON member_link.entity_type = 'ACHIEVEMENT'
+                AND member_link.entity_id = source_value.achievement_id
+            JOIN scoped_achievement scope_value ON scope_value.id = COALESCE(member_link.canonical_entity_id, source_value.achievement_id)
+            GROUP BY COALESCE(member_link.canonical_entity_id, source_value.achievement_id)
+        )
+        SELECT COUNT(CASE WHEN a.doi_normalized IS NOT NULL THEN 1 END) AS with_doi_count,
+               COUNT(scoped.publication_year) AS with_publication_year_count,
+               COUNT(CASE WHEN LENGTH(TRIM(detail.abstract_text)) &gt; 0 THEN 1 END) AS with_abstract_count,
+               COUNT(CASE WHEN signals.has_citation_count = TRUE THEN 1 END) AS with_citation_count,
+               COUNT(CASE WHEN signals.has_open_access_status = TRUE THEN 1 END) AS with_open_access_status_count,
+               COUNT(CASE WHEN signals.has_retraction_status = TRUE THEN 1 END) AS with_retraction_status_count,
+               COUNT(CASE WHEN detail.authorships_may_be_incomplete = TRUE THEN 1 END) AS authorships_may_be_incomplete_count
         FROM scoped_achievement scoped
-        LEFT JOIN author_relation authors ON authors.achievement_id = scoped.id
-        LEFT JOIN organization_relation organizations ON organizations.achievement_id = scoped.id
-        LEFT JOIN source_relation sources ON sources.achievement_id = scoped.id
+        JOIN achievement a ON a.id = scoped.id
+        LEFT JOIN paper_detail detail ON detail.achievement_id = scoped.id
+        LEFT JOIN source_signals signals ON signals.achievement_id = scoped.id
     </select>
 
     <select id="trends"

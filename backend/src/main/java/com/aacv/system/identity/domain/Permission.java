@@ -4,6 +4,7 @@ public enum Permission {
     ACCOUNT_SELF_READ,
     USER_LIST,
     USER_CREATE,
+    USER_UPDATE,
     USER_ENABLE,
     USER_DISABLE,
     USER_PASSWORD_RESET,

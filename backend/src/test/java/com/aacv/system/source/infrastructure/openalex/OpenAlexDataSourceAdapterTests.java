@@ -79,6 +79,20 @@ class OpenAlexDataSourceAdapterTests {
     }
 
     @Test
+    void dailyQuotaStopsImmediatelyWithoutSleepingOrRetryingAndProbeReportsCategory() {
+        OpenAlexHttpResponse exhausted = new OpenAlexHttpResponse(429, new byte[0], Duration.ofSeconds(1),
+                Map.of("X-RateLimit-Remaining", "0", "X-RateLimit-Reset", "60"));
+        when(transport.fetchWorks(any(), any(), any())).thenReturn(exhausted);
+        var exception = assertThrows(com.aacv.system.source.application.SourceQuotaExhaustedException.class,
+                () -> adapter.fetchPage(settings(3), scope(), OpaqueCursor.first()));
+        assertEquals(NOW.plusSeconds(65), exception.resumeAt());
+        org.junit.jupiter.api.Assertions.assertNull(slept.get());
+        verify(transport).fetchWorks(any(), any(), any());
+        when(transport.probe(any())).thenThrow(exception);
+        assertEquals("DAILY_QUOTA_EXHAUSTED", adapter.probe(settings(3)).errorCategory());
+    }
+
+    @Test
     void unsupportedOpenAlexIdIsRejectedBeforeNetworkCall() {
         CrawlScope invalidScope = new CrawlScope(
                 null, null, null, List.of("not-an-author"), List.of(), 1, 10);

@@ -1,5 +1,7 @@
 package com.aacv.system.operations.api;
 
+import com.aacv.system.operations.domain.AuditCategory;
+
 import com.aacv.system.operations.domain.AuditAction;
 import com.aacv.system.operations.domain.AuditLogEntry;
 import com.aacv.system.operations.domain.AuditResult;
@@ -15,7 +17,8 @@ public record AuditLogResponse(
         AuditResult result,
         String traceId,
         Map<String, String> summary,
-        Instant createdAt) {
+        Instant createdAt, AuditCategory category,
+        String username, String clientIp, String userAgent) {
 
     public static AuditLogResponse from(AuditLogEntry entry) {
         return new AuditLogResponse(
@@ -27,6 +30,7 @@ public record AuditLogResponse(
                 entry.result(),
                 entry.traceId(),
                 entry.summary(),
-                entry.createdAt());
+                entry.createdAt(), AuditCategory.of(entry.action()),
+                entry.username(), entry.clientIp(), entry.userAgent());
     }
 }

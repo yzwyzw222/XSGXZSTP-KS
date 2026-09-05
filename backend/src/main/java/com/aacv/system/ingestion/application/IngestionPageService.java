@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class IngestionPageService {
 
-    public static final String PARSER_VERSION = "openalex-v1";
+    public static final String PARSER_VERSION = "openalex-v2";
     public static final String TERMINAL_CURSOR = "__END__";
 
     private final DataSourceAdapterRegistry adapterRegistry;

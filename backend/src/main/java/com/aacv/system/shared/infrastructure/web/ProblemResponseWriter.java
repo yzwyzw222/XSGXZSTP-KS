@@ -27,6 +27,7 @@ public class ProblemResponseWriter {
             ErrorCode errorCode,
             String detail)
             throws IOException {
+        request.setAttribute(com.aacv.system.operations.infrastructure.web.FailedOperationAuditFilter.ERROR_CODE, errorCode.name());
         if (response.isCommitted()) {
             return;
         }

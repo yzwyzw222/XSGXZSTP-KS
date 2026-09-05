@@ -85,4 +85,22 @@ public class AuditLogRow {
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
+    private String username;
+
+    public String getUsername() { return username; }
+
+    public void setUsername(String value) { username = value; }
+
+    private String clientIp;
+
+    public String getClientIp() { return clientIp; }
+
+    public void setClientIp(String value) { clientIp = value; }
+
+    private String userAgent;
+
+    public String getUserAgent() { return userAgent; }
+
+    public void setUserAgent(String value) { userAgent = value; }
+
 }

@@ -2,6 +2,7 @@ package com.aacv.system.governance.application;
 
 import com.aacv.system.governance.application.port.GovernanceRepository;
 import com.aacv.system.governance.domain.CandidateStatus;
+import com.aacv.system.governance.domain.CandidateComparison;
 import com.aacv.system.governance.domain.DuplicateCandidate;
 import com.aacv.system.governance.domain.DuplicateCandidateQuery;
 import com.aacv.system.governance.domain.FieldOverride;
@@ -69,6 +70,21 @@ public class GovernanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("重复候选不存在"));
     }
 
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('GOVERNANCE_READ')")
+    public CandidateComparison compareCandidate(long candidateId) {
+        DuplicateCandidate candidate = requireCandidate(candidateId);
+        Map<String, Object> left = repository.findEntityComparison(candidate.entityType(), candidate.leftEntityId())
+                .orElseThrow(() -> new ResourceNotFoundException("候选左侧实体不存在"));
+        Map<String, Object> right = repository.findEntityComparison(candidate.entityType(), candidate.rightEntityId())
+                .orElseThrow(() -> new ResourceNotFoundException("候选右侧实体不存在"));
+        boolean explicitVersionRelation = candidate.entityType() == GovernedEntityType.ACHIEVEMENT
+                && repository.hasExplicitVersionRelation(candidate.leftEntityId(), candidate.rightEntityId());
+        return new CandidateComparison(candidate.id(), candidate.version(),
+                candidate.entityType(), candidate.leftEntityId(), candidate.rightEntityId(), left, right,
+                explicitVersionRelation);
+    }
+
     @Transactional
     @PreAuthorize("hasAuthority('GOVERNANCE_MANAGE')")
     public MergeDecision acceptCandidate(
@@ -81,6 +97,10 @@ public class GovernanceService {
         }
         long memberEntityId = otherEntityId(candidate, canonicalEntityId);
         ensureEntityCanMerge(candidate.entityType(), canonicalEntityId, memberEntityId);
+        if (candidate.entityType() == GovernedEntityType.ACHIEVEMENT
+                && repository.hasExplicitVersionRelation(canonicalEntityId, memberEntityId)) {
+            throw new ResourceConflictException("来源已声明这两条成果存在版本关系，请保留独立记录并拒绝重复候选");
+        }
         long actorUserId = requireActor();
         String beforeJson = json(Map.of(
                 "candidateStatus", candidate.status().name(),

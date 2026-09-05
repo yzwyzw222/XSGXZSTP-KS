@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
-  title: AACV System 阶段 7 API
-  version: 7.0.0
+  title: AACV System API
+  version: 7.1.0
   description: 本契约描述认证、用户、审计、双源采集、MySQL 数据治理、规范目录、事务 Outbox、Neo4j 可重建投影、受限图查询、MySQL 聚合统计、异步导出和管理员运维接口；不包含服务器部署能力。
 servers:
   - url: http://127.0.0.1:8080
@@ -148,6 +148,43 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
+  /api/v1/users/statistics:
+    get:
+      tags: [Users]
+      summary: 管理员查询全库账号类型统计
+      description: 包含所有状态；多角色按 ADMIN、DATA_OPERATOR、RESEARCHER 顺序每人归入一类。
+      operationId: getUserStatistics
+      security: [{sessionCookie: []}]
+      responses:
+        '200':
+          description: 去重后的账号数量
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/UserStatistics'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/users/{userId}:
+    put:
+      tags: [Users]
+      summary: 管理员统一编辑资料、角色和状态
+      description: 要求 USER_UPDATE；用户名不可变，密码通过独立接口重置。资料变化保持会话，安全变化使旧会话失效。禁止自我停用、自我降权或移除最后一个可用管理员。
+      operationId: updateUser
+      security: [{sessionCookie: []}]
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateUserRequest'}
+      responses:
+        '200': {$ref: '#/components/responses/UserResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
   /api/v1/users/{userId}/enable:
     post:
       tags: [Users]
@@ -234,6 +271,29 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
+        - name: category
+          in: query
+          schema: {type: string, enum: [LOGIN, OPERATION]}
+          description: 不指定时查询全部审计；登录成功、失败和退出归为 LOGIN。
+        - name: username
+          in: query
+          schema: {type: string, maxLength: 64}
+          description: 账号字面关键字，百分号和下划线不作为通配符。
+        - name: from
+          in: query
+          schema: {type: string, format: date-time}
+          description: 起始时间，包含。
+        - name: to
+          in: query
+          schema: {type: string, format: date-time}
+          description: 结束时间，不包含；必须晚于起始时间。
+        - name: result
+          in: query
+          schema: {type: string, enum: [SUCCESS, FAILURE]}
+        - name: action
+          in: query
+          schema: {type: string}
+          description: 已登记的 AuditAction；操作筛选同时匹配 OPERATION_FAILED 摘要中的原操作。
       responses:
         '200':
           description: 审计分页
@@ -241,6 +301,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuditPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -449,7 +511,7 @@ paths:
   /api/v1/crawl/tasks/{taskId}/schedule:
     put:
       tags: [Crawl Tasks]
-      summary: 按来源能力配置每日滚动或封闭索引日期窗口计划
+      summary: 配置每日固定查询范围复查计划
       operationId: configureDailySchedule
       security: [{sessionCookie: []}]
       parameters:
@@ -621,6 +683,25 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AchievementPage'}
+  /api/v1/catalog/{collection}/{entityId}/evidence:
+    get:
+      tags: [Catalog]
+      summary: 查询机构来源名称或作者署名观测区间
+      operationId: getCatalogEntityEvidence
+      x-required-permission: CATALOG_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: collection, in: path, required: true, schema: {type: string, enum: [authors, organizations]}}
+        - {name: entityId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200':
+          description: 名称及署名证据各最多100项，截断显式标记；规范关联后的成果去重计数
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CatalogEntityEvidence'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
   /api/v1/duplicate-candidates:
     get:
       tags: [Governance]
@@ -658,6 +739,24 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/DuplicateCandidate'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/duplicate-candidates/{candidateId}/comparison:
+    get:
+      tags: [Governance]
+      summary: 对照候选两侧当前字段与明确版本关系
+      operationId: compareDuplicateCandidate
+      x-required-permission: GOVERNANCE_READ
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+      responses:
+        '200':
+          description: 两侧实体的有限字段；未知值保留null，标题包含有效人工覆盖
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CandidateComparison'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
   /api/v1/duplicate-candidates/{candidateId}/accept:
     post:
@@ -1212,6 +1311,51 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [version, roles, status]
+      description: 全量资料表单；未提供或空白的可选资料保存为 null，不修改用户名和密码。
+      properties:
+        version: {type: integer, format: int64, minimum: 0}
+        status: {type: string, enum: [ACTIVE, DISABLED, PASSWORD_RESET_REQUIRED]}
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/RoleCode'}
+        realName:
+          type: [string, 'null']
+          maxLength: 64
+          description: 姓名；新建页面必填，旧 API 调用可省略。
+        email:
+          type: [string, 'null']
+          maxLength: 254
+          description: 联系邮箱，非空时校验格式。
+        phone:
+          type: [string, 'null']
+          maxLength: 32
+          description: 联系电话，支持国际区号和常见分隔符。
+        organization:
+          type: [string, 'null']
+          maxLength: 128
+          description: 账号所属单位文本，不自动关联学术机构。
+        department:
+          type: [string, 'null']
+          maxLength: 128
+          description: 部门或院系。
+        remark:
+          type: [string, 'null']
+          maxLength: 500
+          description: 备注，可包含换行。
+    UserStatistics:
+      type: object
+      required: [totalUsers, admin, dataOperator, researcher]
+      properties:
+        totalUsers: {type: integer, format: int64, minimum: 0}
+        admin: {type: integer, format: int64, minimum: 0}
+        dataOperator: {type: integer, format: int64, minimum: 0}
+        researcher: {type: integer, format: int64, minimum: 0}
     RoleCode:
       type: string
       enum: [ADMIN, DATA_OPERATOR, RESEARCHER]
@@ -1221,6 +1365,7 @@ components:
         - ACCOUNT_SELF_READ
         - USER_LIST
         - USER_CREATE
+        - USER_UPDATE
         - USER_ENABLE
         - USER_DISABLE
         - USER_PASSWORD_RESET
@@ -1293,6 +1438,30 @@ components:
       additionalProperties: false
       required: [username, password, roles]
       properties:
+        realName:
+          type: [string, 'null']
+          maxLength: 64
+          description: 姓名；新建页面必填，旧 API 调用可省略。
+        email:
+          type: [string, 'null']
+          maxLength: 254
+          description: 联系邮箱，非空时校验格式。
+        phone:
+          type: [string, 'null']
+          maxLength: 32
+          description: 联系电话，支持国际区号和常见分隔符。
+        organization:
+          type: [string, 'null']
+          maxLength: 128
+          description: 账号所属单位文本，不自动关联学术机构。
+        department:
+          type: [string, 'null']
+          maxLength: 128
+          description: 部门或院系。
+        remark:
+          type: [string, 'null']
+          maxLength: 500
+          description: 备注，可包含换行。
         username:
           type: string
           minLength: 3
@@ -1346,6 +1515,30 @@ components:
       type: object
       required: [id, username, status, version, credentialsChangedAt, createdAt, updatedAt, roles]
       properties:
+        realName:
+          type: [string, 'null']
+          maxLength: 64
+          description: 姓名；新建页面必填，旧 API 调用可省略。
+        email:
+          type: [string, 'null']
+          maxLength: 254
+          description: 联系邮箱，非空时校验格式。
+        phone:
+          type: [string, 'null']
+          maxLength: 32
+          description: 联系电话，支持国际区号和常见分隔符。
+        organization:
+          type: [string, 'null']
+          maxLength: 128
+          description: 账号所属单位文本，不自动关联学术机构。
+        department:
+          type: [string, 'null']
+          maxLength: 128
+          description: 部门或院系。
+        remark:
+          type: [string, 'null']
+          maxLength: 500
+          description: 备注，可包含换行。
         id:
           type: integer
           format: int64
@@ -1392,6 +1585,15 @@ components:
       type: object
       required: [id, action, targetType, result, traceId, summary, createdAt]
       properties:
+        category: {type: string, enum: [LOGIN, OPERATION]}
+        username:
+          type: [string, 'null']
+          description: 当前账号名；认证失败时为尝试的账号，无法识别时为空。
+        clientIp: {type: [string, 'null'], maxLength: 64}
+        userAgent:
+          type: [string, 'null']
+          maxLength: 512
+          description: 经过控制字符清理的客户端声明，历史缺失为空，不代表可信设备身份。
         id:
           type: integer
           format: int64
@@ -1551,7 +1753,10 @@ components:
         timeZone: {type: string}
         nextFireAt: {type: string, format: date-time}
         version: {type: integer, format: int64}
-        incrementalMode: {type: string, enum: [ROLLING_PUBLICATION_DATE_WINDOW, CLOSED_INDEX_DATE_WINDOW]}
+        incrementalMode:
+          type: string
+          enum: [FIXED_SCOPE_REFRESH, ROLLING_PUBLICATION_DATE_WINDOW, CLOSED_INDEX_DATE_WINDOW]
+          description: 每日计划当前重复固定查询范围，返回FIXED_SCOPE_REFRESH；保留历史模式名供旧数据兼容，不承诺自动移动日期窗口。
     CrawlRun:
       type: object
       required: [id, taskId, runNumber, triggerType, status, readCount, parsedCount, createdCount, updatedCount, duplicateCount, failureCount, requestCount]
@@ -1573,6 +1778,15 @@ components:
         checkpoint: {type: [string, 'null']}
         startedAt: {type: [string, 'null'], format: date-time}
         finishedAt: {type: [string, 'null'], format: date-time}
+        completionReason:
+          type: [string, 'null']
+          enum: [SOURCE_EXHAUSTED, PAGE_LIMIT, RECORD_LIMIT, RETRY_BATCH_COMPLETED, QUOTA_EXHAUSTED, QUOTA_RETRY_LIMIT, USER_PAUSED, USER_CANCELLED, BATCH_FAILED, null]
+          description: 来源耗尽仅指当前查询范围；达到页数或记录上限返回PARTIAL_SUCCESS，不代表范围完整。
+        deferredUntil:
+          type: [string, 'null']
+          format: date-time
+          description: 每日额度恢复时间；只有PAUSED且QUOTA_EXHAUSTED的运行由服务端自动恢复。
+        quotaDeferrals: {type: integer, minimum: 0, maximum: 3}
     CrawlFailure:
       type: object
       required: [id, runId, failureStage, errorCategory, safeMessage, retryable, attemptCount, resolved, createdAt, updatedAt]
@@ -1657,6 +1871,10 @@ components:
               firstSeenAt: {type: string, format: date-time}
               lastSeenAt: {type: string, format: date-time}
               parserVersion: {type: string}
+              scholarlyMetadata:
+                anyOf:
+                  - $ref: '#/components/schemas/ScholarlyMetadata'
+                  - type: 'null'
         fields:
           type: array
           description: 当前规范字段的来源与人工覆盖状态
@@ -1668,6 +1886,25 @@ components:
               sourceCode: {type: [string, 'null'], enum: [OPENALEX, CROSSREF, null]}
               rawRecordId: {type: [integer, 'null'], format: int64}
               manualOverride: {type: boolean}
+    ScholarlyMetadata:
+      type: object
+      description: 单个来源最新快照的学术指标；计数不得跨来源求和，缺失状态不是false，版本关系不触发合并。
+      required: [observedAt, versionRelations]
+      properties:
+        observedAt: {type: string, format: date-time}
+        citedByCount: {type: [integer, 'null'], format: int64, minimum: 0}
+        retracted: {type: [boolean, 'null']}
+        openAccess: {type: [boolean, 'null']}
+        openAccessStatus: {type: [string, 'null'], enum: [diamond, gold, green, hybrid, bronze, closed, null]}
+        versionRelations:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [relationType, targetDoi]
+            properties:
+              relationType: {type: string, enum: [is-preprint-of, has-preprint, is-version-of, has-version]}
+              targetDoi: {type: string, maxLength: 255}
     CatalogEntity:
       type: object
       required: [id, displayName, achievementCount]
@@ -1818,6 +2055,18 @@ components:
       properties:
         source: {type: string, enum: [MYSQL], description: 统计始终以MySQL规范数据为权威来源}
         filters: {$ref: '#/components/schemas/AnalyticsFilter'}
+    AnalyticsCoverage:
+      type: object
+      description: 当前筛选范围内规范成果的字段可用数量，不是全球来源覆盖率；任一来源有合法值即计入，零和false有效
+      required: [withDoiCount, withPublicationYearCount, withAbstractCount, withCitationCount, withOpenAccessStatusCount, withRetractionStatusCount, authorshipsMayBeIncompleteCount]
+      properties:
+        withDoiCount: {type: integer, format: int64, minimum: 0}
+        withPublicationYearCount: {type: integer, format: int64, minimum: 0}
+        withAbstractCount: {type: integer, format: int64, minimum: 0}
+        withCitationCount: {type: integer, format: int64, minimum: 0}
+        withOpenAccessStatusCount: {type: integer, format: int64, minimum: 0}
+        withRetractionStatusCount: {type: integer, format: int64, minimum: 0}
+        authorshipsMayBeIncompleteCount: {type: integer, format: int64, minimum: 0}
     AnalyticsOverview:
       type: object
       required: [achievementCount, authorCount, organizationCount, sourceCount, scope, updatedAt]
@@ -1826,6 +2075,10 @@ components:
         authorCount: {type: integer, format: int64, minimum: 0}
         organizationCount: {type: integer, format: int64, minimum: 0}
         sourceCount: {type: integer, format: int64, minimum: 0}
+        coverage:
+          oneOf:
+            - {$ref: '#/components/schemas/AnalyticsCoverage'}
+            - {type: 'null'}
         scope: {$ref: '#/components/schemas/AnalyticsScope'}
         updatedAt: {type: string, format: date-time}
     AnalyticsTrendItem:
@@ -2007,6 +2260,52 @@ components:
                 type: string
               message:
                 type: string
+    CatalogEntityEvidence:
+      type: object
+      required: [entityId, entityType, names, affiliations, namesTruncated, affiliationsTruncated]
+      properties:
+        entityId: {type: integer, format: int64}
+        entityType: {type: string, enum: [AUTHOR, ORGANIZATION]}
+        namesTruncated: {type: boolean}
+        affiliationsTruncated: {type: boolean}
+        names:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [displayName, sourceCode, firstObservedAt, lastObservedAt]
+            properties:
+              displayName: {type: string}
+              sourceCode: {type: string}
+              firstObservedAt: {type: string, format: date-time}
+              lastObservedAt: {type: string, format: date-time}
+        affiliations:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [organizationId, displayName, firstPublicationYear, lastPublicationYear, achievementCount, datedAchievementCount]
+            properties:
+              organizationId: {type: integer, format: int64}
+              displayName: {type: [string, 'null']}
+              firstPublicationYear: {type: [integer, 'null'], description: 已收录署名论文最早出版年，不代表任职开始}
+              lastPublicationYear: {type: [integer, 'null'], description: 已收录署名论文最晚出版年，不代表任职结束}
+              achievementCount: {type: integer, format: int64}
+              datedAchievementCount: {type: integer, format: int64}
+    CandidateComparison:
+      type: object
+      required: [candidateId, candidateVersion, entityType, leftEntityId, rightEntityId, left, right, explicitVersionRelation]
+      properties:
+        candidateId: {type: integer, format: int64}
+        candidateVersion: {type: integer, format: int64}
+        entityType: {type: string, enum: [ACHIEVEMENT, AUTHOR, ORGANIZATION, VENUE]}
+        leftEntityId: {type: integer, format: int64}
+        rightEntityId: {type: integer, format: int64}
+        left: {type: object, additionalProperties: true}
+        right: {type: object, additionalProperties: true}
+        explicitVersionRelation:
+          type: boolean
+          description: 来源快照明确连接两侧DOI的版本关系；为true时接受合并返回409，可拒绝候选
     DuplicateCandidate:
       type: object
       required: [id, entityType, leftEntityId, rightEntityId, matchBasis, evidence, status, ruleVersion, version, createdAt]

@@ -46,7 +46,8 @@ public record AchievementCatalogDetail(
             String sourceUrl,
             Instant firstSeenAt,
             Instant lastSeenAt,
-            String parserVersion) {
+            String parserVersion,
+            com.aacv.system.source.domain.ScholarlyMetadata scholarlyMetadata) {
     }
 
     public record FieldState(

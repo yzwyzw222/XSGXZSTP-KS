@@ -13,6 +13,21 @@ class AnalyticsRow {
     private Long rightId;
     private String rightLabel;
     private long sharedAchievementCount;
+    private long withDoiCount;
+    private long withPublicationYearCount;
+    private long withAbstractCount;
+    private long withCitationCount;
+    private long withOpenAccessStatusCount;
+    private long withRetractionStatusCount;
+    private long authorshipsMayBeIncompleteCount;
+
+    public long getWithDoiCount() { return withDoiCount; }
+    public long getWithPublicationYearCount() { return withPublicationYearCount; }
+    public long getWithAbstractCount() { return withAbstractCount; }
+    public long getWithCitationCount() { return withCitationCount; }
+    public long getWithOpenAccessStatusCount() { return withOpenAccessStatusCount; }
+    public long getWithRetractionStatusCount() { return withRetractionStatusCount; }
+    public long getAuthorshipsMayBeIncompleteCount() { return authorshipsMayBeIncompleteCount; }
 
     public long getAchievementCount() {
         return achievementCount;

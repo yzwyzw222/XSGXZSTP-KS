@@ -1,5 +1,7 @@
 package com.aacv.system.identity.api;
 
+import com.aacv.system.operations.infrastructure.web.FailedOperationAuditFilter;
+
 import com.aacv.system.identity.application.InvalidCredentialsException;
 import com.aacv.system.identity.infrastructure.security.UserPrincipal;
 import com.aacv.system.operations.application.AuditService;
@@ -79,12 +81,8 @@ public class AuthController {
             }
             return CurrentUserResponse.from(principal);
         } catch (AuthenticationException exception) {
-            auditService.record(
-                    AuditAction.LOGIN_FAILED,
-                    "USER_ACCOUNT",
-                    loginRequest.username().trim(),
-                    AuditResult.FAILURE,
-                    Map.of("reason", "invalid_credentials"));
+            auditService.recordLoginFailure(loginRequest.username().trim(), "invalid_credentials");
+            request.setAttribute(FailedOperationAuditFilter.LOGIN_RECORDED, true);
             throw new InvalidCredentialsException();
         }
     }

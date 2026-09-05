@@ -176,7 +176,7 @@
         SELECT source.id AS source_id,
                achievement_source.raw_record_id,
                source.source_type,
-               snapshot.source_priority,
+               snapshot.source_priority, snapshot.observed_at,
                CAST(snapshot.normalized_payload AS CHAR CHARACTER SET utf8mb4) AS normalized_payload
         FROM achievement_source_snapshot snapshot
         JOIN achievement_source ON achievement_source.id = snapshot.achievement_source_id
@@ -184,6 +184,14 @@
         WHERE achievement_source.achievement_id = #{achievementId}
         ORDER BY snapshot.source_priority, source.source_type, achievement_source.id
     </select>
+    <insert id="upsertOrganizationNameEvidence">
+        INSERT INTO organization_name_evidence (
+            organization_id, source_id, name_hash, display_name, first_observed_at, last_observed_at
+        ) VALUES (#{organizationId}, #{sourceId}, SHA2(#{displayName}, 256), #{displayName}, #{observedAt}, #{observedAt})
+        ON DUPLICATE KEY UPDATE
+            first_observed_at = LEAST(first_observed_at, VALUES(first_observed_at)),
+            last_observed_at = GREATEST(last_observed_at, VALUES(last_observed_at))
+    </insert>
     <update id="clearAchievementFieldSelection">
         UPDATE entity_field_provenance
         SET selected = FALSE,

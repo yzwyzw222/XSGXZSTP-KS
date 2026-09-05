@@ -73,7 +73,7 @@ public class CrossrefDataSourceAdapter implements DataSourceAdapter {
 
     @Override
     public String parserVersion() {
-        return "crossref-v1";
+        return "crossref-v2";
     }
 
     @Override

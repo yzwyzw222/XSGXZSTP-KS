@@ -51,6 +51,9 @@ class GovernancePersistenceIntegrationTests {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private org.mybatis.spring.SqlSessionTemplate sqlSessionTemplate;
+
     @Test
     @Transactional
     void candidateDecisionLinkRevisionAndOverrideRoundTrip() {
@@ -78,6 +81,12 @@ class GovernancePersistenceIntegrationTests {
         assertTrue(repository.entityExists(GovernedEntityType.ACHIEVEMENT, leftId));
         assertTrue(repository.isCanonicalEntity(GovernedEntityType.ACHIEVEMENT, rightId));
 
+        var comparedLeft = repository.findEntityComparison(GovernedEntityType.ACHIEVEMENT, leftId).orElseThrow();
+        assertEquals("成果a", comparedLeft.get("displayName"));
+        assertEquals(0, ((Number) comparedLeft.get("sourceCount")).intValue());
+        assertTrue(comparedLeft.containsKey("doi"));
+        assertFalse(repository.hasExplicitVersionRelation(leftId, rightId));
+
         Instant now = Instant.parse("2026-09-02T05:00:00Z");
         long mergeRevisionId = repository.insertRevision(
                 GovernedEntityType.ACHIEVEMENT, leftId, "MERGE", "{}", "{}",
@@ -104,6 +113,9 @@ class GovernancePersistenceIntegrationTests {
                 rightId, "title", "\"人工标题\"", overrideRevisionId,
                 actorId, "集成测试修正", null, now);
         assertEquals("人工标题", override.value());
+        var comparedOverride = repository.findEntityComparison(GovernedEntityType.ACHIEVEMENT, rightId).orElseThrow();
+        assertEquals("人工标题", comparedOverride.get("displayName"));
+        assertEquals("成果b", comparedOverride.get("sourceTitle"));
         var overriddenDetail = catalogRepository.findAchievement(rightId).orElseThrow();
         assertEquals("人工标题", overriddenDetail.summary().title());
         assertTrue(overriddenDetail.fields().stream()
@@ -125,6 +137,61 @@ class GovernancePersistenceIntegrationTests {
 
     private CatalogQuery emptyCatalogQuery() {
         return new CatalogQuery(null, null, null, null, null, null, null, null, 0, 20);
+    }
+
+    @Test
+    @Transactional
+    void comparisonSupportsAllGovernedEntityTypesAndAbsentEntities() {
+        jdbcTemplate.update("INSERT INTO author (display_name) VALUES ('对照作者')");
+        long authorId = jdbcTemplate.queryForObject("SELECT id FROM author WHERE display_name = '对照作者'", Long.class);
+        jdbcTemplate.update("INSERT INTO author_external_id (author_id, id_type, external_id) VALUES (?, 'ORCID', '0000-0001-2345-6789')", authorId);
+        assertEquals("0000-0001-2345-6789", repository.findEntityComparison(GovernedEntityType.AUTHOR, authorId)
+                .orElseThrow().get("orcid"));
+        jdbcTemplate.update("INSERT INTO organization (openalex_id, display_name, country_code) VALUES ('https://openalex.org/I9090', '对照机构', 'CN')");
+        long organizationId = jdbcTemplate.queryForObject("SELECT id FROM organization WHERE display_name = '对照机构'", Long.class);
+        assertEquals("CN", repository.findEntityComparison(GovernedEntityType.ORGANIZATION, organizationId)
+                .orElseThrow().get("countryCode"));
+        jdbcTemplate.update("INSERT INTO venue (display_name, issn_l) VALUES ('对照期刊', '1234-5678')");
+        long venueId = jdbcTemplate.queryForObject("SELECT id FROM venue WHERE display_name = '对照期刊'", Long.class);
+        assertEquals("1234-5678", repository.findEntityComparison(GovernedEntityType.VENUE, venueId)
+                .orElseThrow().get("issnL"));
+        for (var type : GovernedEntityType.values()) {
+            assertTrue(repository.findEntityComparison(type, Long.MAX_VALUE).isEmpty());
+        }
+        long firstWork = insertAchievement("c");
+        long lastWork = insertAchievement("d");
+        long unknownWork = insertAchievement("e");
+        jdbcTemplate.update("UPDATE achievement SET publication_date = '2018-01-01', date_precision = 'YEAR' WHERE id = ?", firstWork);
+        jdbcTemplate.update("UPDATE achievement SET publication_date = '2022-07-02', date_precision = 'DAY' WHERE id = ?", lastWork);
+        for (long workId : new long[] {firstWork, lastWork, unknownWork}) {
+            jdbcTemplate.update("INSERT INTO achievement_author (achievement_id, author_id, author_position) VALUES (?, ?, 1)", workId, authorId);
+            jdbcTemplate.update("INSERT INTO authorship_organization (achievement_id, author_id, organization_id) VALUES (?, ?, ?)", workId, authorId, organizationId);
+        }
+        var beforeMerge = catalogRepository.findEntityEvidence(com.aacv.system.catalog.domain.CatalogEntityKind.AUTHOR,
+                authorId).orElseThrow().affiliations().getFirst();
+        assertEquals(2018, beforeMerge.firstPublicationYear());
+        assertEquals(2022, beforeMerge.lastPublicationYear());
+        assertEquals(3, beforeMerge.achievementCount());
+        assertEquals(2, beforeMerge.datedAchievementCount());
+        long actorId = insertActor();
+        long revisionId = repository.insertRevision(GovernedEntityType.ACHIEVEMENT, firstWork, "MERGE", "{}", "{}",
+                actorId, "验证规范计数", true, Instant.now());
+        repository.createCanonicalLink(GovernedEntityType.ACHIEVEMENT, firstWork, lastWork, revisionId);
+        var afterMerge = catalogRepository.findEntityEvidence(com.aacv.system.catalog.domain.CatalogEntityKind.AUTHOR,
+                authorId).orElseThrow().affiliations().getFirst();
+        assertEquals(2022, afterMerge.firstPublicationYear());
+        assertEquals(2, afterMerge.achievementCount());
+        assertEquals(1, afterMerge.datedAchievementCount());
+        jdbcTemplate.update("UPDATE achievement SET publication_date = NULL WHERE id = ?", lastWork);
+        // 测试直接通过JDBC改写数据，需清理同一事务内MyBatis的一级查询缓存。
+        sqlSessionTemplate.clearCache();
+        var undated = catalogRepository.findEntityEvidence(com.aacv.system.catalog.domain.CatalogEntityKind.AUTHOR,
+                authorId).orElseThrow().affiliations().getFirst();
+        org.junit.jupiter.api.Assertions.assertNull(undated.firstPublicationYear());
+        org.junit.jupiter.api.Assertions.assertNull(undated.lastPublicationYear());
+        assertEquals(0, undated.datedAchievementCount());
+        assertTrue(catalogRepository.findEntityEvidence(com.aacv.system.catalog.domain.CatalogEntityKind.AUTHOR,
+                Long.MAX_VALUE).isEmpty());
     }
 
     private long insertActor() {

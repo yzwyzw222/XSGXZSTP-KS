@@ -3,6 +3,8 @@ package com.aacv.system.source.infrastructure.openalex;
 import com.aacv.system.crawl.domain.CrawlScope;
 import com.aacv.system.ingestion.domain.RawSourceRecord;
 import com.aacv.system.source.application.port.DataSourceAdapter;
+import com.aacv.system.source.application.SourceClientException;
+import com.aacv.system.source.application.SourceQuotaExhaustedException;
 import com.aacv.system.source.domain.OpaqueCursor;
 import com.aacv.system.source.domain.SourceCapabilities;
 import com.aacv.system.source.domain.SourceCapabilities.IncrementalMode;
@@ -66,6 +68,11 @@ public class OpenAlexDataSourceAdapter implements DataSourceAdapter {
     }
 
     @Override
+    public String parserVersion() {
+        return "openalex-v2";
+    }
+
+    @Override
     public SourceValidationResult validate(SourceConnectionSettings settings, CrawlScope scope) {
         if (settings == null || scope == null) {
             return SourceValidationResult.invalid(List.of("OpenAlex连接配置和采集范围不能为空"));
@@ -90,7 +97,7 @@ public class OpenAlexDataSourceAdapter implements DataSourceAdapter {
                     null,
                     result.response().responseMetadata(),
                     clock.instant());
-        } catch (OpenAlexClientException exception) {
+        } catch (SourceClientException exception) {
             return new SourceProbeResult(
                     false,
                     exception.statusCode(),
@@ -136,6 +143,10 @@ public class OpenAlexDataSourceAdapter implements DataSourceAdapter {
                 OpenAlexHttpResponse response = operation.execute();
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
                     return new AttemptResult(response, requestCount);
+                }
+                java.time.Instant resetAt = OpenAlexQuota.resetAt(response.responseMetadata(), clock.instant());
+                if (response.statusCode() == 429 && resetAt != null) {
+                    throw new SourceQuotaExhaustedException(resetAt);
                 }
                 boolean retryable = RETRYABLE_STATUSES.contains(response.statusCode());
                 if (!retryable || requestCount > settings.maxRetries()) {

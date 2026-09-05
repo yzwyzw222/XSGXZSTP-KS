@@ -10,6 +10,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import com.aacv.system.identity.application.UpdateUserCommand;
+import com.aacv.system.identity.domain.UserStatistics;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,11 +37,20 @@ public class UserController {
         return UserPageResponse.from(adminUserService.findPage(page, size));
     }
 
+    @GetMapping("/statistics")
+    public UserStatistics statistics() { return adminUserService.statistics(); }
+
+    @PutMapping("/{userId}")
+    public UserResponse update(@PathVariable long userId, @Valid @RequestBody UpdateUserRequest request) {
+        return UserResponse.from(adminUserService.updateUser(userId,
+                new UpdateUserCommand(request.version(), request.profile(), request.roles(), request.status())));
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse create(@Valid @RequestBody CreateUserRequest request) {
         return UserResponse.from(adminUserService.createUser(
-                new CreateUserCommand(request.username(), request.password(), request.roles())));
+                new CreateUserCommand(request.username(), request.password(), request.roles(), request.profile())));
     }
 
     @PostMapping("/{userId}/enable")

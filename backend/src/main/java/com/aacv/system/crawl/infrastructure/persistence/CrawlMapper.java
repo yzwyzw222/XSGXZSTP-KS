@@ -55,4 +55,8 @@ public interface CrawlMapper {
     int updateSchedule(@Param("row") CrawlScheduleRow row, @Param("expectedVersion") long expectedVersion);
     List<CrawlScheduleRow> findEnabledSchedules();
     List<CrawlRecoveryCandidateRow> findRecoveryCandidates();
+    int recordCompletionReason(@Param("runId") long runId, @Param("reason") String reason);
+    int recordQuotaDeferral(@Param("runId") long runId, @Param("deferredUntil") Instant deferredUntil,
+            @Param("quotaDeferrals") int quotaDeferrals);
+    List<Long> findDueQuotaRuns(@Param("now") Instant now, @Param("limit") int limit);
 }

@@ -160,5 +160,38 @@ class AnalyticsPersistenceIntegrationTests {
                 .achievementCount());
         assertEquals(1, repository.overview(new AnalyticsQuery(null, null, null, null, null, 20L))
                 .achievementCount());
+
+        assertEquals(2, overview.coverage().withPublicationYearCount());
+        assertEquals(0, overview.coverage().withCitationCount());
+        jdbcTemplate.update("UPDATE achievement SET doi_normalized = '10.1000/canonical' WHERE id = 100");
+        jdbcTemplate.update("UPDATE achievement SET publication_date = NULL WHERE id = 101");
+        jdbcTemplate.update("""
+                INSERT INTO paper_detail (achievement_id, abstract_text, authorships_may_be_incomplete)
+                VALUES (100, '有效摘要', FALSE), (101, '   ', TRUE)
+                """);
+        var metadata = new com.aacv.system.source.domain.ScholarlyMetadata(java.time.Instant.now(),
+                0L, false, false, "closed", java.util.List.of());
+        String payload = new tools.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of("scholarlyMetadata", metadata));
+        jdbcTemplate.update("""
+                INSERT INTO achievement_source_snapshot (achievement_source_id, normalized_payload, source_priority, observed_at)
+                SELECT id, ?, 10, UTC_TIMESTAMP(6) FROM achievement_source WHERE achievement_id IN (100, 102)
+                """, payload);
+        var coverage = repository.overview(all).coverage();
+        assertEquals(1, coverage.withDoiCount());
+        assertEquals(1, coverage.withPublicationYearCount());
+        assertEquals(1, coverage.withAbstractCount());
+        assertEquals(1, coverage.withCitationCount());
+        assertEquals(1, coverage.withOpenAccessStatusCount());
+        assertEquals(1, coverage.withRetractionStatusCount());
+        assertEquals(1, coverage.authorshipsMayBeIncompleteCount());
+        var filtered = repository.overview(new AnalyticsQuery(null, null, "dataset", null, null, null));
+        assertEquals(1, filtered.achievementCount());
+        assertEquals(0, filtered.coverage().withPublicationYearCount());
+        assertEquals(0, filtered.coverage().withCitationCount());
+        var empty = repository.overview(new AnalyticsQuery(2099, 2099, null, null, null, null));
+        assertEquals(0, empty.achievementCount());
+        assertEquals(0, empty.coverage().withDoiCount());
+        assertEquals(0, empty.coverage().withPublicationYearCount());
+        assertEquals(0, empty.coverage().withCitationCount());
     }
 }

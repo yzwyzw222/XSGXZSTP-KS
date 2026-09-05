@@ -23,6 +23,8 @@ public final class UserPrincipal implements UserDetails, CredentialsContainer {
     private final String username;
     private String passwordHash;
     private final long version;
+    // 保留序列化兼容性，旧会话缺少安全版本时必须重新认证。
+    private final Long securityVersion;
     private final Instant credentialsChangedAt;
     private final Set<RoleCode> roles;
     private final Set<GrantedAuthority> authorities;
@@ -32,6 +34,7 @@ public final class UserPrincipal implements UserDetails, CredentialsContainer {
         username = account.username().value();
         passwordHash = account.passwordHash();
         version = account.version();
+        securityVersion = account.securityVersion();
         credentialsChangedAt = account.credentialsChangedAt();
         roles = Set.copyOf(account.roles());
         LinkedHashSet<GrantedAuthority> granted = new LinkedHashSet<>();
@@ -53,6 +56,10 @@ public final class UserPrincipal implements UserDetails, CredentialsContainer {
 
     public long userId() {
         return userId;
+    }
+
+    public Long securityVersion() {
+        return securityVersion;
     }
 
     public long version() {

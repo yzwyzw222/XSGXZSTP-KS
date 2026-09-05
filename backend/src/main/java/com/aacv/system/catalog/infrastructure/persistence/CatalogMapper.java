@@ -25,6 +25,9 @@ interface CatalogMapper {
     List<CatalogRow> findAchievementReferences(@Param("id") long id);
     List<CatalogRow> findAchievementFieldStates(@Param("id") long id);
     long countEntities(@Param("kind") String kind, @Param("name") String name);
+    Long findEvidenceEntityId(@Param("kind") String kind, @Param("entityId") long entityId);
+    List<CatalogEvidenceRow> findOrganizationNames(long entityId);
+    List<CatalogEvidenceRow> findAuthorAffiliations(long entityId);
     List<CatalogRow> findEntityPage(
             @Param("kind") String kind,
             @Param("name") String name,

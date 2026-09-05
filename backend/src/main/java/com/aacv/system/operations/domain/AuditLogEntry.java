@@ -12,7 +12,7 @@ public record AuditLogEntry(
         AuditResult result,
         String traceId,
         Map<String, String> summary,
-        Instant createdAt) {
+        Instant createdAt, String username, String clientIp, String userAgent) {
 
     public AuditLogEntry {
         summary = summary == null ? Map.of() : Map.copyOf(summary);

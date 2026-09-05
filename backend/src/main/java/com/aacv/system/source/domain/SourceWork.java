@@ -19,7 +19,8 @@ public record SourceWork(
         boolean authorshipsMayBeIncomplete,
         List<String> fieldWarnings,
         SourceDatePrecision publicationDatePrecision,
-        Instant indexedAt) {
+        Instant indexedAt,
+        ScholarlyMetadata scholarlyMetadata) {
 
     public SourceWork {
         if (externalId == null || externalId.isBlank()) {
@@ -32,6 +33,17 @@ public record SourceWork(
         if (publicationDate == null && publicationDatePrecision != null) {
             throw new IllegalArgumentException("缺少发表日期时不能声明日期精度");
         }
+    }
+
+    public SourceWork(
+            String externalId, String doi, String title, String type, String language,
+            LocalDate publicationDate, SourceVenue primaryVenue, List<SourceAuthorship> authorships,
+            List<SourceTopic> topics, List<String> referencedWorkIds, String abstractText,
+            boolean authorshipsMayBeIncomplete, List<String> fieldWarnings,
+            SourceDatePrecision publicationDatePrecision, Instant indexedAt) {
+        this(externalId, doi, title, type, language, publicationDate, primaryVenue, authorships,
+                topics, referencedWorkIds, abstractText, authorshipsMayBeIncomplete, fieldWarnings,
+                publicationDatePrecision, indexedAt, null);
     }
 
     public SourceWork(
