@@ -188,8 +188,8 @@ if ([int]$metadata.formatVersion -ne 1 -or
     ([string]$metadata.sha256).ToUpperInvariant() -ne $actualHash) {
     throw '备份元数据版本或摘要与备份文件不一致。'
 }
-if ([string]$metadata.flywayVersion -ne '11') {
-    throw "备份Flyway版本必须为11，实际为 $($metadata.flywayVersion)。"
+if (@('11', '12', '13', '14') -notcontains [string]$metadata.flywayVersion) {
+    throw "备份Flyway版本必须为11、12、13或14，实际为 $($metadata.flywayVersion)。"
 }
 
 $databaseCredential = Get-Credential -Message '设置阶段8隔离恢复数据库账号' `

@@ -5,7 +5,8 @@
     [string]$BackupRoot = 'E:\AACV_System_Backups',
     [switch]$InitializeBackupRoot,
     [switch]$ApplyRetention,
-    [string]$OutputPath
+    [string]$OutputPath,
+    [System.Management.Automation.PSCredential]$Credential
 )
 
 . (Join-Path $PSScriptRoot 'Stage8.Common.ps1')
@@ -93,8 +94,8 @@ FROM information_schema.tables WHERE table_schema = DATABASE();
         'userCount', 'auditCount', 'outboxCount', 'projectionStateCount', 'databaseBytes')) {
         if (-not $result.Contains($required)) { throw "数据库基线缺少字段：$required" }
     }
-    if ([string]$result.flywayVersion -ne '11') {
-        throw "备份源Flyway版本必须为11，实际为 $($result.flywayVersion)。"
+    if (@('11', '12', '13', '14') -notcontains [string]$result.flywayVersion) {
+        throw "备份源Flyway版本必须为11、12、13或14，实际为 $($result.flywayVersion)。"
     }
     return $result
 }
@@ -167,7 +168,12 @@ foreach ($directory in @($dailyDirectory, $weeklyDirectory)) {
 
 $mysql = Get-Command mysql.exe -ErrorAction Stop
 $mysqldump = Get-Command mysqldump.exe -ErrorAction Stop
-$credential = Get-Credential -Message "输入 $DatabaseName 业务备份账号"
+if ($null -eq $Credential) {
+    $Credential = Get-Credential -Message "输入 $DatabaseName 业务备份账号"
+}
+if ($null -eq $Credential -or [string]::IsNullOrWhiteSpace($Credential.UserName)) {
+    throw '必须提供有效的业务备份凭据。'
+}
 $password = ConvertTo-Stage8PlainText -SecureString $credential.Password
 $startedAt = [DateTimeOffset]::Now
 $partialPath = $null
