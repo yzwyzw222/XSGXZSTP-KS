@@ -5,15 +5,39 @@
 | 项目 | 内容 |
 | --- | --- |
 | 系统名称 | 学术成果爬虫与可视化系统 |
-| 文档版本 | 0.7（WebUI 视觉与交互动效同步） |
-| 文档状态 | 阶段 0 至阶段 7 已实现并验收；WebUI 视觉基线已更新 |
-| 编制日期 | 2026-09-04 |
+| 文档版本 | 0.8（导航、采集恢复、治理证据与查询优化同步） |
+| 文档状态 | 阶段0至7已验收；2026-09-05优化基线 |
+| 编制日期 | 2026-09-05 |
 | 关联需求 | [需求分析](./requirements-analysis.md) |
 | 设计范围 | 第一阶段 MVP |
 
 本设计以已确认的第一阶段本地开发需求为前提。MySQL 使用 MyBatis、数据库迁移使用 Flyway、Neo4j 使用 Spring Data Neo4j；首批只实现 OpenAlex 和 Crossref。服务器部署、生产 HTTPS、服务器资源和生产数据库版本不属于当前基线，实际部署前必须重新评审。
 
 ## 2. 设计前提
+
+2026-09-05优化基线：导航统一划分为可视化、爬虫管理、系统状态、用户管理四组，统一配置驱动侧栏与命令面板。图谱名称查找复用权限保护的目录接口，主题目录与图投影统一使用`subject.id`；常用图查询只保存在按账号隔离的本机浏览器存储。OpenAlex密钥作为可选本机配置，仅进入固定官方请求的Authorization头。验收细节见[优化验收记录](./optimization-acceptance.md)。
+
+V12为采集运行增加结束原因及最多三次的额度延后恢复。`SOURCE_EXHAUSTED`只表示当前查询范围的游标耗尽；`PAGE_LIMIT`/`RECORD_LIMIT`属于`PARTIAL_SUCCESS`。每日计划实际重复固定范围，已将模式更正为`FIXED_SCOPE_REFRESH`；没有自动移动日期或推进全量同步水位。额度恢复复用MySQL检查点和现有Quartz，每60秒扫描最多20个到期运行；手动暂停或取消优先。运行结果写入与页面事务、事务提交后的Batch启动边界详见优化验收记录。
+
+V13增加机构来源名称证据表，只按已确认ROR或来源标识归属名称，保留首次和最近观测时间，并支持机构别名检索。作者编目的机构区间由当前署名论文的出版年份计算，不代表任职时间。两类证据通过目录读权限接口提供，每类最多100项并报告截断。治理候选增加当前字段对照，明确DOI版本关系禁止重复合并；来源指标、机构证据和治理保护的语义见`optimization-acceptance.md`。
+
+统计总览增加当前范围内的字段可用数量，覆盖DOI、出版年份、摘要、来源被引量、开放和撤稿状态，并报告署名可能不完整的成果数量。按规范成果去重，零和false均视为有效来源值；空分母没有覆盖百分比。机构、主题、来源采用完整计数，分类间可以重叠，不能把它们相加当作成果总数或将字段完整度当作全球采集覆盖率。
+
+来源解析版本2在已有规范来源快照中增加`scholarlyMetadata`，按来源记录被引量与采集时间、可用的撤稿/开放状态以及明确的DOI版本关系。目录详情返回各来源信息，不跨来源求和；旧快照和缺失字段保留未知。版本关系只作来源证据展示，不触发同名归一或自动合并。
+
+采集和图维护的Batch启动器都在业务提交回调内临时挂起尚未解绑的事务资源，让Batch独立创建元数据事务。图维护长循环也挂起Batch外层事务：状态和每页操作继续沿用既有独立事务，随后在独立只读事务和SqlSession中读取已提交游标，并检查游标严格递增，防止旧快照或一级缓存导致重复处理同一页。重建仍通过认证、权限、CSRF和显式确认值启动，投影仍经Outbox处理后对账。
+
+### 账号与日志 V14 增量
+
+`identity`继续负责账号、权限和会话；用户资料作为`UserProfile`保存在`sys_user`的可空字段中，不关联学术作者或机构实体。`PUT /api/v1/users/{userId}`以`USER_UPDATE`授权，一次事务保存资料、角色、状态和成功审计；用户名不变，密码独立管理。没有实际变化的保存不推进版本，角色未变时保留角色分配时间。新建UI要求姓名，原创建API允许省略新增资料字段以兼容旧调用与管理员引导。
+
+`version`用于并发控制，`security_version`用于会话有效性；资料修改只推进前者，角色、状态和密码变化推进安全版本。保留会话序列化兼容性，旧会话安全版本缺失时按401会话过期处理，重新登录后生效。管理员角色行作为账号安全写入的固定事务锁，所有相关入口按相同顺序锁定后检查当前管理员数量，阻止自我停用/降权及移除最后一个可用管理员。
+
+`GET /api/v1/users/statistics`在MySQL全库按ADMIN、DATA_OPERATOR、RESEARCHER优先级对每个账号互斥归类，包含所有状态。统计、列表、最近登录分别加载，失败不伪造零值。账号页面复用ECharts和现有主题、Sheet组件；日志页面位于系统状态组并使用`AUDIT_READ`。
+
+`operations`复用`audit_log`，由事件类型导出LOGIN或OPERATION分类，历史记录无需重写。查询支持字面账号关键字、半开时间区间、结果和已登记操作；按原操作筛选同时包含相应OPERATION_FAILED事件。关键业务成功审计仍与业务提交保持原事务关系，API失败由显式端点允许列表的过滤器记录，使用REQUIRES_NEW事务；如果失败审计本身不可写，保留原失败响应并输出仅含traceId和异常类型的故障日志。普通查询、翻页和后台查询不产生操作日志。异步受理事件不代表任务已完成。
+
+登录来源保存实际连接地址和清理控制字符、限制长度后的User-Agent；不信任转发头，不做外部定位。认证失败的尝试账号与操作人分开，未到认证阶段的无效请求不解析正文猜测账号。所有日志仍禁止密码、会话标识和完整请求体，资料修改审计只记录变更类别。当前OpenAPI增量版本为7.1.0，详细验证见`account-management-acceptance.md`。
 
 ### 2.1 当前建议基线
 
@@ -755,6 +779,7 @@ graph_outbox_event 建议包含：
 | --- | --- | --- |
 | GET | /api/v1/duplicate-candidates | 查询待审核重复候选 |
 | GET | /api/v1/duplicate-candidates/{id} | 查询候选与有限匹配证据 |
+| GET | /api/v1/duplicate-candidates/{id}/comparison | 对照当前字段与来源明确版本关系，需GOVERNANCE_READ |
 | POST | /api/v1/duplicate-candidates/{id}/accept | 接受合并 |
 | POST | /api/v1/duplicate-candidates/{id}/reject | 拒绝合并 |
 | POST | /api/v1/merge-decisions/{id}/revert | 受控撤销人工合并 |
@@ -1209,7 +1234,7 @@ docker compose -f .\deploy\compose.yaml config
 
 ### 21.4 开发页面样例数据
 
-页面联合验收使用 `tools/development/Initialize-RenderingSampleData.ps1` 和 `rendering-sample-data.sql`，与 Flyway 迁移、阶段8容量数据和正式采集链路隔离。工具仅允许连接本机 `aacv_system`，要求 Flyway 恰好完成 V1 至 V11 且已有有效管理员，通过安全凭据提示连接，不保存数据库密码。样例业务写入使用单个事务，所有记录均带专用名称、外部标识、DOI、运行 UUID、事件 UUID 或审计 traceId，因此可以幂等重放且不会按模糊名称覆盖既有业务数据。
+页面联合验收使用 `tools/development/Initialize-RenderingSampleData.ps1` 和 `rendering-sample-data.sql`，与 Flyway 迁移、阶段8容量数据和正式采集链路隔离。工具仅允许连接本机 `aacv_system`，要求 Flyway 恰好完成 V1 至 V14 且已有有效管理员，通过安全凭据提示连接，不保存数据库密码。样例业务写入使用单个事务，所有记录均带专用名称、外部标识、DOI、运行 UUID、事件 UUID 或审计 traceId，因此可以幂等重放且不会按模糊名称覆盖既有业务数据。
 
 MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而是创建版本化 `graph_projection_state` 和 `graph_outbox_event`，由现有消费者投影；其中保留一个明确标记的模拟死信，用于验证运行监控、告警确认和受控重放。样例还覆盖目录与详情、双来源追溯、实体列表、年度/类型/来源/机构/主题统计、作者和机构合作、治理候选、质量问题样本、采集失败、维护记录及审计列表。工具不创建账号、不触发外部 API，也不提供自动清库流程。
 
@@ -1290,7 +1315,7 @@ MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而�
 | 需求 | 阶段4实现证据 | 验证证据 |
 | --- | --- | --- |
 | `FR-SOURCE-001` 至 `FR-SOURCE-005` | `SourceType`、固定身份和适配器注册表最小通用化；Crossref固定为`https://api.crossref.org`，不接受任意主机或重定向 | `DataSourceServiceTests`、`CrossrefDataSourceAdapterTests`、`CrossrefHttpTransportTests` |
-| `FR-TASK-001` 至 `FR-TASK-008` | 参数版本1保持OpenAlex语义，版本2承载Crossref过滤；两个来源复用状态机、Quartz、Batch和检查点，计划分别持久化滚动/封闭窗口模式 | `CrawlTaskServiceTests`、`SourceCrawlPersistenceTests`、`OpenAlexBatchOrchestrationIntegrationTests`、`OpenAlexOnlineAcceptanceIT` |
+| `FR-TASK-001` 至 `FR-TASK-008` | 参数版本1保持OpenAlex语义，版本2承载Crossref过滤；两个来源复用状态机、Quartz、Batch和检查点；V12更正每日模式为固定范围复查，持久化结束原因与额度恢复时间 | `CrawlTaskServiceTests`、`SourceCrawlPersistenceTests`、`OpenAlexBatchOrchestrationIntegrationTests`、`OpenAlexOnlineAcceptanceIT` |
 | `FR-CRAWL-001` 至 `FR-CRAWL-008` | Crossref `/works`、不透明游标、固定参数链、结果总量对账、限流/重试/响应上限、字段缺失和安全错误分类；JATS/HTML摘要只保留于受限原始快照 | `CrossrefResponseParserTests`、`CrossrefDataSourceAdapterTests`、`CrossrefHttpTransportTests` |
 | `FR-DATA-001` 至 `FR-DATA-010` | DOI、ORCID、ROR、ISSN确定性关联；无稳定标识按来源位置/文本证据生成候选；逻辑合并不删除实体或来源，决定和字段修正可受控撤销 | `CrossrefFusionIntegrationTests`、`GovernanceServiceTests`、`GovernancePersistenceIntegrationTests` |
 | `FR-CATALOG-001` 至 `FR-CATALOG-003` | 固定字段优先级与导入顺序无关，人工修正优先；详情返回字段来源、人工覆盖状态和双源追溯，DOI引用支持后到回填 | `IngestionPipelineIntegrationTests`、`GovernancePersistenceIntegrationTests`、`CrossrefFusionIntegrationTests`、`OpenApiDocumentTests` |

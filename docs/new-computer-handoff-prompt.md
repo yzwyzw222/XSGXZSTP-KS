@@ -29,9 +29,9 @@
 
 三、已知交接基线
 
-1. 项目当前完成阶段 0 至阶段 7；阶段 8 的容量性能、备份恢复演练、真实账号联合运行和最终交付尚未完成。
+1. 阶段0至7已实现；阶段8容量和四项P95已有历史通过记录，故障、备份恢复及真实来源联合验收以docs/stage8-acceptance.md为准。后续优化进度和本轮验证以docs/optimization-acceptance.md为准，不将历史结果作为当前通过证明。
 2. 后端基线为 JDK 21、Spring Boot 4.1.1、Maven Wrapper 3.9.16；前端为 Vue 3、TypeScript、Vite，使用 package-lock.json 和 npm ci。
-3. MySQL80 8.0.42 是唯一业务权威数据库，默认数据库名 aacv_system，Flyway 迁移连续为 V1 至 V11。
+3. MySQL是唯一业务权威数据库，默认数据库名aacv_system。兼容基线8.0.42，历史主机实测8.0.41；当前版本需实际核验，迁移以backend/src/main/resources/db/migration中的连续文件为准。
 4. Neo4j 5.26 Community 通过 Docker Compose 运行，只保存可从 MySQL 重建的图投影。
 5. 远程仓库为 https://github.com/yzwyzw222/XSGXZSTP-KS.git；当前开发分支为 feature/Luo，并应跟踪 origin/feature/Luo。
 6. `.env.example` 应由 Git 跟踪，真实 `.env`、AACV_System-history.bundle、SHA256SUMS.txt 和根目录重复交接提示词不应进入提交。历史压缩包中的 bundle 仅作为远程不可用时的恢复备份。

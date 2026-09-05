@@ -22,7 +22,7 @@
 - MySQL 权威数据、事务 Outbox 和 Neo4j 可重建图投影；
 - 成果目录、局部图谱、统计分析、异步导出、系统内告警和运行监控。
 
-阶段8正在实施：100,000条成果、413,000个图节点、1,000,000条图关系和四个HTTP P95场景已经实测通过；真实本地账号联合运行、受控故障复验和备份恢复演练尚未完成。服务器部署、生产HTTPS和公网发布不在当前范围内。
+阶段8历史容量及四个HTTP P95场景已经实测通过。2026-09-05另有四组导航、额度恢复、治理及学术证据、组合SQL优化，以及真实双源采集和隔离故障恢复验证；当前状态见[优化验收记录](./optimization-acceptance.md)。实际业务备份目录的ACL、文件流程、保留及RPO/RTO仍待运营验收。服务器部署、生产HTTPS和公网发布不在当前范围内。
 
 ### 2.2 运行架构
 
@@ -278,7 +278,7 @@ git remote -v
 
 ### 7.1 MySQL
 
-默认方案是在新电脑建立空的 `aacv_system` 数据库，由后端启动时通过 Flyway V1 至 V11 创建结构。使用具备建库权限的账号进入 MySQL 后执行：
+默认方案是在新电脑建立空的 `aacv_system` 数据库，由后端启动时执行迁移目录中的全部版本（当前V1至V14）创建结构。使用具备建库权限的账号进入 MySQL 后执行：
 
 ```sql
 CREATE DATABASE aacv_system
@@ -309,6 +309,10 @@ notepad .\.env
 
 ## 8. 安装依赖与启动
 
+完成本机配置和前端依赖安装，并启动 MySQL 与 Docker Desktop Linux Engine 后，可双击项目根目录 `start.bat` 一键启动。入口通过 `tools/development/Start-All.ps1` 编排，复用 `Test-DevelopmentEnvironment.ps1` 和 `Start-Development.ps1`，检查默认应用端口后提交 Neo4j、后端和前端启动命令，前后端分别保留日志窗口，并继续使用项目内短 Socket 目录。批处理只保留 ASCII 入口，中文提示集中在 UTF-8 BOM 的 PowerShell 脚本中，以兼容 Windows PowerShell 5.1 和批处理解析。主窗口的“已提交”不代表组件已经就绪，应在组件窗口确认启动结果；后端仍会按现有规则执行待应用的 Flyway 迁移。
+
+`start.bat --check` 只检查环境与默认端口，不启动组件；端口 8080 或 5173 被占用时返回失败，不停止已有服务。脚本不安装依赖，不处理凭据，不自动启动 MySQL 或 Docker Desktop。自定义端口继续使用本节的手动命令。关闭主窗口不会停止组件，前后端在各自窗口按 `Ctrl+C` 停止，Neo4j 按 README 的停止命令处理。
+
 ### 8.1 安装前端依赖
 
 在项目根目录执行：
@@ -333,6 +337,8 @@ docker compose --env-file .\.env -f .\deploy\compose.yaml ps
 
 ### 8.3 启动后端
 
+可先执行`tools/development/Test-DevelopmentEnvironment.ps1`进行只读预检。Windows开发终端推荐使用`.\tools\development\Start-Development.ps1 -Component Backend`，由脚本为应用进程指定项目内短Socket目录；如直接运行下方Maven命令遇到AF_UNIX `Invalid argument: connect`，不要修改系统JDK安全配置，应使用该启动入口。脚本不读取或回显`.env`凭据，仍需由用户在本机正确配置数据库。
+
 打开 PowerShell 并从项目根目录启动，后端会加载根目录 `.env`：
 
 ```powershell
@@ -340,7 +346,7 @@ Set-Location 'D:\Program\Java\AACV_System'
 .\mvnw.cmd -f .\backend\pom.xml spring-boot:run
 ```
 
-首次运行会下载 Maven 3.9.16 和后端依赖。后端启动时会运行 Flyway V1 至 V11，但不会隐式为既有成果生成图投影事件。
+首次运行会下载 Maven 3.9.16 和后端依赖。后端启动时会运行迁移目录中的全部版本（当前V1至V14），但不会隐式为既有成果生成图投影事件。
 
 ### 8.4 启动前端
 
@@ -352,6 +358,8 @@ npm --prefix .\frontend run dev
 ```
 
 浏览器访问 `http://127.0.0.1:5173/login`。
+
+启动验收需要确认浏览器实际显示登录标题、用户名、密码和登录按钮，并在刷新后仍可操作；仅 `/login` 返回 HTTP 200 不能证明 Vue 已挂载。出现空白页时按第 11.7 节检查依赖请求。
 
 ## 9. 迁移后验证
 
@@ -431,7 +439,7 @@ USE aacv_system;
 SOURCE D:/SecureTransfer/aacv_system-handoff-20260903.sql;
 ```
 
-恢复后启动后端，确认 Flyway 校验通过，再执行健康检查和数据抽样。不要修改或重排已经应用的 V1 至 V11 迁移。
+恢复后启动后端，确认Flyway校验通过，再执行健康检查和数据抽样。不要修改或重排任何已经应用的迁移；当前仓库包含V1至V14。
 
 ### 10.3 Neo4j 数据处理
 
@@ -470,6 +478,22 @@ Get-NetTCPConnection -LocalPort 3306,7474,7687,8080,5173 -ErrorAction SilentlyCo
 ### 11.6 Maven、npm 或 Docker 下载失败
 
 确认新电脑可访问 Maven Central、npm Registry 和 Docker Hub，或按组织代理规范配置。不要删除锁文件、随意切换依赖版本，也不要用 Neo4j 4.4 历史镜像替代 5.26。
+
+### 11.7 登录页空白，Vite 依赖请求返回 504
+
+先检查浏览器网络请求。如果 HTML 与 `/src/main.ts` 返回 200，而 `/node_modules/.vite/deps/vue.js?v=...` 返回 504，检查项目的 `frontend/node_modules/.vite/deps` 是否缺失。这是已在本项目复现的缓存失效表现，不代表账号或数据库认证失败。
+
+在原前端终端按 `Ctrl+C` 停止 Vite；若服务由后台启动，先核实 5173 监听进程属于本项目，再停止该前端进程。从项目根目录重建依赖缓存并启动：
+
+```powershell
+npm --prefix .\frontend run dev -- --force
+```
+
+该参数用于重新预构建 Vite 依赖，不需要重装依赖或改动锁文件。启动后刷新浏览器，确认登录控件可见、可输入，依赖请求恢复 200。登录页面的自动化回归命令如下，使用独立 4173 测试服务，并模拟未登录响应；它不能替代对当前 5173 服务的浏览器核验。
+
+```powershell
+npm --prefix .\frontend run test:e2e -- login-rendering.spec.ts
+```
 
 ## 12. 接手开发前的必读资料
 
@@ -511,7 +535,7 @@ Get-NetTCPConnection -LocalPort 3306,7474,7687,8080,5173 -ErrorAction SilentlyCo
 
 受控Neo4j故障演练实际证明旧运行态的认证图查询45秒仍不返回。公共PowerShell请求封装已修复无`Response`网络异常的严格模式二次错误；后端`application.yml`已为Neo4j Driver连接、连接池获取和事务重试增加5秒默认上限，配置绑定单元测试1项通过。必须先运行`Restart-Stage8Backend.ps1`加载新配置，再重跑故障演练；在两步取得实际通过证据前，不得宣称可靠性门禁通过。
 
-业务备份、隔离恢复和RPO/RTO实测尚未执行；备份静态加密不属于本地阶段8验收项。不得把24小时导出文件视为业务备份，备份仍须限制访问、生成并验证校验和，且凭据不得落盘。当前证据和剩余门禁见[阶段8验收记录](./stage8-acceptance.md)。
+2026-09-05隔离合成数据已完成逻辑转储和恢复验证，不能替代实际业务备份目录的ACL、文件校验、保留策略及RPO/RTO实测；备份静态加密不属于本地阶段8验收项。不得把24小时导出文件视为业务备份，备份仍须限制访问、生成并验证校验和，且凭据不得落盘。当前证据见[优化验收记录](./optimization-acceptance.md)，历史门禁见[阶段8验收记录](./stage8-acceptance.md)。
 
 ## 13. 交接验收清单
 

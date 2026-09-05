@@ -1,0 +1,13 @@
+{
+  "graphFailureMilliseconds" : 6514,
+  "graphFaultRecovered" : true,
+  "databaseWriteFailureStatus" : 500,
+  "databaseFaultRecovered" : true,
+  "restoredTableCount" : 66,
+  "restoredAchievementCount" : 12,
+  "restoredOrganizationNameCount" : 1,
+  "rebuiltProjectionCount" : 12,
+  "syntheticRestoreAndRebuildMilliseconds" : 8999,
+  "recordedAt" : "2026-09-05T03:22:29.976777600Z",
+  "scope" : "随机端口隔离合成样本；非生产RPO/RTO，也不替代交互式备份脚本的ACL和保留策略验证"
+}

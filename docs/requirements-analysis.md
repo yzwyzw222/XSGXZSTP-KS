@@ -616,3 +616,7 @@
 - [Crossref REST API](https://www.crossref.org/documentation/retrieve-metadata/rest-api/)
 - [arXiv API Access](https://info.arxiv.org/help/api/index.html)
 - [RFC 9309: Robots Exclusion Protocol](https://www.rfc-editor.org/rfc/rfc9309.html)
+
+## 账号管理与日志增量需求（2026-09-05）
+
+已确认复用现有审计层区分操作日志、登录日志，提供管理员专用分类筛选界面；日志覆盖关键业务操作及登录/退出活动，普通查询不记操作日志。账号管理顶部左侧以环形图显示全库三类用户数量，按最高角色归类且包含所有状态，右侧显示最近10条登录活动。管理员在统一抽屉编辑资料、角色和状态，用户名只读，密码独立重置。新增姓名、邮箱、联系电话、所属单位、部门/院系和备注，新建页面姓名必填，旧账号资料可暂缺。资料修改保持登录，安全变更使旧会话失效，同时增加管理员自我保护和最后一个可用管理员保护。

@@ -1,0 +1,36 @@
+{
+  "startedAt": "2026-09-05T13:51:54.1046920+08:00",
+  "completedAt": "2026-09-05T13:51:54.9405797+08:00",
+  "durationSeconds": 0.836,
+  "source": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "database": "aacv_system",
+    "serverVersion": "8.0.41",
+    "clientVersion": "mysqldump  Ver 8.0.41 for Win64 on x86_64 (MySQL Community Server - GPL)",
+    "flywayVersion": "13",
+    "tableCount": 66,
+    "achievementCount": 12,
+    "userCount": 3,
+    "auditCount": 38,
+    "outboxCount": 13,
+    "projectionStateCount": 12
+  },
+  "backup": {
+    "dailyPath": "E:\\AACV_System_Backups\\daily\\aacv_system_20260905T135154246.sql",
+    "dailyBytes": 158969,
+    "sha256": "AA34CF0384AF9F2F4C679C953024900C257303A182D547AD18B458460EF79DC7",
+    "weeklyPath": "E:\\AACV_System_Backups\\weekly\\aacv_system_2026-W36.sql",
+    "weeklyCreated": true,
+    "rootCreated": false,
+    "aclRestricted": true
+  },
+  "retention": {
+    "applied": false,
+    "dailyKeep": 7,
+    "weeklyKeep": 4,
+    "removedDaily": [],
+    "removedWeekly": []
+  },
+  "passed": true
+}
