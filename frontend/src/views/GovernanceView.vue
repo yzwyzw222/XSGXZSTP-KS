@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { ColumnDef } from '@tanstack/vue-table'
 import { GitCompareArrows, ShieldCheck } from 'lucide-vue-next'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { DataTable, FilterBar, FilterField, JsonEvidence, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import CandidateComparisonPanel from '@/components/business/CandidateComparisonPanel.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toErrorMessage } from '@/services/api'
 import { governanceApi } from '@/services/business'
 import { hasPermission } from '@/services/session'
-import type { DuplicateCandidate, FieldOverride, MergeDecision, PageResponse } from '@/types/api'
+import type { CandidateComparison, DuplicateCandidate, FieldOverride, MergeDecision, PageResponse } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 
 const candidates = ref<PageResponse<DuplicateCandidate>>({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 })
@@ -28,6 +29,10 @@ const errorMessage = ref('')
 const detailVisible = ref(false)
 const overrideVisible = ref(false)
 const selected = ref<DuplicateCandidate | null>(null)
+const comparison = ref<CandidateComparison | null>(null)
+const detailLoading = ref(false)
+const detailError = ref('')
+let detailSequence = 0
 const latestDecision = ref<MergeDecision | null>(null)
 const latestOverride = ref<FieldOverride | null>(null)
 const canManage = computed(() => hasPermission('GOVERNANCE_MANAGE'))
@@ -75,54 +80,80 @@ function reset(): void {
 }
 
 async function openCandidate(candidate: DuplicateCandidate): Promise<void> {
+  const sequence = ++detailSequence
   errorMessage.value = ''
+  detailError.value = ''
+  selected.value = null
+  comparison.value = null
+  detailLoading.value = true
   latestDecision.value = null
-  decisionForm.canonicalEntityId = String(candidate.leftEntityId)
+  decisionForm.canonicalEntityId = ''
   decisionForm.reason = ''
   revertReason.value = ''
   detailVisible.value = true
   try {
-    selected.value = await governanceApi.candidate(candidate.id)
+    const [detail, compared] = await Promise.all([
+      governanceApi.candidate(candidate.id), governanceApi.comparison(candidate.id),
+    ])
+    if (sequence !== detailSequence) return
+    if (detail.id !== compared.candidateId || detail.version !== compared.candidateVersion
+      || detail.entityType !== compared.entityType || detail.leftEntityId !== compared.leftEntityId
+      || detail.rightEntityId !== compared.rightEntityId) {
+      throw new Error('候选在加载期间已变化，请关闭后重新审阅')
+    }
+    selected.value = detail
+    comparison.value = compared
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (sequence === detailSequence) detailError.value = toErrorMessage(error)
+  } finally {
+    if (sequence === detailSequence) detailLoading.value = false
   }
 }
 
 async function decide(action: 'accept' | 'reject'): Promise<void> {
-  if (!selected.value || !decisionForm.reason.trim()) {
-    errorMessage.value = '治理原因不能为空'
+  if (saving.value || !selected.value || !comparison.value || latestDecision.value) return
+  if (!decisionForm.reason.trim()) {
+    detailError.value = '治理原因不能为空'
     return
   }
-  if (action === 'accept' && !decisionForm.canonicalEntityId) {
-    errorMessage.value = '请选择保留的规范实体 ID'
+  if (action === 'accept' && (comparison.value.explicitVersionRelation
+    || ![selected.value.leftEntityId, selected.value.rightEntityId].includes(Number(decisionForm.canonicalEntityId)))) {
+    detailError.value = comparison.value.explicitVersionRelation
+      ? '来源已声明版本关系，请保留独立记录' : '请选择保留的规范实体 ID'
     return
   }
+  const sequence = detailSequence
+  const candidate = selected.value
+  detailError.value = ''
   saving.value = true
   try {
-    latestDecision.value = action === 'accept'
-      ? await governanceApi.accept(selected.value, Number(decisionForm.canonicalEntityId), decisionForm.reason.trim())
-      : await governanceApi.reject(selected.value, decisionForm.reason.trim())
+    const decision = action === 'accept'
+      ? await governanceApi.accept(candidate, Number(decisionForm.canonicalEntityId), decisionForm.reason.trim())
+      : await governanceApi.reject(candidate, decisionForm.reason.trim())
+    if (sequence === detailSequence) latestDecision.value = decision
     toast.success(action === 'accept' ? '重复候选已接受' : '重复候选已拒绝')
     await load(candidates.value.page)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (sequence === detailSequence) detailError.value = toErrorMessage(error)
   } finally {
     saving.value = false
   }
 }
 
 async function revertDecision(): Promise<void> {
+  if (saving.value) return
   if (!latestDecision.value || !revertReason.value.trim()) {
-    errorMessage.value = '撤销原因不能为空'
+    detailError.value = '撤销原因不能为空'
     return
   }
   saving.value = true
   try {
     latestDecision.value = await governanceApi.revertDecision(latestDecision.value, revertReason.value.trim())
     toast.success('治理决定已撤销')
+    detailVisible.value = false
     await load(candidates.value.page)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    detailError.value = toErrorMessage(error)
   } finally {
     saving.value = false
   }
@@ -180,6 +211,10 @@ function openOverride(): void {
   overrideVisible.value = true
 }
 
+watch(detailVisible, (visible) => {
+  if (!visible) ++detailSequence
+}, { flush: 'sync' })
+onBeforeUnmount(() => { ++detailSequence })
 onMounted(() => load())
 </script>
 
@@ -233,17 +268,20 @@ onMounted(() => load())
           />
         </template>
         <template #cell-actions="{ row }">
-          <Button variant="link" size="sm" class="h-auto p-0" @click="openCandidate(row)">审阅证据</Button>
+          <Button variant="link" size="sm" class="h-auto p-0" :disabled="saving" @click="openCandidate(row)">审阅证据</Button>
         </template>
       </DataTable>
     </PanelSection>
 
     <!-- 候选审阅 -->
     <Dialog v-model:open="detailVisible">
-      <DialogContent class="sm:max-w-3xl">
+      <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>重复候选审阅</DialogTitle>
+          <DialogDescription>对照当前本地字段与匹配证据。差异行已标出，请明确选择保留记录并填写原因。</DialogDescription>
         </DialogHeader>
+        <p v-if="detailLoading" role="status" class="text-sm text-muted-foreground">正在加载两侧实体与证据…</p>
+        <Alert v-if="detailError" variant="destructive"><AlertTitle>{{ detailError }}</AlertTitle></Alert>
         <template v-if="selected">
           <div class="flex items-center justify-center gap-5 text-2xl font-semibold">
             <span>#{{ selected.leftEntityId }}</span>
@@ -254,11 +292,21 @@ onMounted(() => load())
             匹配依据：{{ selected.matchBasis }} · 规则版本 {{ selected.ruleVersion }} · 数据版本 {{ selected.version }}
           </p>
           <JsonEvidence :data="selected.evidence" max-height="220px" label="重复候选证据" />
+          <CandidateComparisonPanel v-if="comparison" :comparison="comparison" />
+          <Alert v-if="comparison?.explicitVersionRelation" variant="warning">
+            <AlertTitle>来源明确声明版本关系，应保留独立记录；可拒绝此重复候选。</AlertTitle>
+          </Alert>
 
-          <div v-if="canManage && selected.status === 'PENDING'" class="grid gap-4 border-t border-border pt-4">
+          <div v-if="canManage && selected.status === 'PENDING' && comparison && !latestDecision" class="grid gap-4 border-t border-border pt-4">
             <FormItem>
               <FormLabel for="canonicalEntityId">保留的规范实体 ID</FormLabel>
-              <Input id="canonicalEntityId" v-model="decisionForm.canonicalEntityId" type="number" min="1" />
+              <Select v-model="decisionForm.canonicalEntityId" :disabled="saving || comparison.explicitVersionRelation">
+                <SelectTrigger id="canonicalEntityId" placeholder="请对照后选择，不默认保留任意一侧" />
+                <SelectContent>
+                  <SelectItem :value="String(selected.leftEntityId)">保留左侧 #{{ selected.leftEntityId }}</SelectItem>
+                  <SelectItem :value="String(selected.rightEntityId)">保留右侧 #{{ selected.rightEntityId }}</SelectItem>
+                </SelectContent>
+              </Select>
             </FormItem>
             <FormItem>
               <FormLabel for="decisionReason" required>治理原因</FormLabel>
@@ -266,7 +314,7 @@ onMounted(() => load())
             </FormItem>
             <div class="flex justify-end gap-2">
               <Button variant="outline" :loading="saving" @click="decide('reject')">拒绝候选</Button>
-              <Button :loading="saving" @click="decide('accept')">接受并合并</Button>
+              <Button :loading="saving" :disabled="comparison.explicitVersionRelation" @click="decide('accept')">接受并合并</Button>
             </div>
           </div>
 

@@ -6,7 +6,8 @@ import {
 import { computed, onMounted, ref, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { ChartFrame, LiveLogPanel, LoadingSkeleton, PageHeader, PanelSection, StatCard, StatusPill } from '@/components/business'
+import { LiveLogPanel, LoadingSkeleton, PageHeader, PanelSection, StatCard, StatusPill } from '@/components/business'
+import ChartFrame from '@/components/business/ChartFrame.vue'
 import type { LogEntry } from '@/components/business/types'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'

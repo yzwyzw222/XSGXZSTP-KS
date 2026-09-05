@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ChevronsLeft } from 'lucide-vue-next'
+import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import type { NavItem } from '@/config/nav'
+import { groupNavigation, type NavItem } from '@/config/nav'
 import { cn } from '@/lib/utils'
 
 const props = withDefaults(defineProps<{
@@ -13,9 +14,10 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{ (e: 'toggle-collapse'): void }>()
 const route = useRoute()
+const groups = computed(() => groupNavigation(props.items))
 
 function isActive(to: string): boolean {
-  return to === '/' ? route.path === '/' : route.path.startsWith(to)
+  return route.path === to || (to !== '/' && route.path.startsWith(`${to}/`))
 }
 </script>
 
@@ -35,10 +37,22 @@ function isActive(to: string): boolean {
 
     <!-- 导航 -->
     <nav class="flex-1 overflow-y-auto px-2 py-3" aria-label="业务导航">
-      <ul class="grid gap-1">
-        <li v-for="item in items" :key="item.to">
+      <section
+        v-for="group in groups"
+        :key="group.id"
+        :aria-label="group.label"
+        class="mb-4 last:mb-0"
+        :class="collapsed ? 'border-b border-sidebar-border pb-3 last:border-0' : ''"
+      >
+        <h2
+          class="mb-1.5 px-3 text-[11px] font-semibold tracking-wide text-muted-foreground"
+          :class="collapsed ? 'sr-only' : ''"
+        >{{ group.label }}</h2>
+        <ul class="grid gap-1">
+        <li v-for="item in group.items" :key="item.to">
           <RouterLink
             :to="item.to"
+            :aria-label="item.label"
             :aria-current="isActive(item.to) ? 'page' : undefined"
             :title="collapsed ? item.label : undefined"
             :class="cn(
@@ -60,7 +74,8 @@ function isActive(to: string): boolean {
             </span>
           </RouterLink>
         </li>
-      </ul>
+        </ul>
+      </section>
     </nav>
 
     <!-- 折叠按钮（仅桌面） -->

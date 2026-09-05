@@ -4,6 +4,7 @@ export type Permission =
   | 'ACCOUNT_SELF_READ'
   | 'USER_LIST'
   | 'USER_CREATE'
+  | 'USER_UPDATE'
   | 'USER_ENABLE'
   | 'USER_DISABLE'
   | 'USER_PASSWORD_RESET'
@@ -63,7 +64,23 @@ export interface ProblemDetails {
   fieldErrors?: Record<string, string> | Array<{ field: string; message: string }>
 }
 
-export interface UserAccount {
+export interface UserProfile {
+  realName?: string | null
+  email?: string | null
+  phone?: string | null
+  organization?: string | null
+  department?: string | null
+  remark?: string | null
+}
+
+export interface UserStatistics {
+  totalUsers: number
+  admin: number
+  dataOperator: number
+  researcher: number
+}
+
+export interface UserAccount extends UserProfile {
   id: number
   username: string
   status: 'ACTIVE' | 'DISABLED' | 'PASSWORD_RESET_REQUIRED'
@@ -139,6 +156,7 @@ export interface AchievementDetail {
     firstSeenAt: string
     lastSeenAt: string
     parserVersion: string
+    scholarlyMetadata?: ScholarlyMetadata | null
   }>
   fields: Array<{
     fieldName: string
@@ -146,6 +164,15 @@ export interface AchievementDetail {
     rawRecordId: number | null
     manualOverride: boolean
   }>
+}
+
+export interface ScholarlyMetadata {
+  observedAt: string
+  citedByCount: number | null
+  retracted: boolean | null
+  openAccess: boolean | null
+  openAccessStatus: string | null
+  versionRelations: Array<{ relationType: string; targetDoi: string }>
 }
 
 export type CatalogCollection = 'authors' | 'organizations' | 'venues' | 'topics'
@@ -203,6 +230,9 @@ export interface CrawlRun {
   checkpoint: string | null
   startedAt: string | null
   finishedAt: string | null
+  completionReason?: string | null
+  deferredUntil?: string | null
+  quotaDeferrals?: number
 }
 
 export interface CrawlSchedule {
@@ -243,6 +273,29 @@ export interface DuplicateCandidate {
   version: number
   createdAt: string
   updatedAt: string
+}
+
+export interface CatalogEntityEvidence {
+  entityId: number
+  entityType: 'AUTHOR' | 'ORGANIZATION'
+  names: { displayName: string; sourceCode: string; firstObservedAt: string; lastObservedAt: string }[]
+  affiliations: {
+    organizationId: number; displayName: string | null; firstPublicationYear: number | null
+    lastPublicationYear: number | null; achievementCount: number; datedAchievementCount: number
+  }[]
+  namesTruncated: boolean
+  affiliationsTruncated: boolean
+}
+
+export interface CandidateComparison {
+  candidateId: number
+  candidateVersion: number
+  entityType: string
+  leftEntityId: number
+  rightEntityId: number
+  left: Record<string, unknown>
+  right: Record<string, unknown>
+  explicitVersionRelation: boolean
 }
 
 export interface MergeDecision {
@@ -369,6 +422,17 @@ export interface AnalyticsOverview {
   sourceCount: number
   scope: AnalyticsScope
   updatedAt: string
+  coverage?: AnalyticsCoverage | null
+}
+
+export interface AnalyticsCoverage {
+  withDoiCount: number
+  withPublicationYearCount: number
+  withAbstractCount: number
+  withCitationCount: number
+  withOpenAccessStatusCount: number
+  withRetractionStatusCount: number
+  authorshipsMayBeIncompleteCount: number
 }
 
 export interface AnalyticsTrendItem {
@@ -521,7 +585,22 @@ export interface GraphMaintenanceRun {
   completedAt: string | null
 }
 
+export type AuditCategory = 'LOGIN' | 'OPERATION'
+
+export interface AuditFilter {
+  category?: AuditCategory
+  username?: string
+  from?: string
+  to?: string
+  result?: 'SUCCESS' | 'FAILURE'
+  action?: string
+}
+
 export interface AuditLog {
+  category?: AuditCategory
+  username?: string | null
+  clientIp?: string | null
+  userAgent?: string | null
   id: number
   actorUserId: number | null
   action: string

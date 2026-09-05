@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { CornerDownLeft, LogOut, Monitor, Moon, Search, Sun } from 'lucide-vue-next'
 
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { navItems } from '@/config/nav'
+import { navGroups, navItems } from '@/config/nav'
 import { useTheme } from '@/composables/useTheme'
 import { session } from '@/services/session'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,6 @@ const router = useRouter()
 const { theme, setTheme } = useTheme()
 const query = ref('')
 const activeIndex = ref(0)
-const inputEl = ref<HTMLInputElement | null>(null)
 
 interface Command {
   id: string
@@ -35,7 +34,7 @@ const commands = computed<Command[]>(() => {
     .map((item) => ({
       id: `nav-${item.to}`,
       label: item.label,
-      group: '导航',
+      group: navGroups.find((group) => group.id === item.group)!.label,
       icon: item.icon,
       run: () => { void router.push(item.to) },
     }))
@@ -54,7 +53,7 @@ const filtered = computed<Command[]>(() => {
   return commands.value.filter((cmd) => {
     const item = navItems.find((n) => `nav-${n.to}` === cmd.id)
     const keywords = item?.keywords?.join(' ') ?? ''
-    return `${cmd.label} ${cmd.hint ?? ''} ${keywords}`.toLowerCase().includes(q)
+    return `${cmd.group} ${cmd.label} ${cmd.hint ?? ''} ${keywords}`.toLowerCase().includes(q)
   })
 })
 
@@ -67,12 +66,10 @@ const grouped = computed(() => {
   return [...map.entries()]
 })
 
-watch(() => props.open, async (open) => {
+watch(() => props.open, (open) => {
   if (open) {
     query.value = ''
     activeIndex.value = 0
-    await nextTick()
-    inputEl.value?.focus()
   }
 })
 watch(filtered, () => { activeIndex.value = 0 })
@@ -102,10 +99,11 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <Dialog :open="open" @update:open="(v) => emit('update:open', v)">
     <DialogContent class="top-[20%] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-lg" hide-close>
+      <DialogTitle class="sr-only">搜索页面或执行操作</DialogTitle>
+      <DialogDescription class="sr-only">输入模块或页面名称，用方向键选择并按回车打开。</DialogDescription>
       <div class="flex items-center gap-2 border-b border-border px-4">
         <Search class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <Input
-          ref="inputEl"
           v-model="query"
           class="h-12 border-0 bg-transparent shadow-none focus-visible:ring-0"
           placeholder="搜索页面或执行操作…"

@@ -6,7 +6,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import { DataTable, LiveLogPanel, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import type { LogEntry } from '@/components/business/types'
-import { Alert, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -69,6 +69,21 @@ const scheduleForm = reactive({
   localTime: '02:00',
   timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
   version: '',
+})
+const completionMessages: Record<string, string> = {
+  SOURCE_EXHAUSTED: '当前查询范围的来源游标已耗尽；不代表整个学术数据库完整。',
+  PAGE_LIMIT: '达到页数上限，范围尚未采集完整。请缩小日期范围或增加筛选条件后分批采集。',
+  RECORD_LIMIT: '达到记录上限，范围尚未采集完整。请缩小日期范围或增加筛选条件后分批采集。',
+  RETRY_BATCH_COMPLETED: '本次失败记录重试批次已完成。',
+  QUOTA_EXHAUSTED: '来源每日额度耗尽，已保留检查点；额度恢复后自动继续，最多三次。',
+  QUOTA_RETRY_LIMIT: '已用完三次额度自动恢复机会。请检查来源额度后重新安排采集。',
+  USER_PAUSED: '已由用户暂停，等待手动恢复。',
+  USER_CANCELLED: '已由用户取消，已提交数据保留。',
+  BATCH_FAILED: '批次执行失败，请结合失败明细与运行监控排查。',
+}
+const completionMessage = computed(() => {
+  const reason = currentRun.value?.completionReason
+  return reason ? completionMessages[reason] ?? '结束原因未知，请刷新后查看。' : ''
 })
 
 const runProgress = computed(() => {
@@ -140,6 +155,17 @@ function openCreate(): void {
   editing.value = null
   Object.assign(form, emptyTaskForm())
   taskDialog.value = true
+}
+
+function openHistoricalRefresh(): void {
+  openCreate()
+  const now = new Date()
+  const year = now.getFullYear() - 1
+  const month = now.getMonth()
+  const monthLabel = String(month + 1).padStart(2, '0')
+  form.name = `历史复查 ${year}-${monthLabel}`
+  form.publicationDateFrom = `${year}-${monthLabel}-01`
+  form.publicationDateTo = `${year}-${monthLabel}-${new Date(year, month + 1, 0).getDate()}`
 }
 
 function openEdit(task: CrawlTask): void {
@@ -316,7 +342,7 @@ function appendRunLog(level: RunLogEntry['level'], message: string): void {
 }
 
 function isRunActive(status: string): boolean {
-  return ['PENDING', 'QUEUED', 'RUNNING', 'PAUSING', 'CANCEL_REQUESTED', 'RETRYING'].includes(status)
+  return ['PENDING', 'QUEUED', 'RUNNING', 'PAUSING', 'CANCELLING', 'CANCEL_REQUESTED', 'RETRYING'].includes(status)
 }
 
 function clearRunPoll(): void {
@@ -328,8 +354,10 @@ function clearRunPoll(): void {
 
 function scheduleRunPoll(): void {
   clearRunPoll()
-  if (!runDialog.value || !currentRun.value || !isRunActive(currentRun.value.status)) return
-  runPollTimer = window.setTimeout(() => void pollRun(), 1500)
+  if (!runDialog.value || !currentRun.value) return
+  const deferred = currentRun.value.status === 'PAUSED' && Boolean(currentRun.value.deferredUntil)
+  if (!isRunActive(currentRun.value.status) && !deferred) return
+  runPollTimer = window.setTimeout(() => void pollRun(), deferred ? 30_000 : 1500)
 }
 
 /** 运行详情采用串行有界轮询，连续三次失败后停止，避免失联时无限施压。 */
@@ -371,6 +399,7 @@ onBeforeUnmount(clearRunPoll)
       description="定义受控采集范围，触发或调度任务，并按运行编号检查处理计数和失败证据。"
     >
       <template #actions>
+        <Button v-if="canCreate" variant="outline" @click="openHistoricalRefresh"><CalendarClock class="size-4" />历史复查</Button>
         <Button v-if="canCreate" @click="openCreate"><Plus class="size-4" />新建采集任务</Button>
       </template>
     </PageHeader>
@@ -427,6 +456,7 @@ onBeforeUnmount(clearRunPoll)
           <DialogDescription>配置采集范围、标识列表与上限。多个 ID 使用逗号分隔。</DialogDescription>
         </DialogHeader>
         <form class="grid gap-4" novalidate @submit.prevent="saveTask">
+          <p class="text-sm text-muted-foreground">历史复查会重新读取指定出版范围，补齐旧成果后续更新。默认提供去年同月范围，请结合作者、机构或关键词缩小范围；达到上限后需继续拆分任务。</p>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <FormItem><FormLabel for="sourceId">数据源 ID</FormLabel><Input id="sourceId" v-model="form.sourceId" type="number" min="1" :disabled="Boolean(editing)" /></FormItem>
             <FormItem class="sm:col-span-2"><FormLabel for="taskName">任务名称</FormLabel><Input id="taskName" v-model="form.name" :maxlength="128" /></FormItem>
@@ -456,7 +486,7 @@ onBeforeUnmount(clearRunPoll)
       <DialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>配置每日调度</DialogTitle>
-          <DialogDescription>设置本地执行时间与 IANA 时区。</DialogDescription>
+          <DialogDescription>按本地时间和 IANA 时区每日重复既定查询范围，可用于历史复查。日期范围不会自动移动；任务上限也不会自动增加。</DialogDescription>
         </DialogHeader>
         <form class="grid gap-4" novalidate @submit.prevent="saveSchedule">
           <FormItem><FormLabel for="localTime">本地时间</FormLabel><Input id="localTime" v-model="scheduleForm.localTime" type="time" /></FormItem>
@@ -476,6 +506,7 @@ onBeforeUnmount(clearRunPoll)
       <DialogContent class="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>采集运行详情</DialogTitle>
+          <DialogDescription>查看运行处理量、覆盖边界与恢复安排。</DialogDescription>
         </DialogHeader>
         <template v-if="currentRun">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -486,12 +517,21 @@ onBeforeUnmount(clearRunPoll)
             </div>
             <div v-if="canControl" class="flex flex-wrap gap-2">
               <Button v-if="currentRun.status === 'RUNNING'" variant="outline" size="sm" :loading="controlling === 'pause'" @click="control('pause')">暂停</Button>
-              <Button v-if="currentRun.status === 'PAUSED'" variant="outline" size="sm" :loading="controlling === 'resume'" @click="control('resume')">恢复</Button>
+              <Button v-if="currentRun.status === 'PAUSED' && !currentRun.deferredUntil" variant="outline" size="sm" :loading="controlling === 'resume'" @click="control('resume')">恢复</Button>
+              <Button v-if="currentRun.status === 'PAUSED' && currentRun.deferredUntil" variant="outline" size="sm" :loading="controlling === 'pause'" @click="control('pause')">停止自动恢复</Button>
               <Button v-if="['RUNNING', 'PAUSED'].includes(currentRun.status)" variant="destructive" size="sm" :loading="controlling === 'cancel'" @click="control('cancel')">取消</Button>
               <Button v-if="currentRun.failureCount > 0" variant="outline" size="sm" :loading="controlling === 'retry-failures'" @click="control('retry-failures')">重试失败项</Button>
             </div>
           </div>
 
+          <Alert v-if="completionMessage" variant="info">
+            <AlertTitle>运行说明</AlertTitle>
+            <AlertDescription>
+              <p>{{ completionMessage }}</p>
+              <p v-if="currentRun.deferredUntil">预计 {{ formatDateTime(currentRun.deferredUntil) }} 后恢复 · 已安排 {{ currentRun.quotaDeferrals ?? 0 }}/3 次；停用的任务或来源不会自动恢复。</p>
+            </AlertDescription>
+          </Alert>
+          <p class="text-xs text-muted-foreground">下方百分比表示本次任务执行进度，不表示来源数据覆盖率。</p>
           <div class="flex items-center gap-3">
             <Progress :model-value="runProgress" class="flex-1" :aria-label="`采集进度 ${runProgress}%`" />
             <b class="text-sm tabular-nums text-muted-foreground">{{ runProgress }}%</b>
@@ -519,7 +559,7 @@ onBeforeUnmount(clearRunPoll)
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <strong class="text-sm font-medium">实时活动流</strong>
-              <span class="text-xs text-muted-foreground">每 1.5 秒刷新 · 最近 80 行</span>
+              <span class="text-xs text-muted-foreground">运行中每 1.5 秒刷新，额度等待每 30 秒刷新 · 最近 80 行</span>
             </div>
             <LiveLogPanel :entries="runLogs" max-height="180px" />
           </div>

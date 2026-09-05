@@ -12,6 +12,8 @@ import type {
   AnalyticsTrendResponse,
   CatalogCollection,
   CatalogEntity,
+  CatalogEntityEvidence,
+  CandidateComparison,
   CrawlFailure,
   CrawlRun,
   CrawlSchedule,
@@ -37,9 +39,7 @@ import type {
   QualityMetricDetail,
   SourceConfigurationInput,
   SourceProbe,
-  RoleCode,
   AuditLog,
-  UserAccount,
 } from '@/types/api'
 
 export type QueryValue = string | number | boolean | null | undefined
@@ -75,6 +75,8 @@ export const catalogApi = {
     ),
   achievement: (id: number) =>
     api.get<AchievementDetail>(`/api/v1/catalog/achievements/${id}`),
+  entityEvidence: (collection: 'authors' | 'organizations', id: number) =>
+    api.get<CatalogEntityEvidence>(`/api/v1/catalog/${collection}/${id}/evidence`),
   entities: (collection: CatalogCollection, name: string, page: number, size: number) =>
     api.get<PageResponse<CatalogEntity>>(
       withQuery(`/api/v1/catalog/${collection}`, { name, page, size }),
@@ -134,6 +136,7 @@ export const governanceApi = {
       withQuery('/api/v1/duplicate-candidates', { ...query }),
     ),
   candidate: (id: number) => api.get<DuplicateCandidate>(`/api/v1/duplicate-candidates/${id}`),
+  comparison: (id: number) => api.get<CandidateComparison>(`/api/v1/duplicate-candidates/${id}/comparison`),
   accept: (candidate: DuplicateCandidate, canonicalEntityId: number, reason: string) =>
     api.post<MergeDecision>(`/api/v1/duplicate-candidates/${candidate.id}/accept`, {
       canonicalEntityId,
@@ -185,23 +188,7 @@ export const qualityApi = {
     ),
 }
 
-export const userApi = {
-  page: (page = 0, size = 20) =>
-    api.get<PageResponse<UserAccount>>(withQuery('/api/v1/users', { page, size })),
-  create: (username: string, password: string, roles: RoleCode[]) =>
-    api.post<UserAccount>('/api/v1/users', { username, password, roles }),
-  setEnabled: (user: UserAccount, enabled: boolean) =>
-    api.post<UserAccount>(`/api/v1/users/${user.id}/${enabled ? 'enable' : 'disable'}`, {
-      version: user.version,
-    }),
-  resetPassword: (user: UserAccount, newPassword: string) =>
-    api.post<UserAccount>(`/api/v1/users/${user.id}/reset-password`, {
-      version: user.version,
-      newPassword,
-    }),
-  replaceRoles: (user: UserAccount, roles: RoleCode[]) =>
-    api.post<UserAccount>(`/api/v1/users/${user.id}/roles`, { version: user.version, roles }),
-}
+export { userApi } from '@/services/users'
 
 export interface GraphSubgraphQuery {
   centerType: GraphNodeType

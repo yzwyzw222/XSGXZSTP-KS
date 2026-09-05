@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import type { ColumnDef } from '@tanstack/vue-table'
 import { ArrowLeft, FileText } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { DataTable, LoadingSkeleton, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import ScholarlySourcePanel from '@/components/business/ScholarlySourcePanel.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { toErrorMessage } from '@/services/api'
 import { catalogApi } from '@/services/business'
+import { hasPermission } from '@/services/session'
 import type { AchievementDetail } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 
@@ -17,20 +19,25 @@ const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref<AchievementDetail | null>(null)
 const achievementId = computed(() => Number(route.params.id))
+let requestSequence = 0
 
 async function load(): Promise<void> {
-  if (!Number.isInteger(achievementId.value) || achievementId.value < 1) {
+  const sequence = ++requestSequence
+  detail.value = null
+  loading.value = false
+  if (!Number.isSafeInteger(achievementId.value) || achievementId.value < 1) {
     errorMessage.value = '成果编号无效'
     return
   }
   loading.value = true
   errorMessage.value = ''
   try {
-    detail.value = await catalogApi.achievement(achievementId.value)
+    const response = await catalogApi.achievement(achievementId.value)
+    if (sequence === requestSequence) detail.value = response
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (sequence === requestSequence) errorMessage.value = toErrorMessage(error)
   } finally {
-    loading.value = false
+    if (sequence === requestSequence) loading.value = false
   }
 }
 
@@ -59,7 +66,8 @@ const fieldColumns: ColumnDef<FieldRow, any>[] = [
   { id: 'override', accessorFn: (row) => (row.manualOverride ? '人工' : '自动'), header: '覆盖', enableSorting: false, meta: { width: '80px' } },
 ]
 
-onMounted(load)
+watch(achievementId, load, { immediate: true })
+onBeforeUnmount(() => { ++requestSequence })
 </script>
 
 <template>
@@ -69,6 +77,11 @@ onMounted(load)
       :description="`成果编号 #${achievementId} · 核对规范记录、作者署名、来源轨迹与字段状态。`"
     >
       <template #actions>
+        <RouterLink
+          v-if="detail && hasPermission('GRAPH_READ')"
+          :to="{ name: 'graph', query: { centerType: 'ACHIEVEMENT', centerId: String(detail.summary.id) } }"
+          class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+        >查看关系图谱</RouterLink>
         <RouterLink
           to="/catalog"
           class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
@@ -108,6 +121,10 @@ onMounted(load)
             <dd class="rounded-lg bg-muted/40 p-3 text-sm leading-relaxed text-foreground/90">{{ detail.abstractText || '暂无摘要' }}</dd>
           </div>
         </dl>
+      </PanelSection>
+
+      <PanelSection title="来源学术指标与版本">
+        <ScholarlySourcePanel :sources="detail.sources" />
       </PanelSection>
 
       <!-- 引用标识 -->

@@ -106,6 +106,12 @@ export const routes: RouteRecordRaw[] = [
         meta: { permission: 'USER_LIST', title: '用户管理' },
       },
       {
+        path: 'logs',
+        name: 'logs',
+        component: () => import('@/views/LogsView.vue'),
+        meta: { permission: 'AUDIT_READ', title: '日志管理' },
+      },
+      {
         path: 'operations',
         name: 'operations',
         component: () => import('@/views/OperationsView.vue'),

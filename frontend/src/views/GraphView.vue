@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { ColumnDef } from '@tanstack/vue-table'
 import { Waypoints } from 'lucide-vue-next'
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 
-import { DataTable, FilterField, GraphCanvas, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import { DataTable, FilterField, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import GraphCanvas from '@/components/business/GraphCanvas.vue'
+import GraphEntityPicker from '@/components/business/GraphEntityPicker.vue'
+import GraphSavedQueries from '@/components/business/GraphSavedQueries.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +20,7 @@ import type {
 } from '@/types/api'
 import { GRAPH_NODE_LIMIT, mergeGraph, nodeTarget, relationshipLabel, toCytoscapeElements } from '@/utils/graph'
 import { formatDateTime, splitValues } from '@/utils/format'
+import type { GraphFilters } from '@/utils/graph-query'
 
 const nodeTypes: Array<{ value: GraphNodeType; label: string }> = [
   { value: 'ACHIEVEMENT', label: '成果' },
@@ -34,6 +38,8 @@ const relationshipTypes: Array<{ value: GraphRelationshipType; label: string }> 
 ]
 
 const loading = ref(false)
+const route = useRoute()
+let graphRequestVersion = 0
 const errorMessage = ref('')
 const graph = ref<GraphResponse | null>(null)
 const syncStatus = ref<GraphSyncStatus | null>(null)
@@ -42,7 +48,7 @@ const selectedEdgeId = ref('')
 const viewMode = ref<'graph' | 'nodes' | 'edges'>('graph')
 const addedNodeIds = ref<string[]>([])
 
-const filters = reactive({
+const filters = reactive<GraphFilters>({
   centerType: 'ACHIEVEMENT' as GraphNodeType,
   centerId: '',
   depth: '1',
@@ -129,8 +135,8 @@ async function loadCenter(): Promise<void> {
 async function loadPath(): Promise<void> {
   const sourceId = Number(pathQuery.sourceId)
   const targetId = Number(pathQuery.targetId)
-  if (!sourceId || !targetId) {
-    errorMessage.value = '请输入路径起点和终点的业务ID。'
+  if (!Number.isSafeInteger(sourceId) || sourceId < 1 || !Number.isSafeInteger(targetId) || targetId < 1) {
+    errorMessage.value = '请输入大于0的路径起点和终点业务ID。'
     return
   }
   await loadGraph(() => graphApi.path({
@@ -159,10 +165,12 @@ async function expandSelected(): Promise<void> {
 }
 
 async function loadGraph(request: () => Promise<GraphResponse>, merge: boolean): Promise<void> {
+  const version = ++graphRequestVersion
   loading.value = true
   errorMessage.value = ''
   try {
     const response = await request()
+    if (version !== graphRequestVersion) return
     const existingNodeIds = new Set(graph.value?.nodes.map((node) => node.id) ?? [])
     addedNodeIds.value = merge
       ? response.nodes.filter((node) => !existingNodeIds.has(node.id)).map((node) => node.id)
@@ -173,9 +181,9 @@ async function loadGraph(request: () => Promise<GraphResponse>, merge: boolean):
     viewMode.value = 'graph'
     await nextTick()
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (version === graphRequestVersion) errorMessage.value = toErrorMessage(error)
   } finally {
-    loading.value = false
+    if (version === graphRequestVersion) loading.value = false
   }
 }
 
@@ -217,14 +225,39 @@ function selectEdge(id: string): void {
   selectedNodeId.value = ''
 }
 
-onMounted(() => loadSyncStatus())
+async function restoreQuery(value: GraphFilters): Promise<void> {
+  Object.assign(filters, value)
+  await nextTick()
+  filters.centerId = value.centerId
+  await loadCenter()
+}
+
+/** 详情页只传类型和规范ID；不把路由参数当作完整服务端查询。 */
+async function loadRouteCenter(): Promise<void> {
+  const { centerType, centerId } = route.query
+  if (centerType === undefined && centerId === undefined) return
+  if (typeof centerType !== 'string' || !nodeTypes.some((item) => item.value === centerType)
+    || typeof centerId !== 'string' || !/^\d+$/.test(centerId)
+    || !Number.isSafeInteger(Number(centerId)) || Number(centerId) < 1) {
+    errorMessage.value = '图谱入口参数无效，请重新选择中心节点。'
+    return
+  }
+  filters.centerType = centerType as GraphNodeType
+  await nextTick()
+  filters.centerId = centerId
+  await loadCenter()
+}
+
+watch(() => [route.query.centerType, route.query.centerId], loadRouteCenter)
+onMounted(() => { void loadSyncStatus(); void loadRouteCenter() })
+onBeforeUnmount(() => { graphRequestVersion++ })
 </script>
 
 <template>
   <section class="page-stack">
     <PageHeader
       title="知识图谱"
-      description="从一个业务节点出发，查看受限局部关系或查询一条确定性最短路径。图数据来自可重建的 Neo4j 投影，成果与统计仍以 MySQL 为准。"
+      description="搜索论文、作者或机构，探索它们之间的关系。图谱为局部数据视图，成果与统计以 MySQL 规范目录为准。"
     >
       <template #actions>
         <div class="flex flex-wrap items-center gap-2">
@@ -237,9 +270,11 @@ onMounted(() => loadSyncStatus())
       </template>
     </PageHeader>
 
+    <GraphSavedQueries :filters="filters" @restore="restoreQuery" />
+
     <!-- 过滤区 -->
     <PanelSection title="子图过滤" subtitle="深度最大2，累计最多300个节点；空类型过滤表示全部。">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <FilterField label="中心类型">
           <Select v-model="filters.centerType">
             <SelectTrigger placeholder="选择中心类型" />
@@ -248,7 +283,7 @@ onMounted(() => loadSyncStatus())
             </SelectContent>
           </Select>
         </FilterField>
-        <FilterField label="中心业务ID"><Input v-model="filters.centerId" type="number" min="1" @keydown.enter="loadCenter" /></FilterField>
+        <GraphEntityPicker v-model="filters.centerId" :type="filters.centerType" label="中心" class="sm:col-span-2" />
         <FilterField label="查询深度"><Input v-model="filters.depth" type="number" min="1" max="2" /></FilterField>
         <FilterField label="本次节点上限"><Input v-model="filters.nodeLimit" type="number" min="1" max="300" /></FilterField>
         <FilterField label="起始年份"><Input v-model="filters.publicationYearFrom" type="number" min="1000" max="9999" /></FilterField>
@@ -311,14 +346,14 @@ onMounted(() => loadSyncStatus())
               <SelectContent><SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent>
             </Select>
           </FilterField>
-          <FilterField label="起点业务ID"><Input v-model="pathQuery.sourceId" type="number" min="1" /></FilterField>
+          <GraphEntityPicker v-model="pathQuery.sourceId" :type="pathQuery.sourceType" label="起点" />
           <FilterField label="终点类型">
             <Select v-model="pathQuery.targetType">
               <SelectTrigger placeholder="终点类型" />
               <SelectContent><SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent>
             </Select>
           </FilterField>
-          <FilterField label="终点业务ID"><Input v-model="pathQuery.targetId" type="number" min="1" /></FilterField>
+          <GraphEntityPicker v-model="pathQuery.targetId" :type="pathQuery.targetType" label="终点" />
           <FilterField label="最大跳数"><Input v-model="pathQuery.maxHops" type="number" min="1" max="6" /></FilterField>
           <Button variant="outline" :loading="loading" @click="loadPath">查询路径</Button>
         </div>

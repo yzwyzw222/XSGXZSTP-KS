@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import type { ColumnDef } from '@tanstack/vue-table'
 import { ArrowLeft, Search } from 'lucide-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { DataTable, EmptyState, LoadingSkeleton, PageHeader, PanelSection } from '@/components/business'
+import CatalogEntityEvidencePanel from '@/components/business/CatalogEntityEvidencePanel.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { toErrorMessage } from '@/services/api'
 import { catalogApi } from '@/services/business'
-import type { AchievementSummary, CatalogCollection, CatalogEntity, PageResponse } from '@/types/api'
+import type { AchievementSummary, CatalogCollection, CatalogEntity, CatalogEntityEvidence, PageResponse } from '@/types/api'
 
 const labels: Record<CatalogCollection, string> = {
   authors: '作者', organizations: '机构', venues: '期刊', topics: '主题',
@@ -27,6 +28,11 @@ const drawerVisible = ref(false)
 const selectedEntity = ref<CatalogEntity | null>(null)
 const relatedLoading = ref(false)
 const related = ref<AchievementSummary[]>([])
+const evidence = ref<CatalogEntityEvidence | null>(null)
+const relatedError = ref('')
+const relatedTotal = ref(0)
+let listSequence = 0
+let detailSequence = 0
 
 const columns: ColumnDef<CatalogEntity, any>[] = [
   { accessorKey: 'displayName', header: '规范名称', enableSorting: false },
@@ -37,27 +43,42 @@ const columns: ColumnDef<CatalogEntity, any>[] = [
 ]
 
 async function load(page = 0): Promise<void> {
+  const sequence = ++listSequence
   loading.value = true
   errorMessage.value = ''
   try {
-    result.value = await catalogApi.entities(collection.value, name.value.trim(), page, result.value.size)
+    const response = await catalogApi.entities(collection.value, name.value.trim(), page, result.value.size)
+    if (sequence === listSequence) result.value = response
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (sequence === listSequence) errorMessage.value = toErrorMessage(error)
   } finally {
-    loading.value = false
+    if (sequence === listSequence) loading.value = false
   }
 }
 
 async function showRelated(entity: CatalogEntity): Promise<void> {
+  const sequence = ++detailSequence
+  const kind = collection.value
   selectedEntity.value = entity
+  related.value = []
+  evidence.value = null
+  relatedError.value = ''
+  relatedTotal.value = 0
   drawerVisible.value = true
   relatedLoading.value = true
   try {
-    related.value = (await catalogApi.relatedAchievements(collection.value, entity.id)).items
+    const [response, observations] = await Promise.all([
+      catalogApi.relatedAchievements(kind, entity.id),
+      kind === 'authors' || kind === 'organizations' ? catalogApi.entityEvidence(kind, entity.id) : Promise.resolve(null),
+    ])
+    if (sequence !== detailSequence) return
+    related.value = response.items
+    relatedTotal.value = response.totalElements
+    evidence.value = observations
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (sequence === detailSequence) relatedError.value = toErrorMessage(error)
   } finally {
-    relatedLoading.value = false
+    if (sequence === detailSequence) relatedLoading.value = false
   }
 }
 
@@ -66,9 +87,13 @@ function changeCollection(value: string): void {
 }
 
 watch(collection, () => {
+  drawerVisible.value = false
+  ++detailSequence
   name.value = ''
   void load()
 })
+watch(drawerVisible, (visible) => { if (!visible) ++detailSequence }, { flush: 'sync' })
+onBeforeUnmount(() => { ++listSequence; ++detailSequence })
 onMounted(() => load())
 </script>
 
@@ -130,7 +155,7 @@ onMounted(() => load())
         @update:page="load"
       >
         <template #cell-actions="{ row }">
-          <Button variant="link" size="sm" class="h-auto p-0" @click="showRelated(row)">查看成果</Button>
+          <Button variant="link" size="sm" class="h-auto p-0" @click="showRelated(row)">{{ collection === 'authors' || collection === 'organizations' ? '成果与证据' : '查看成果' }}</Button>
         </template>
       </DataTable>
     </PanelSection>
@@ -139,18 +164,22 @@ onMounted(() => load())
       <SheetContent side="right" class="w-full gap-0 overflow-y-auto p-0 sm:max-w-lg">
         <SheetHeader class="border-b border-border">
           <SheetTitle class="truncate pr-8">{{ selectedEntity?.displayName }}</SheetTitle>
+          <SheetDescription class="sr-only">查看实体的关联成果与已采集的来源证据。</SheetDescription>
           <p class="text-xs text-muted-foreground">
             {{ labels[collection] }} · 外部标识 {{ selectedEntity?.externalId || '—' }} · 关联成果 {{ selectedEntity?.achievementCount ?? 0 }}
           </p>
         </SheetHeader>
         <div class="p-5">
           <LoadingSkeleton v-if="relatedLoading" variant="text" :rows="4" />
+          <Alert v-if="relatedError" variant="destructive"><AlertTitle>{{ relatedError }}</AlertTitle></Alert>
+          <CatalogEntityEvidencePanel v-if="evidence" :evidence="evidence" />
+          <p v-if="!relatedLoading && relatedTotal > related.length" class="mb-3 text-xs text-muted-foreground">共 {{ relatedTotal }} 项关联成果，当前展示前 {{ related.length }} 项。</p>
           <EmptyState
-            v-else-if="!related.length"
+            v-if="!relatedLoading && !relatedError && !related.length"
             title="暂无关联成果"
             description="该实体目前未关联规范化成果。"
           />
-          <ul v-else class="divide-y divide-border">
+          <ul v-if="!relatedLoading && related.length" class="divide-y divide-border">
             <li v-for="item in related" :key="item.id" class="py-3">
               <RouterLink class="text-sm font-medium text-foreground hover:text-primary" :to="`/catalog/achievements/${item.id}`">
                 {{ item.title }}

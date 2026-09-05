@@ -3,7 +3,9 @@ import type { ColumnDef } from '@tanstack/vue-table'
 import type { EChartsCoreOption } from 'echarts/core'
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 
-import { ChartFrame, DataTable, FilterBar, FilterField, PageHeader, PanelSection, StatCard } from '@/components/business'
+import { DataTable, FilterBar, FilterField, PageHeader, PanelSection, StatCard } from '@/components/business'
+import AnalyticsCoveragePanel from '@/components/business/AnalyticsCoveragePanel.vue'
+import ChartFrame from '@/components/business/ChartFrame.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
@@ -218,6 +220,10 @@ onMounted(loadAnalytics)
     <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
 
     <template v-if="overview && trends && distributions && collaboration">
+      <PanelSection v-if="overview.coverage" title="本地字段覆盖率">
+        <AnalyticsCoveragePanel :coverage="overview.coverage" :total="overview.achievementCount" />
+      </PanelSection>
+      <p class="text-xs leading-relaxed text-muted-foreground">计数口径：规范成果去重；机构、主题和来源按完整计数，一项成果可贡献多个分类，各分类数量不能相加作为成果总量。合作数表示共同署名的规范成果数，不表示合作强度或质量。</p>
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard v-for="metric in metricCards" :key="metric.label" :label="metric.label" :value="metric.value" :note="metric.note" :tone="metric.tone" />
       </div>

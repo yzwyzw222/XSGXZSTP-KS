@@ -22,6 +22,11 @@ test('研究人员查看MySQL统计图表、表格摘要和实际筛选范围', 
         authorCount: 8,
         organizationCount: 3,
         sourceCount: 2,
+        coverage: {
+          withDoiCount: 9, withPublicationYearCount: 12, withAbstractCount: 8,
+          withCitationCount: 6, withOpenAccessStatusCount: 6, withRetractionStatusCount: 6,
+          authorshipsMayBeIncompleteCount: 1,
+        },
         scope,
         updatedAt: '2026-09-02T10:00:00Z',
       })
@@ -57,6 +62,10 @@ test('研究人员查看MySQL统计图表、表格摘要和实际筛选范围', 
   await page.goto('/analytics')
   await expect(page.getByRole('heading', { name: '统计分析' })).toBeVisible()
   await expect(page.getByText('权威来源 · MYSQL')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '本地字段覆盖率' })).toBeVisible()
+  await expect(page.getByText('75.0%', { exact: true })).toBeVisible()
+  await expect(page.getByText('各分类数量不能相加作为成果总量', { exact: false })).toBeVisible()
+  await page.screenshot({ path: 'test-results/analytics-coverage.png', animations: 'disabled' })
   await expect(page.getByRole('img', { name: '年度成果趋势折线图' })).toBeVisible()
   await expect(page.getByRole('img', { name: '机构成果分布条形图' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '张研究员 × 李研究员' })).toBeVisible()

@@ -6,7 +6,7 @@ import { RouterView, useRouter } from 'vue-router'
 import AppSidebar from '@/components/business/AppSidebar.vue'
 import AppTopbar from '@/components/business/AppTopbar.vue'
 import CommandPalette from '@/components/business/CommandPalette.vue'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { toast } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { navItems } from '@/config/nav'
@@ -52,7 +52,8 @@ onMounted(() => window.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 
 // 路由变化后关闭移动抽屉
-router.afterEach(() => { mobileNavOpen.value = false })
+const removeAfterEach = router.afterEach(() => { mobileNavOpen.value = false })
+onBeforeUnmount(removeAfterEach)
 </script>
 
 <template>
@@ -76,6 +77,8 @@ router.afterEach(() => { mobileNavOpen.value = false })
       <!-- 移动抽屉 -->
       <Sheet v-model:open="mobileNavOpen">
         <SheetContent side="left" class="w-64 p-0 lg:hidden">
+          <SheetTitle class="sr-only">业务导航</SheetTitle>
+          <SheetDescription class="sr-only">按模块选择可访问的业务页面。</SheetDescription>
           <AppSidebar :items="menuItems" :collapsed="false" />
         </SheetContent>
       </Sheet>

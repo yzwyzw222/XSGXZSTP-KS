@@ -27,13 +27,13 @@ let edgeFlowFrame: number | undefined
 let edgeDashOffset = 0
 const revealTimers: number[] = []
 
-/** 读取图谱 token 并转换为 cytoscape 可用的 hsl() 字符串。 */
+/** Cytoscape不接受空格分隔的HSL，保留主题token并转换为兼容的逗号语法。 */
 function graphColor(name: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
   if (!raw) return fallback
   if (raw.startsWith('#') || raw.startsWith('hsl') || raw.startsWith('rgb')) return raw
-  return `hsl(${raw})`
+  return `hsl(${raw.split(/\s+/).join(', ')})`
 }
 
 function palette() {
