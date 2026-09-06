@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info:
+  title: 学术关系知识图谱构建平台 API
+  version: 0.1.0
+  description: >
+    契约基线，随实现持续更新。Session + CSRF 鉴权（Cookie `SESSION`，
+    Header `X-CSRF-TOKEN`），不使用 Bearer Token。
+servers:
+  - url: /api/v1
+tags:
+  - name: auth
+    description: 注册、登录、登出与会话恢复
+  - name: papers
+  - name: authors
+  - name: institutions
+  - name: keywords
+  - name: graph
+  - name: analytics
+paths:
+  /auth/csrf:
+    get:
+      tags: [auth]
+      summary: 获取 CSRF Token 并建立会话
+      responses:
+        "200":
+          description: Token 通过响应 Header 下发
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: 用户注册（含输入验证）
+      responses:
+        "201":
+          description: 注册成功
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: 登录（成功后旋转 Session ID）
+      responses:
+        "200":
+          description: 登录成功
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 当前用户、角色与权限
+      responses:
+        "200":
+          description: 会话有效
+        "401":
+          description: 未登录或会话失效
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: 登出
+      responses:
+        "204":
+          description: 登出成功
+components:
+  schemas:
+    Problem:
+      type: object
+      required: [status, title, detail, instance, errorCode, traceId]
+      properties:
+        status: { type: integer }
+        title: { type: string }
+        detail: { type: string }
+        instance: { type: string }
+        errorCode: { type: string }
+        traceId: { type: string }
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
