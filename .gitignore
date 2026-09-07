@@ -41,3 +41,11 @@ handoff-output/
 /AACV_System-history.bundle
 /SHA256SUMS.txt
 /new-computer-handoff-prompt.md
+
+# 远端仅保留源码与必要工程资源，说明文档和验收数据仅留在本地。
+*.md
+/docs/*
+!/docs/openapi.yaml
+/images/
+/.agents/
+/.impeccable/

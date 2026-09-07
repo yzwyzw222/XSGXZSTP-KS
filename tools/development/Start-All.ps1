@@ -14,7 +14,7 @@ if ($ShowHelp) {
     Write-Host '  不带参数：检查环境，启动 Neo4j，并打开后端和前端日志窗口。'
     Write-Host '  --check：只检查环境和应用端口；前端 5173 禁止绑定时检查备用端口 15173，不启动服务。'
     Write-Host '  --help：显示帮助。'
-    Write-Host '首次使用前请按 README.md 配置 .env，并执行 npm --prefix .\frontend ci。'
+    Write-Host '首次使用前请参考 .env.example 创建并配置本地 .env，再执行 npm --prefix .\frontend ci。'
     exit 0
 }
 
