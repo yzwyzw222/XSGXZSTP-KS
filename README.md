@@ -68,9 +68,9 @@ Neo4j Driver 的连接、连接池获取和事务重试默认都限制为5秒，
 .\start.bat
 ~~~
 
-入口调用 `tools/development/Start-All.ps1` 自动定位项目根目录，复用现有开发脚本检查环境和默认应用端口，依次提交 Neo4j、后端、前端启动命令。前后端各自保留一个 PowerShell 日志窗口，沿用后端短 Socket 目录设置；启动后仍由 Flyway 按现有规则应用待执行迁移。等待窗口中的启动完成信息后，访问 `http://127.0.0.1:5173/login`。主窗口提示“已提交”只代表命令已发出，实际启动错误请查看组件窗口。
+入口调用 `tools/development/Start-All.ps1` 自动定位项目根目录，复用现有开发脚本检查环境和应用端口，依次提交 Neo4j、后端、前端启动命令。前后端各自保留一个 PowerShell 日志窗口，沿用后端短 Socket 目录设置；启动后仍由 Flyway 按现有规则应用待执行迁移。等待窗口中的启动完成信息后，访问日志显示的登录地址，默认是 `http://127.0.0.1:5173/login`；系统拒绝绑定 5173 时，本次启动自动改用已验证可绑定的 `http://127.0.0.1:15173/login`。主窗口提示“已提交”只代表命令已发出，实际启动错误请查看组件窗口。
 
-`.\start.bat --check` 仅执行检查，不启动服务。8080 或 5173 已占用时会停止，避免重复启动；自定义端口沿用下方手动命令。脚本不安装软件或依赖，不创建、读取或回显 `.env` 内容，配置仍由 Spring Boot 和 Compose 自行加载。关闭主窗口不会停止服务；停止方法见文末“停止”。
+`.\start.bat --check` 仅执行检查，不启动服务。共用的 `tools/development/Development-Ports.ps1` 先识别现有监听，再短暂绑定并释放本机端口，能够发现 Windows 保留端口导致的 `EACCES`。8080 或 5173 已占用时会停止，避免重复启动；仅在 5173 被拒绝绑定时检查备用端口 15173，备用端口不可用也会停止。选定端口会传给前端窗口，并通过 Vite `--strictPort` 防止启动时静默换端口。自定义端口沿用下方手动命令。脚本不安装软件或依赖，不创建、读取或回显 `.env` 内容，配置仍由 Spring Boot 和 Compose 自行加载。关闭主窗口不会停止服务；停止方法见文末“停止”。
 
 ## 启动 Neo4j
 
@@ -84,7 +84,7 @@ Neo4j Browser 仅绑定本机 `http://127.0.0.1:7474`，Bolt 仅绑定本机 `12
 
 ## 启动后端
 
-也可使用`.\tools\development\Start-Development.ps1 -Component Backend`在当前终端启动。脚本为应用JVM指定项目内`.local/java-sockets`目录，解决部分Windows桌面应用派生进程的Unix Socket临时目录问题，不修改系统环境变量或SelectorProvider。`-Component Neo4j`幂等启动图数据库，`-Component Frontend`启动前端；前后端分别使用一个终端，端口占用时拒绝重复启动。脚本按默认本地端口8080/5173检查，自定义端口请使用原始启动命令。
+也可使用`.\tools\development\Start-Development.ps1 -Component Backend`在当前终端启动。脚本为应用JVM指定项目内`.local/java-sockets`目录，解决部分Windows桌面应用派生进程的Unix Socket临时目录问题，不修改系统环境变量或SelectorProvider。`-Component Neo4j`幂等启动图数据库，`-Component Frontend`启动前端；前后端分别使用一个终端，端口占用时拒绝重复启动。后端检查本地端口8080；前端默认5173，系统拒绝绑定时按上述规则使用15173，自定义端口请使用原始启动命令。
 
 ~~~powershell
 .\mvnw.cmd -f .\backend\pom.xml spring-boot:run
@@ -134,6 +134,12 @@ Flyway 会依次执行迁移目录中的版本：工程基线、身份/会话/�
 
 ## Neo4j 图投影与运维
 
+知识图谱导航为“图谱概览、实体管理、关系管理”，支持独立折叠。概览采用紧凑工具栏和大幅 Canvas，自动读取 `/api/v1/graph/overview` 的受限作者作品网络，提供名称/类型/关系筛选、浮动统计和同源表格；五类中心查询保留在 `/graph/explore`，旧详情链接和常用查询自动进入该页。实体管理仅展示作者、作品两类；关系管理仅展示创作、合作两类，支持详情、编辑和逐项版本校验的批量审核；作者—作品显示 `AUTHORED`，作者—作者显示后端根据当前 Neo4j 子图共同作品计算的 `COAUTHORED`，详情列出共同作品依据，不代表全库合作次数。
+
+概览已改用 vis-network 9.1.9 / vis-data 7.1.9，支持双击节点读取双向两跳子图、历史导航、右键菜单及完整名称和扩展字段详情；画布实例在范围切换时复用。筛选约200ms防抖，仍只覆盖当前返回的最多300节点；全局筛选、全局统计及节点/关系增删改接口尚缺失，写入入口明确禁用。高级查询和路径分析保留 Cytoscape；实施边界与验证见[概览 vis-network 重构](./docs/graph-modules-acceptance.md#概览-vis-network-重构)。
+
+V15 新增 MySQL `graph_type_definition`，保存固定类型的名称、颜色、尺寸、类型审核状态和版本。`GET /api/v1/graph/types` 要求 `GRAPH_READ`，`PUT /api/v1/graph/types/{kind}/{code}` 要求 `GRAPH_SYNC_MANAGE`、CSRF 与当前版本并记录审计；默认配置为待审核，审核不针对具体业务实体。图接口返回 `typeDefinitions` 供 Canvas 和图例使用，配置缺失时明确失败。升级前按既有流程备份业务 MySQL；本次仅在隔离测试库应用 V15，未启动业务库迁移。
+
 MySQL 是唯一权威源。采集与治理事务只通过 `GraphProjectionRequestPort` 在同一 MySQL 事务内推进成果投影版本并写入 `REFRESH` Outbox；Neo4j 写入发生在事务提交后。Quartz 默认每 10 秒单线程认领最多 50 条，使用短事务租约、有界退避、最多 5 次尝试和死信；恢复或人工重放时始终从 MySQL 重新读取当前规范快照。
 
 Neo4j 只保存五类受管节点与五类关系，节点和关系均标记 `aacvManaged=true`。局部子图接口位于 `/api/v1/graph/subgraph`，深度最大 2、节点默认 100/硬上限 300；最短路径 `/api/v1/graph/path` 最大 6 跳。同步状态和事件位于 `/api/v1/graph/sync-status`、`/api/v1/operations/graph-events`，初始回填、对账和全量重建位于 `/api/v1/operations/graph-maintenance`。写接口要求会话、权限和 CSRF；全量重建还要求正文确认值 `REBUILD_AACV_MANAGED_GRAPH`。
@@ -141,6 +147,8 @@ Neo4j 只保存五类受管节点与五类关系，节点和关系均标记 `aac
 全量重建只删除 `aacvManaged=true` 的业务投影并保留非 AACV 数据、索引、约束和卷。重建期间普通消费暂停，图查询返回 `GRAPH_REBUILD_IN_PROGRESS`；Neo4j 不可用不会回滚已提交的 MySQL 业务事务。
 
 ## 启动前端
+
+当前前端统一使用 Vue 3、Element Plus、Axios 和 Pinia，保留 Tailwind 布局、ECharts 与 Cytoscape。界面规范见 [DESIGN.md](./DESIGN.md)，逐页迁移、依赖清理、截图和验证边界见[前端迁移清单](./docs/frontend-migration-inventory.md)。会话与权限仅存内存；主题、侧栏和按账号隔离的常用查询可保存在浏览器。
 
 左侧导航统一分为可视化（工作台、成果目录、知识图谱、统计分析）、爬虫管理（数据源、采集任务、数据治理）、系统状态（质量指标、运行监控）、用户管理（账号管理）。无权限页面和空组不显示，命令面板沿用相同分组。
 
@@ -151,7 +159,7 @@ npm --prefix .\frontend ci
 npm --prefix .\frontend run dev
 ~~~
 
-前端仅绑定 `127.0.0.1:5173`，并将 `/api` 和 `/actuator` 原样代理到后端。访问 `http://127.0.0.1:5173/login` 进入登录页；业务菜单和路由入口按当前用户权限显示，服务端仍执行最终授权。
+前端默认仅绑定 `127.0.0.1:5173`，并将 `/api` 和 `/actuator` 原样代理到后端。访问终端显示地址的 `/login` 进入登录页；业务菜单和路由入口按当前用户权限显示，服务端仍执行最终授权。直接运行 `npm run dev` 保留 Vite 默认端口；如遇 `listen EACCES`，改用 `.\tools\development\Start-Development.ps1 -Component Frontend` 自动检测备用端口，或手动执行 `npm --prefix .\frontend run dev -- --port 15173 --strictPort`。端口改变后浏览器来源也会改变，可能需要重新登录，旧端口的本地浏览器偏好不会自动迁移。
 
 ## 验证
 
@@ -188,6 +196,10 @@ docker compose --env-file .\.env -f .\deploy\compose.yaml config --quiet
 需要通过压缩包将项目迁移到另一台 Windows 电脑继续开发时，请先阅读[开发环境迁移交接手册](./docs/development-handoff.md)。手册包含安全打包、凭据排除、新电脑环境准备、数据库与 Neo4j 数据边界、启动验证和故障排查步骤；解压后可将[新电脑 Codex 接管提示词](./docs/new-computer-handoff-prompt.md)直接复制到新任务中执行。
 
 ## 停止
+
+双击根目录 `stop.bat` 可一键停止本项目，或执行 `.\stop.bat --no-pause` 停止后直接返回终端；`.\stop.bat --check` 只预览已核实的目标。入口调用 `tools/development/Stop-All.ps1`，通过项目绝对路径和启动参数识别 Maven/Spring Boot、Vite 及其子进程，兼容 npm 入口保留的 `node_modules\.bin\..\vite` 路径，也能识别备用端口15173的前端；通过 Compose 服务与配置文件标签核实 `aacv-neo4j` 归属。无法核实默认应用端口占用者、容器归属或访问权限时返回失败，不按端口或进程名直接结束未知程序。
+
+前后端按核实的进程身份终止，正在执行的请求或任务可能中断；需要正常结束业务时，先在原终端按 `Ctrl+C`。确认前后端退出后，脚本才停止 Neo4j，并给予容器30秒退出时间。重复执行可处理已经停止的组件。MySQL、Docker Desktop、容器和数据卷保留，脚本不读取 `.env` 或容器凭据；原日志窗口可自行关闭。该入口覆盖本文的 Maven/Vite 开发启动方式，其他启动方式需要先人工核实。
 
 在后端和前端终端分别按 `Ctrl+C`。Neo4j 使用以下命令停止，命名卷会被保留：
 

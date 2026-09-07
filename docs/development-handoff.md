@@ -26,9 +26,11 @@
 
 ### 2.2 运行架构
 
+2026-09-06 前端迁移为 Element Plus 2.14.5、Axios 1.20.0 和 Pinia 3.0.4，Vue/Vite/TypeScript 与图表引擎版本沿用锁文件。新电脑通过现有 `npm --prefix .\frontend ci` 恢复依赖，不再需要 Reka UI、TanStack Table 或 vue-sonner。当前设计与状态/请求边界见 [DESIGN.md](../DESIGN.md) 和[迁移清单](./frontend-migration-inventory.md)，历史验收数字不作为本次迁移证明。
+
 | 组件 | 当前运行方式 | 默认地址或版本 | 说明 |
 | --- | --- | --- | --- |
-| 前端 | Node.js + Vite | `http://127.0.0.1:5173` | 将 `/api`、`/actuator` 代理到后端 |
+| 前端 | Node.js + Vite | `http://127.0.0.1:5173` | 启动脚本在系统拒绝绑定5173时改用15173；将 `/api`、`/actuator` 代理到后端 |
 | 后端 | JDK 21 + Maven Wrapper + Spring Boot | `http://127.0.0.1:8080` | REST API、调度、批处理和图同步 |
 | MySQL | Windows 本机 MySQL80 服务 | `127.0.0.1:3306`，当前主机实测8.0.41；文档基线8.0.42 | 唯一业务权威数据源 |
 | Neo4j | Docker Desktop Linux Engine | Neo4j `5.26-community` | 可从 MySQL 重建的图投影 |
@@ -278,7 +280,7 @@ git remote -v
 
 ### 7.1 MySQL
 
-默认方案是在新电脑建立空的 `aacv_system` 数据库，由后端启动时执行迁移目录中的全部版本（当前V1至V14）创建结构。使用具备建库权限的账号进入 MySQL 后执行：
+默认方案是在新电脑建立空的 `aacv_system` 数据库，由后端启动时执行迁移目录中的全部版本（当前V1至V15）创建结构。使用具备建库权限的账号进入 MySQL 后执行：
 
 ```sql
 CREATE DATABASE aacv_system
@@ -311,7 +313,9 @@ notepad .\.env
 
 完成本机配置和前端依赖安装，并启动 MySQL 与 Docker Desktop Linux Engine 后，可双击项目根目录 `start.bat` 一键启动。入口通过 `tools/development/Start-All.ps1` 编排，复用 `Test-DevelopmentEnvironment.ps1` 和 `Start-Development.ps1`，检查默认应用端口后提交 Neo4j、后端和前端启动命令，前后端分别保留日志窗口，并继续使用项目内短 Socket 目录。批处理只保留 ASCII 入口，中文提示集中在 UTF-8 BOM 的 PowerShell 脚本中，以兼容 Windows PowerShell 5.1 和批处理解析。主窗口的“已提交”不代表组件已经就绪，应在组件窗口确认启动结果；后端仍会按现有规则执行待应用的 Flyway 迁移。
 
-`start.bat --check` 只检查环境与默认端口，不启动组件；端口 8080 或 5173 被占用时返回失败，不停止已有服务。脚本不安装依赖，不处理凭据，不自动启动 MySQL 或 Docker Desktop。自定义端口继续使用本节的手动命令。关闭主窗口不会停止组件，前后端在各自窗口按 `Ctrl+C` 停止，Neo4j 按 README 的停止命令处理。
+`start.bat --check` 只检查环境与应用端口，不启动组件。`Development-Ports.ps1` 共用检测先识别监听占用，再短暂绑定并释放 `127.0.0.1` 端口；8080 或 5173 被占用时返回失败，不停止已有服务。仅在系统拒绝绑定5173时选择经过相同检查的备用端口15173；备用端口不可用仍返回失败。编排脚本通过 `Start-Development.ps1 -Component Frontend -FrontendPort` 传递已选端口，组件再次检查并用 Vite `--port`、`--strictPort` 启动，两个窗口均显示实际地址。预检与服务绑定之间仍有短暂竞争窗口，此时启动报错，不自动换端口。脚本不安装依赖，不处理凭据，不自动启动 MySQL 或 Docker Desktop。自定义端口继续使用本节的手动命令。关闭主窗口不会停止组件，前后端在各自窗口按 `Ctrl+C` 停止，Neo4j 按 README 的停止命令处理。
+
+一键停止入口为根目录 `stop.bat`，通过 UTF-8 BOM 的 `tools/development/Stop-All.ps1` 编排。`--check` 仅核实目标，`--no-pause` 停止后不等待按键。脚本按当前项目绝对路径、Maven/Spring Boot 与 Vite 启动参数识别进程；Vite 支持直接路径及 npm 入口保留的 `node_modules\.bin\..\vite` 路径（含 `.bin` 后的重复反斜杠），识别不依赖前端使用5173还是15173。脚本验证创建时间以防 PID 复用，子进程先于父进程终止。确认应用退出后，按已核实的 Compose 服务和配置文件标签停止 Neo4j。未知端口归属、容器标签不匹配或权限不足均返回失败，不终止其他项目。脚本不读取凭据、不停止 MySQL/Docker Desktop、不删除容器或卷，已停止的组件可重复处理。进程终止可能中断请求或任务，需要正常结束业务时先使用原终端的 `Ctrl+C`；其他启动方式仍需人工核实。
 
 ### 8.1 安装前端依赖
 
@@ -346,7 +350,7 @@ Set-Location 'D:\Program\Java\AACV_System'
 .\mvnw.cmd -f .\backend\pom.xml spring-boot:run
 ```
 
-首次运行会下载 Maven 3.9.16 和后端依赖。后端启动时会运行迁移目录中的全部版本（当前V1至V14），但不会隐式为既有成果生成图投影事件。
+首次运行会下载 Maven 3.9.16 和后端依赖。后端启动时会运行迁移目录中的全部版本（当前V1至V15），但不会隐式为既有成果生成图投影事件。
 
 ### 8.4 启动前端
 
@@ -357,7 +361,7 @@ Set-Location 'D:\Program\Java\AACV_System'
 npm --prefix .\frontend run dev
 ```
 
-浏览器访问 `http://127.0.0.1:5173/login`。
+浏览器访问终端显示地址的 `/login`，默认是 `http://127.0.0.1:5173/login`。Windows 下也可用 `.\tools\development\Start-Development.ps1 -Component Frontend`，在系统拒绝绑定5173时自动检查并使用15173；直接运行上述 npm 命令不会自动选择备用端口。
 
 启动验收需要确认浏览器实际显示登录标题、用户名、密码和登录按钮，并在刷新后仍可操作；仅 `/login` 返回 HTTP 200 不能证明 Vue 已挂载。出现空白页时按第 11.7 节检查依赖请求。
 
@@ -439,7 +443,7 @@ USE aacv_system;
 SOURCE D:/SecureTransfer/aacv_system-handoff-20260903.sql;
 ```
 
-恢复后启动后端，确认Flyway校验通过，再执行健康检查和数据抽样。不要修改或重排任何已经应用的迁移；当前仓库包含V1至V14。
+恢复后启动后端，确认Flyway校验通过，再执行健康检查和数据抽样。不要修改或重排任何已经应用的迁移；当前仓库包含V1至V15。
 
 ### 10.3 Neo4j 数据处理
 
@@ -467,13 +471,18 @@ Docker Desktop 或 Linux Engine 未启动，或者当前终端无权访问 Docke
 
 这通常是受限执行上下文不允许创建子进程。请在新电脑的普通本地 PowerShell 中原样重试，不要修改测试或构建配置掩盖失败。
 
-### 11.5 端口被占用
+### 11.5 端口被占用或 `listen EACCES`
 
 ```powershell
-Get-NetTCPConnection -LocalPort 3306,7474,7687,8080,5173 -ErrorAction SilentlyContinue
+Get-NetTCPConnection -LocalPort 3306,7474,7687,8080,5173,15173 -ErrorAction SilentlyContinue
+netsh interface ipv4 show excludedportrange protocol=tcp
 ```
 
 默认端口被占用时，先确认占用进程和现有服务用途。不要随意结束未知进程。后端地址和端口可分别通过 `AACV_SERVER_ADDRESS`、`AACV_SERVER_PORT` 覆盖；修改前还要确认前端代理配置是否需要同步。
+
+没有监听进程也不代表允许绑定：Windows 保留端口可能使 Vite 报 `listen EACCES: permission denied 127.0.0.1:5173`。上述 `netsh` 命令只查询保留区间。启动入口及 `Start-Development.ps1 -Component Frontend` 会在5173被拒绝绑定时检查备用15173；按终端显示的地址访问即可，不需要修改系统保留区间或以管理员身份启动。若后端已经运行，只启动前端，避免 `start.bat` 因8080被占用而拒绝重复启动。`stop.bat` 只停止组件，不负责启动，也不会释放 Windows 保留端口；Vite 在备用端口仍按项目路径和进程身份识别并停止。
+
+直接使用 npm 时可执行 `npm --prefix .\frontend run dev -- --port 15173 --strictPort`；备用端口也不可用时应先排查，不会继续扫描随机端口。不同端口属于不同浏览器来源，可能需要重新登录，本地偏好和常用查询也按原来源保留，不会自动迁移。端口逻辑的独立回归命令是 `powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\development\Test-DevelopmentPorts.ps1`，无需额外测试依赖。
 
 ### 11.6 Maven、npm 或 Docker 下载失败
 

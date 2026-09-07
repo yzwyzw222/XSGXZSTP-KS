@@ -37,6 +37,8 @@ V13增加机构来源名称证据表，只按已确认ROR或来源标识归属�
 
 `operations`复用`audit_log`，由事件类型导出LOGIN或OPERATION分类，历史记录无需重写。查询支持字面账号关键字、半开时间区间、结果和已登记操作；按原操作筛选同时包含相应OPERATION_FAILED事件。关键业务成功审计仍与业务提交保持原事务关系，API失败由显式端点允许列表的过滤器记录，使用REQUIRES_NEW事务；如果失败审计本身不可写，保留原失败响应并输出仅含traceId和异常类型的故障日志。普通查询、翻页和后台查询不产生操作日志。异步受理事件不代表任务已完成。
 
+日志持久化读取兼容早期页面样例写入的 `EXPORT_COMPLETED`，对外统一返回既有 `EXPORT_SUCCEEDED`（导出完成）；按 `EXPORT_SUCCEEDED` 筛选时同时匹配两种存储值，列表与总数使用同一条件。兼容处理不改写历史日志、不扩展公开枚举，其他未登记类型仍明确失败。页面样例 SQL 只写入标准类型；`SecurityIntegrationTests` 覆盖旧记录读取、筛选、分页和登录分类，`RenderingSampleDataSqlTests` 校验首次及重复初始化后的全部样例审计类型。
+
 登录来源保存实际连接地址和清理控制字符、限制长度后的User-Agent；不信任转发头，不做外部定位。认证失败的尝试账号与操作人分开，未到认证阶段的无效请求不解析正文猜测账号。所有日志仍禁止密码、会话标识和完整请求体，资料修改审计只记录变更类别。当前OpenAPI增量版本为7.1.0，详细验证见`account-management-acceptance.md`。
 
 ### 2.1 当前建议基线
@@ -202,7 +204,7 @@ flowchart TB
 | 指标 | Spring Boot Actuator、Micrometer | 健康检查与运行指标 |
 | **前端** | Vue 3、TypeScript、Vite | Web 用户界面 |
 | 通用图表 | ECharts | 趋势、排行和分布图 |
-| 图谱组件 | Cytoscape.js 或 AntV G6 | 关系网络可视化 |
+| 图谱组件 | vis-network（概览）、Cytoscape.js（高级查询与路径） | 关系网络可视化 |
 | 后端测试 | JUnit 5、Testcontainers | 单元与数据库集成测试 |
 | 前端测试 | Vitest、Playwright | 组件与端到端测试 |
 | 构建 | Maven、npm | 后端与前端构建 |
@@ -642,7 +644,17 @@ graph_outbox_event 建议包含：
 | HAS_TOPIC | Achievement → Topic | `aacvManaged`、`achievementBusinessId` |
 | CITES | Achievement → Achievement | `aacvManaged`、`achievementBusinessId` |
 
-`COOPERATES_WITH` 和 `INSTITUTION_COOPERATES_WITH` 在阶段 5 不物化；作者和机构合作由共同成果查询推导，是否物化留到阶段 7 按查询性能决定。
+作者与机构合作不物化到 Neo4j。图谱概览接口自动附加合作，局部查询可请求 `includeCoauthors=true`，由 `GraphPresentationService` 根据本次受限 Neo4j 子图中的 `AUTHORED` 边生成 `COAUTHORED`，去重作者对及共同作品；关系属性包含 `derived=true`、`evidenceScope=CURRENT_SUBGRAPH`、`sharedWorkIds` 和 `sharedWorkCount`。最多增加1000条派生边，超过时返回截断提示；前端增量合并继续去重共同作品并遵守1000条上限。原接口默认不添加合作边，最短路径也只返回实际路径。
+
+新增 `GET /api/v1/graph/overview`，沿用 `GRAPH_READ` 和3秒事务超时。只读取受管 Author / Achievement 及方向正确的 AUTHORED，优先关系再孤立节点，候选路径上限为 `nodeLimit*4+1`，节点默认及硬上限300；达到候选或节点上限明确截断，空图返回200及空数组，不制造样例。合作由现有展示服务按该结果计算。`/graph` 用两色图例、大画布及当前结果统计呈现；搜索与下拉只过滤当前网络，详情保留原始共同作品证据。原五类中心查询移至 `/graph/explore`，旧中心参数与常用查询继续兼容。
+
+`utils/graph-cooperation.ts` 统一解析后端已有合作边：共同作品 ID 去重后，要求作品节点及双方实际 `AUTHORED` 边同时存在；缺失或单方证据明确标记不完整，不从同名作者或作品猜测合作。Canvas 合作线展示共同作品数量与首部作品摘要，选中时同时高亮共同作品与双方创作边。概览“合作作品”列表提供完整标题；点击合作线或“在图中查看”后，画布仅展示这对作者及其作品依据，作者并排置顶、作品逐行居中，桌面详情并列、窄屏详情置于下方，退出后恢复原筛选。概览合作筛选和高级查询的作者合作视图均保留作品与实际创作连线；概览合作模式可按任一作者或共同作品搜索，并停用相互矛盾的节点类型过滤。数据范围仍限于已读取网络，不新增接口或写入数据库。
+
+实体管理仅列出 AUTHOR、ACHIEVEMENT；关系管理仅列出 AUTHORED、COAUTHORED，其余类型配置仍为路径及高级查询服务保留。类型表提供搜索、表头状态筛选、详情、编辑及选中项批量审核。批量审核沿用已有逐项 PUT 和版本校验，遇首个错误停止，并显示已保存数量，不宣称跨项原子事务。
+
+V15 的 MySQL `graph_type_definition` 以 `(kind, code)` 为主键，管理五类节点、五类实际关系和合作派生关系的类型名称、颜色、尺寸与审核状态。`GraphTypeService` 使用 MyBatis 每次批量读取，图接口附加 `typeDefinitions`；不把类型样式写入 Neo4j。类型缺失或字段无效明确失败。节点直径16–96px、关系线宽1–8px，颜色为六位十六进制；审核默认 `PENDING`，可更新为 `APPROVED` / `REJECTED`。审核针对类型配置，所有状态均保持可查询并显示状态，不改变业务可见性或实体治理。
+
+类型读取沿用 `GRAPH_READ`，保存沿用 `GRAPH_SYNC_MANAGE` 与 CSRF；只更新受支持的既有类型，使用版本号避免覆盖并发修改，在同一 MySQL 事务内记录 `GRAPH_TYPE_UPDATED` 审计。图谱页面显示“图谱概览 / 实体管理 / 关系管理”，父菜单可独立折叠；路径分析和常用查询的原地址保留。
 
 ### 11.3 约束与索引
 
@@ -657,12 +669,12 @@ graph_outbox_event 建议包含：
 
 ### 11.4 查询边界
 
-- 默认深度为 1；
+- 局部查询 API 默认深度为1；高级查询初始选择2跳，以便从作者读取作品及共同作者；
 - 普通图谱最大深度为 2；
 - 最短路径必须指定最大跳数，建议不超过 6；
-- 默认返回 100 个节点；
+- 局部查询默认最多100个节点，作者作品概览默认最多300个节点；
 - 硬上限为 300 个节点；
-- 查询必须包含中心节点或明确过滤条件；
+- 局部查询必须包含中心节点或明确过滤条件；概览通过固定作者/作品领域与节点上限限制范围；
 - 禁止通过公共接口执行任意 Cypher；
 - 达到上限时返回 truncated 标识和收窄条件建议；
 - 图查询设置服务端超时。
@@ -825,6 +837,7 @@ graph_outbox_event 建议包含：
 - appliedLimits：实际深度和节点上限；
 - syncedAt：图投影更新时间；
 - traceId：请求追踪 ID。
+- typeDefinitions：从 MySQL 读取的类型展示配置与类型审核状态。
 
 不得在通用图响应中返回摘要全文、凭据、原始响应或所有内部字段。
 
@@ -872,7 +885,7 @@ graph_outbox_event 建议包含：
 
 ### 14.4 阶段6业务前端实现边界
 
-> 说明：本节保留阶段6的历史实现边界。前端已于后续整体改造中将 UI 组件库由 Element Plus 迁移到 shadcn-vue（reka-ui）+ Tailwind CSS，并引入三层设计令牌与深浅双主题；当前权威架构见 14.5。本节中“Element Plus”“`vLoading`”等描述仅作历史参考。
+> 历史说明：本节记录阶段6。当时使用 Element Plus 与 fetch；随后曾改用 Reka UI/TanStack Table。2026-09-06 前端统一为 Element Plus + Axios + Pinia，当前架构以 14.5 和根目录 DESIGN.md 为准；本节的会话模块和传输描述不代表当前实现。
 
 阶段6使用Vue 3、TypeScript、Vue Router、Element Plus、原生fetch、Vitest和Playwright实现业务前端。Element Plus按组件和`vLoading`指令显式引入，不使用自动导入插件；未引入Pinia或Axios。Vite分别将`/api`和`/actuator`原样代理到本机后端，避免业务API路径被改写。
 
@@ -880,7 +893,7 @@ graph_outbox_event 建议包含：
 
 阶段6已实现登录、权限菜单、工作台、成果及四类实体目录、成果详情和来源追溯、数据源、采集任务/计划/运行/失败、重复候选治理、字段人工覆盖、质量指标样本和用户管理。阶段7批次7.2至7.7已实现局部知识图谱、MySQL统计分析、异步导出、目录导出下载、运维总览、系统内告警和运行监控页面。
 
-### 14.5 前端设计系统与组件架构（整体改造后）
+### 14.5 当前前端设计系统与组件架构（2026-09-06）
 
 前端在保持路由、权限、服务层与后端 `/api/v1/*` 契约不变的前提下完成了一次整体改造，技术栈与分层如下。
 
@@ -889,14 +902,16 @@ graph_outbox_event 建议包含：
 | 领域 | 选型 | 说明 |
 | --- | --- | --- |
 | 框架 | Vue 3.5 + TypeScript + Vite | 组合式 API，`<script setup>` |
-| 组件库 | shadcn-vue 模式（reka-ui + Tailwind CSS v4） | 组件源码内置于 `src/components/ui/`，copy-paste 模式，已移除 Element Plus |
+| 组件库 | Element Plus 2.14.5 | 显式导入组件；主题映射到项目语义令牌，基础原语不重复包装 |
 | 样式 | Tailwind CSS v4（`@tailwindcss/vite`）+ CSS 变量令牌 | 无 `tailwind.config.js`，主题经 `@theme inline` 映射 |
-| 数据表 | `@tanstack/vue-table` v8 | 封装为 `DataTable` 业务组件，服务端分页/排序 |
+| 数据表 | Element Plus Table + Pagination | `DataTable` 使用项目列类型；UI 一基页码转换为后端零基页码，排序只回传服务端 |
 | 表单校验 | `vee-validate` + `zod`（`@vee-validate/zod`） | 用于数据源等结构化表单 |
 | 图标 | `lucide-vue-next` | 替代 `@element-plus/icons-vue` |
 | 交互工具 | `@vueuse/core` | 主题持久化、v-model 代理等 |
-| 图表/图谱 | ECharts 6、Cytoscape 3 | 经 `EChartCanvas`/`GraphCanvas` 主题化封装 |
-| 通知 | `vue-sonner` | 替代 `ElMessage` |
+| 图表/图谱 | ECharts 6、Cytoscape 3、vis-network 9.1.9 / vis-data 7.1.9 | 概览使用独立 vis 画布；高级查询与路径分析保留 Cytoscape |
+| 消息与浮层 | Element Plus Message、MessageBox、Dialog、Drawer、Dropdown | Teleport 到 body 的浮层共享主题与焦点管理 |
+| HTTP | Axios 1.20.0 | 唯一实例 `services/http.ts`；`api.ts` 保留原有业务契约，`health.ts` 独立解释健康状态 |
+| 共享状态 | Pinia 3.0.4 | `session` 为会话和权限唯一来源；`preferences` 保存非敏感偏好，`graph` 保存高级查询状态，`graph-overview` 独立保存概览、筛选、选择和历史 |
 | 测试 | Vitest、Playwright | E2E 依赖 ARIA 角色/文本/`label:has-text` 结构，与组件库解耦 |
 
 #### 14.5.2 三层设计令牌
@@ -907,7 +922,7 @@ graph_outbox_event 建议包含：
 - Semantic（语义别名）：`[data-theme='light']` 与 `[data-theme='dark']` 各一套，含 `--background/--foreground/--primary/--muted/--accent/--destructive/--success/--warning/--info/--border/--ring/--sidebar*/--chart-1..6/--graph-*/--table-*/--status-*` 等；
 - Component（组件级）：`--button-*/--card-*/--input-*/--table-*/--dialog-*/--badge-*/--nav-item-*`，均以 `var()` 引用语义层。
 
-`src/styles/index.css` 通过 `@theme inline` 将语义令牌暴露为 Tailwind 工具类（`bg-background`、`text-foreground`、`border-border` 等），并在 `@layer base` 定义全局基础样式、`:focus-visible` 环、滚动条与 `prefers-reduced-motion` 降级。
+`src/styles/index.css` 按 `theme → base → element-plus → components → utilities` 声明层叠顺序，Element Plus 默认样式放入独立层；`styles/element-plus.css` 映射 `--el-*` 变量。通过 `@theme inline` 将语义令牌暴露为 Tailwind 工具类（`bg-background`、`text-foreground`、`border-border` 等），并在 `@layer base` 定义全局基础样式、`:focus-visible` 环、滚动条与 `prefers-reduced-motion` 降级。
 
 #### 14.5.3 主题切换
 
@@ -917,28 +932,39 @@ graph_outbox_event 建议包含：
 
 #### 14.5.4 组件分层
 
-- `src/components/ui/`：约 30 个 shadcn-vue 风格原语（button、card、input、label、select、dialog、alert-dialog、dropdown-menu、tabs、sheet、tooltip、popover、progress、switch、checkbox、table、form、badge、alert、separator、skeleton、scroll-area、avatar、breadcrumb、collapsible、toggle、toggle-group、radio-group、sonner 等），统一用 `cn()`（`src/lib/utils.ts`）合并类名、`class-variance-authority` 管理变体；
-- `src/components/business/`：约 21 个业务组件（`PageHeader`、`PanelSection`、`DataTable`、`FilterBar`/`FilterField`、`StatCard`、`StatusPill`、`EmptyState`、`ErrorState`、`LoadingSkeleton`、`JsonEvidence`、`EntityLinks`、`LiveLogPanel`、`ConfirmDialog`、`ChartFrame`、`GraphCanvas`、`ThemeToggle`、`CommandPalette`、`Breadcrumb`、`UserMenu`、`AppSidebar`、`AppTopbar`）；
+- 基础组件直接使用 Element Plus。旧 `src/components/ui/` 原语、TanStack 类型扩展和相关依赖在业务引用迁移并通过验证后逐文件清理；`clsx` 与 `tailwind-merge` 仍供业务布局的 `cn()` 使用。
+- `src/components/business/`：业务组件（`PageHeader`、`PanelSection`、`DataTable`、`FilterBar`/`FilterField`、`StatCard`、`StatusPill`、`EmptyState`、`ErrorState`、`LoadingSkeleton`、`JsonEvidence`、`EntityLinks`、`LiveLogPanel`、`ConfirmDialog`、`ChartFrame`、`GraphCanvas`、`ThemeToggle`、`CommandPalette`、`Breadcrumb`、`UserMenu`、`AppSidebar`、`AppTopbar`）；
 - `src/config/nav.ts`：集中式导航配置（标签、图标、权限、命令面板关键词），侧栏与命令面板复用同一权限过滤逻辑。
 
 #### 14.5.5 布局外壳与可访问性
 
-- `BusinessLayout` 由可折叠桌面侧栏（宽 240px/折叠 64px，状态持久化）+ 移动端 `sheet` 抽屉 + 粘性顶栏（面包屑、命令面板入口、主题切换、通知、用户菜单）组成；
+- `BusinessLayout` 由可折叠桌面侧栏（宽 240px/折叠 64px，状态持久化）+ 移动端 Element Plus Drawer 抽屉 + 粘性顶栏（面包屑、命令面板入口、主题切换、通知、用户菜单）组成；
 - 快捷键：Ctrl+K 命令面板、Ctrl+B 折叠侧栏、Esc 关闭浮层；提供 skip-to-content 链接；
 - `FilterField` 以 `<label>` 包裹控件，保留 E2E 依赖的 `label:has-text("…") input` 结构；状态用 `StatusPill` 的文本+颜色双通道表达，不以颜色为唯一载体；异步区域使用 `aria-live`；全局尊重 `prefers-reduced-motion`。
 
 #### 14.5.6 兼容性边界
 
-改造未修改 `src/router/index.ts`、`src/services/{api,business,session,health}.ts`、`src/types/api.ts` 与 `src/utils/{motion,format,graph,export-filter}.ts` 的公开契约；后端代码、`deploy/` 与 `docs/openapi.yaml` 不受影响。
+保留路由地址、权限名、`services/business.ts` 和 `types/api.ts` 的后端契约；图谱拆为浏览、路径和常用查询三个路由页面。原 `services/session.ts` 的调用方全部迁入 `stores/session.ts`，不存在并行会话状态。后端代码、数据库、`deploy/` 与 `docs/openapi.yaml` 未修改。
 
-### 14.6 WebUI 视觉与动效基线
+HTTP 默认总预算 12 秒，包含等待 CSRF；每个调用独立取消和超时，共享 CSRF 请求有单独上限。动态 CSRF 头、HttpOnly Cookie、Problem Details、204、Blob、401/403/409 和健康检查 503/DOWN 契约保留；不重试写请求、不输出 Axios 原始配置。认证写操作串行，退出与账号变化立即使旧业务请求失效，迟到响应不能恢复旧账号。成功路由切换取消上个页面的业务请求，组件负责清理轮询和图实例。
 
-- 业务界面提供深浅双主题（默认跟随系统），统一采用固定左侧权限导航、粘性顶栏、紧凑数据卡片和高对比状态色；颜色均取自语义令牌，两套主题下正文对比度不低于 4.5:1。工作台只组合当前账号有权读取的统计、采集和运维接口；任何接口失败均按区域降级，不使用虚构指标补位。
-- ECharts 图表固定使用 Canvas 渲染，趋势线和条形图首次渲染控制在 600 毫秒内；折线图启用吸附轴指示器与数据点聚焦。Cytoscape.js 继续承担最多 300 个节点的图谱渲染，布局动画在 800 毫秒内完成，并支持一至二度关系聚焦、机构节点平滑缩放和展开节点渐次入场。
-- 统计筛选期间保留旧图形并降至 40% 透明度、增加 1 像素模糊，响应返回后使用更新动画恢复；合作排行通过稳定业务标识和 Vue `TransitionGroup` 执行 FLIP 重排。
-- 数据源初次读取使用轻量 shimmer 骨架；采集运行详情按 1.5 秒串行轮询，连续三次失败后停止，展示脉冲状态、600 毫秒计数过渡和最多 80 行的活动流。页面卸载或弹窗关闭时必须清理轮询、动画帧和图实例。
-- 所有非必要动画遵守 `prefers-reduced-motion: reduce`，关闭图表、图谱、计数、滚动和装饰性过渡；文字、图标和结构信息不能只依赖颜色表达状态。
-- 图标使用 `lucide-vue-next`；品牌使用现有 `frontend/public/favicon.svg`。UI 层采用 shadcn-vue 模式（reka-ui + Tailwind CSS v4），组件源码内置于仓库；未引入 Pinia 或 Axios，会话仍保存在轻量 Vue 响应式模块中。
+`preferences` 只持久化主题和侧栏折叠。会话、用户、权限、CSRF、密码、导出票据、图结果和运行数据不持久化；常用图查询按账号独立保存，跨路由待执行查询仅存 Pinia 内存。日期值 `YYYY-MM-DD` 不转换时区，本地日期时间提交前转换为 UTC，编辑时将 UTC 转为本地值，避免直接截取 ISO 字符串。
+
+运维标签页只挂载当前标签的表格，筛选和分页继续由页面持有，避免隐藏表格的尺寸监听产生 `ResizeObserver` 循环错误。数据源长表单的提交错误放在弹窗标题区，正文滚动后仍保持可见；保存失败保留当前输入。
+
+### 14.6 中文学术工作台视觉与动效（2026-09-07）
+
+- 保留学术蓝及浅色、深色、跟随系统三种主题。外壳采用 240px/64px 侧栏、60px 顶栏及最大 1600px 内容区；14px 正文、24px 页面标题和连续指标带形成阅读层级。公共排版归于 `styles/workbench.css`，Element Plus 映射仍由 `styles/element-plus.css` 管理，唯一设计规范为 [DESIGN.md](../DESIGN.md)。
+- 工作台把趋势与合作排行、采集摘要放在相邻区域；目录整合编目入口、筛选和结果；成果详情按规范记录与来源证据分栏；统计先显示总量和趋势，覆盖率保留分子、分母与口径；图谱查询区和采集运行查询工具条收紧。所有页面保留原操作、权限和 API。
+- `useMotion` 读取共享时长（120/200/280/320ms），通过 VueUse 实时订阅减少动画偏好。侧栏用可取消的 Web Animations 位移；页面只淡入新内容，不等待旧页退出；浮层继续使用 Element Plus 的焦点约束、关闭与层级管理。
+- 长表单约束整个弹窗高度，仅正文滚动；数据源保存区使用 footer 与原生 `form` 关联，校验失败聚焦首个无效字段。窄屏下拉框为 44px，分页按钮为 40px；640px 以下改为上一页、页码输入、下一页，后端 0 基页码和任意页跳转语义不变。
+- ECharts 复用 Canvas 实例，按稳定 series/data 标识合并，移除旧系列，更新时长 320ms；ResizeObserver 经单帧合并并在卸载时取消、断开和销毁。减少动画切换后立即关闭图表插值。
+- 高级查询与路径分析的 Cytoscape 继续通过 `utils/graph-rendering.ts` 增量同步，保留已有位置、镜头和邻域聚焦；中心查询首次采用同心布局，合并维持300节点、去重和无悬空关系约束。概览改用 `components/business/graph-overview/GraphCanvas.vue`：shallowRef 保存单一 Network，DataSet 为业务 store 的渲染副本；切换概览、两跳子图或合作详情均复用实例，合作作者与作品坐标由页面提供。普通更新保留位置与视角，跨桌面和窄屏尺寸时重新适配；停用、隐藏和卸载清理交互回调、动画、监听器与观察器。
+- 概览的 `services/graph-overview.ts` 复用统一 Axios 请求与现有 overview/subgraph 契约；两跳请求固定 `depth=2`、`nodeLimit=300`、`includeCoauthors=true`，方向由后端无向路径遍历覆盖。store 以取消信号及请求序号阻止过期响应，输入变化立即失效旧请求，约200ms后读取当前范围；图、筛选和历史在成功时同时提交。`utils/graph-vis.ts` 校验整个响应，拒绝重复ID、缺端点、非法扩展JSON与超限数据；失败保留旧结果并明确提示，完整名称与画布短标签分离。
+- 当前没有业务节点或关系增删改、全局图统计和全局关键字筛选契约。概览写入入口禁用，不调用参考系统 URL，不写 Neo4j；独立画布支持 addEdgeMode 的端点事件和取消清理，但不产生业务关系。接入持久化所需契约见[图谱验收记录](./graph-modules-acceptance.md#概览-vis-network-重构)。
+- 指标直接显示真实响应终值；无效值显示 `--`，没有计数插值或持续状态脉冲。合作排行仅在稳定 ID 的位置改变时用 TransitionGroup。日志只跟随末尾，用户查看历史时不抢滚动。
+- 工作台、目录和统计通过请求序号保证最后一次筛选生效；统计继续独立降级，刷新保留现有结果并表达更新状态。采集运行轮询、任务控制、导出和错误契约沿用既有实现；卸载清理仍在各模块原有生命周期边界内。
+- 验证入口仍为 Vitest、类型与生产构建、Playwright Edge。当前视觉证据与限制见 [视觉升级验收](./frontend-redesign-acceptance.md)；此前 Element Plus 迁移历史见 [前端迁移清单](./frontend-migration-inventory.md)。模拟接口检查不代表真实后端联合验收。
 
 ## 15. 安全设计
 
@@ -1234,7 +1260,7 @@ docker compose -f .\deploy\compose.yaml config
 
 ### 21.4 开发页面样例数据
 
-页面联合验收使用 `tools/development/Initialize-RenderingSampleData.ps1` 和 `rendering-sample-data.sql`，与 Flyway 迁移、阶段8容量数据和正式采集链路隔离。工具仅允许连接本机 `aacv_system`，要求 Flyway 恰好完成 V1 至 V14 且已有有效管理员，通过安全凭据提示连接，不保存数据库密码。样例业务写入使用单个事务，所有记录均带专用名称、外部标识、DOI、运行 UUID、事件 UUID 或审计 traceId，因此可以幂等重放且不会按模糊名称覆盖既有业务数据。
+页面联合验收使用 `tools/development/Initialize-RenderingSampleData.ps1` 和 `rendering-sample-data.sql`，与 Flyway 迁移、阶段8容量数据和正式采集链路隔离。工具仅允许连接本机 `aacv_system`，要求 Flyway 完整应用 V1 至 V14 或 V15 且已有有效管理员，通过安全凭据提示连接，不保存数据库密码。样例业务写入使用单个事务，所有记录均带专用名称、外部标识、DOI、运行 UUID、事件 UUID 或审计 traceId，因此可以幂等重放且不会按模糊名称覆盖既有业务数据。
 
 MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而是创建版本化 `graph_projection_state` 和 `graph_outbox_event`，由现有消费者投影；其中保留一个明确标记的模拟死信，用于验证运行监控、告警确认和受控重放。样例还覆盖目录与详情、双来源追溯、实体列表、年度/类型/来源/机构/主题统计、作者和机构合作、治理候选、质量问题样本、采集失败、维护记录及审计列表。工具不创建账号、不触发外部 API，也不提供自动清库流程。
 
@@ -1357,13 +1383,13 @@ MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而�
 
 ### 23.6 阶段7局部图谱实现追溯
 
-批次7.2前端复用`/api/v1/graph/subgraph`、`/path`和按权限读取的`/sync-status`，不修改MySQL权威数据与Neo4j投影边界。页面不自动加载大图，只接受明确的中心节点或路径输入；后端单次限制之外，客户端合并扩展时按稳定ID去重并执行累计300节点硬上限，移除指向未保留节点的悬空关系。Cytoscape.js负责受限布局和选择交互，节点/关系表格使用同一响应数据作为可访问替代视图，图例同时提供类型文字，颜色不是唯一信息载体。验证证据为`graph.test.ts`和`stage7-graph.spec.ts`。
+批次7.2前端复用`/api/v1/graph/subgraph`、`/path`和按权限读取的`/sync-status`，不修改MySQL权威数据与Neo4j投影边界。高级查询和路径页接受明确的中心节点或路径输入；概览自动读取有界作者作品网络（见下文），不会加载无限全图；后端单次限制之外，客户端合并扩展时按稳定ID去重并执行累计300节点硬上限，移除指向未保留节点的悬空关系。Cytoscape.js负责受限布局和选择交互，节点/关系表格使用同一响应数据作为可访问替代视图，图例同时提供类型文字，颜色不是唯一信息载体。验证证据为`graph.test.ts`和`stage7-graph.spec.ts`。
 
 ### 23.7 阶段7统计分析实现追溯
 
 批次7.3的`analytics`模块只依赖MyBatis与MySQL规范数据。查询先排除`canonical_entity_link`中的已合并成员成果，并使用有效的成果类型和发表日期人工覆盖，再按相同范围统计总览、年度趋势、类型/来源/机构/主题分布及合作关系；来源和其他实体关联通过规范成果ID归并，未知类型使用独立`UNKNOWN/未知`类别，不静默并入其他类别。作者和机构合作以同一规范成果中的实体对即时推导，排行榜有界且不物化合作边。
 
-`/analytics`页面通过现有会话权限和原生`fetch`并发读取四个只读接口，显示`MYSQL`口径、实际过滤条件和数据更新时间。ECharts仅注册折线图、柱状图及必要组件，各图均有稳定中文语义标签和同源表格摘要；Neo4j驱动、图状态和图查询均不在统计模块调用链中。验证证据为`AnalyticsQueryTests`、`AnalyticsServiceTests`、`AnalyticsPersistenceIntegrationTests`、`SecurityIntegrationTests`、`business.test.ts`和`stage7-analytics.spec.ts`。
+批次7.4历史实现通过原生`fetch`读取接口；当前 `/analytics` 页面通过 Pinia 权限与 Axios 并发读取四个只读接口，并按区域降级，显示`MYSQL`口径、实际过滤条件和数据更新时间。ECharts仅注册折线图、柱状图及必要组件，各图均有稳定中文语义标签和同源表格摘要；Neo4j驱动、图状态和图查询均不在统计模块调用链中。验证证据为`AnalyticsQueryTests`、`AnalyticsServiceTests`、`AnalyticsPersistenceIntegrationTests`、`SecurityIntegrationTests`、`business.test.ts`和`stage7-analytics.spec.ts`。
 
 ### 23.8 阶段7异步导出后端实现追溯
 
@@ -1373,7 +1399,7 @@ MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而�
 
 ### 23.9 阶段7目录导出与审计闭环追溯
 
-批次7.5在既有成果目录中复用当前筛选表单。题名、单一年份、成果类型和`OPENALEX/CROSSREF`来源直接转换为冻结的`ExportFilter`字段；作者、机构、载体和主题的文本查询必须通过现有目录分页接口得到唯一规范实体后才转换为ID。零匹配或多匹配时前端拒绝创建任务，防止文本模糊查询被静默转换为更宽的导出范围。任务创建后只在内存中保存当前任务并按800毫秒串行轮询，终态停止；下载复用原生`fetch`的Blob响应和浏览器对象URL，不引入Axios、Pinia或其他依赖。
+批次7.5在既有成果目录中复用当前筛选表单。题名、单一年份、成果类型和`OPENALEX/CROSSREF`来源直接转换为冻结的`ExportFilter`字段；作者、机构、载体和主题的文本查询必须通过现有目录分页接口得到唯一规范实体后才转换为ID。零匹配或多匹配时前端拒绝创建任务，防止文本模糊查询被静默转换为更宽的导出范围。任务创建后只在内存中保存当前任务并按800毫秒串行轮询，终态停止；批次7.5历史下载使用原生`fetch`；当前下载使用 Axios Blob 响应和浏览器对象 URL，结束后释放 URL，离开页面或会话失效后停止轮询，导出票据只存内存。
 
 导出创建在任务事务内记录`EXPORT_CREATED`；异步处理通过独立事务终结器在数据库状态真实转换后，以原请求者身份记录`EXPORT_SUCCEEDED`或`EXPORT_FAILED`；有效令牌和对象权限校验通过后记录`EXPORT_DOWNLOADED`。审计摘要只含格式、数量或稳定错误码，不含筛选正文、下载令牌、文件路径或异常详情。启动恢复枚举全部遗留`RUNNING`任务并执行条件失败迁移，已终态任务不会写入伪失败审计；`PENDING`恢复仍受执行器容量限制。验证证据为导出后端单元/持久化/安全测试、`export-filter.test.ts`、`api.test.ts`、`business.test.ts`和`stage7-export.spec.ts`。
 
@@ -1389,7 +1415,7 @@ MySQL 仍是样例成果的唯一权威源。图样例不直接写 Neo4j，而�
 
 批次7.7新增管理员`/operations`权限路由。页面并行但独立处理Actuator的liveness、readiness和graph健康组，以及运维总览、告警、图事件、维护运行和审计分页；任何一个请求失败只标记对应区域。Actuator以HTTP 503返回合法`DOWN`状态时保留该状态，不把依赖降级误报为无响应。Neo4j不可用时页面仍保留MySQL侧运行计数、告警和审计，成果目录和统计路由也不受图状态控制。
 
-监控页只使用7.1冻结接口。近24小时采集失败使用总览聚合计数，并链接到已有采集运行页查看失败阶段和有限摘要，不新增跨运行失败明细接口。告警确认、死信重放、回填、对账和全量重建均复用既有原生`fetch`与CSRF边界；按钮按权限隐藏，后端继续最终授权。全量重建要求用户显式输入`REBUILD_AACV_MANAGED_GRAPH`。验证证据为`health.test.ts`、`business.test.ts`、`index.test.ts`、生产构建和`stage7-operations.spec.ts`。
+监控页只使用7.1冻结接口。近24小时采集失败使用总览聚合计数，并链接到已有采集运行页查看失败阶段和有限摘要，不新增跨运行失败明细接口。告警确认、死信重放、回填、对账和全量重建保持既有 CSRF 边界；批次7.7使用原生`fetch`，当前通过 Axios 实现；按钮按权限隐藏，后端继续最终授权。全量重建要求用户显式输入`REBUILD_AACV_MANAGED_GRAPH`。验证证据为`health.test.ts`、`business.test.ts`、`index.test.ts`、生产构建和`stage7-operations.spec.ts`。
 
 ### 23.12 阶段7最终验收与启动顺序约束
 
