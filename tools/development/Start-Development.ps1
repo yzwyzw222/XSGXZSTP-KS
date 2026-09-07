@@ -2,22 +2,17 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet('Neo4j', 'Backend', 'Frontend')]
-    [string]$Component
+    [string]$Component,
+
+    [ValidateSet(5173, 15173)]
+    [int]$FrontendPort = 5173
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $workspace = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 
-function Assert-FreePort([int]$Port) {
-    $client = [System.Net.Sockets.TcpClient]::new()
-    try {
-        $connection = $client.ConnectAsync('127.0.0.1', $Port)
-        try { $connected = $connection.Wait(1000) -and $client.Connected }
-        catch { $connected = $false }
-        if ($connected) { throw "端口${Port}已占用，未重复启动。请使用已有终端或核对占用进程。" }
-    } finally { $client.Dispose() }
-}
+. (Join-Path $PSScriptRoot 'Development-Ports.ps1')
 
 Push-Location $workspace
 try {
@@ -34,7 +29,7 @@ try {
             if ($LASTEXITCODE -ne 0) { throw '无法读取Neo4j运行状态。' }
         }
         'Backend' {
-            Assert-FreePort 8080
+            Assert-DevelopmentPortAvailable 8080
             $socketDirectory = Join-Path $workspace '.local\java-sockets'
             if ([System.Text.Encoding]::UTF8.GetByteCount($socketDirectory) -gt 80) {
                 throw '项目路径过长，无法安全生成Windows本地Socket地址。请使用较短的开发目录。'
@@ -47,12 +42,16 @@ try {
             if ($LASTEXITCODE -ne 0) { throw '后端未正常退出，请检查数据库、配置或启动错误。' }
         }
         'Frontend' {
-            Assert-FreePort 5173
+            if ($PSBoundParameters.ContainsKey('FrontendPort')) {
+                Assert-DevelopmentPortAvailable $FrontendPort
+            } else {
+                $FrontendPort = Resolve-DevelopmentFrontendPort
+            }
             if (-not (Test-Path -LiteralPath 'frontend/node_modules/vite/package.json')) {
                 throw '前端依赖不存在，请先执行npm --prefix .\frontend ci。'
             }
-            Write-Host '启动前端，当前终端按Ctrl+C停止。访问：http://127.0.0.1:5173/login'
-            & npm.cmd --prefix .\frontend run dev
+            Write-Host "启动前端，当前终端按Ctrl+C停止。访问：http://127.0.0.1:$FrontendPort/login"
+            & npm.cmd --prefix .\frontend run dev -- --host 127.0.0.1 --port $FrontendPort --strictPort
             if ($LASTEXITCODE -ne 0) { throw '前端未正常退出，请检查终端中的错误。' }
         }
     }

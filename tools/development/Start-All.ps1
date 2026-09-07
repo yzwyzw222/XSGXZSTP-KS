@@ -12,7 +12,7 @@ $powershell = Join-Path $PSHOME 'powershell.exe'
 if ($ShowHelp) {
     Write-Host '用法：start.bat [--check | --help]'
     Write-Host '  不带参数：检查环境，启动 Neo4j，并打开后端和前端日志窗口。'
-    Write-Host '  --check：只检查环境和默认应用端口，不启动服务，不暂停等待按键。'
+    Write-Host '  --check：只检查环境和应用端口；前端 5173 禁止绑定时检查备用端口 15173，不启动服务。'
     Write-Host '  --help：显示帮助。'
     Write-Host '首次使用前请按 README.md 配置 .env，并执行 npm --prefix .\frontend ci。'
     exit 0
@@ -20,11 +20,12 @@ if ($ShowHelp) {
 
 Push-Location $workspace
 try {
-    foreach ($path in @('tools/development/Test-DevelopmentEnvironment.ps1', 'tools/development/Start-Development.ps1', 'mvnw.cmd')) {
+    foreach ($path in @('tools/development/Test-DevelopmentEnvironment.ps1', 'tools/development/Start-Development.ps1', 'tools/development/Development-Ports.ps1', 'mvnw.cmd')) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "缺少启动所需文件：$path"
         }
     }
+    . (Join-Path $PSScriptRoot 'Development-Ports.ps1')
 
     Write-Host '正在检查本地开发环境...'
     # 预检脚本使用 exit 返回结果，单独运行以免提前结束启动编排。
@@ -32,18 +33,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '环境检查未通过，请处理上方错误后重试。' }
 
     # 在启动任何组件前检查应用端口，不停止或替换已有进程。
-    foreach ($port in @(8080, 5173)) {
-        $client = [Net.Sockets.TcpClient]::new()
-        try {
-            $connected = $false
-            try { $connected = $client.ConnectAsync('127.0.0.1', $port).Wait(1000) -and $client.Connected }
-            catch { $connected = $false }
-            if ($connected) { throw "端口 $port 已占用，请在原终端停止服务后重试。" }
-        } finally { $client.Dispose() }
-    }
+    Assert-DevelopmentPortAvailable 8080
+    $frontendPort = Resolve-DevelopmentFrontendPort
 
     if ($CheckOnly) {
-        Write-Host '环境检查通过，未启动任何组件。'
+        Write-Host "环境检查通过，前端可使用 http://127.0.0.1:$frontendPort/login，未启动任何组件。"
         exit 0
     }
 
@@ -57,13 +51,14 @@ try {
         Write-Host "[$step/3] 打开 $component 日志窗口..."
         # 保留交互终端，让用户查看启动错误并通过 Ctrl+C 停止该组件。
         $arguments = @('-NoLogo', '-NoProfile', '-NoExit', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $componentScript + '"'), '-Component', $component)
+        if ($component -eq 'Frontend') { $arguments += @('-FrontendPort', [string]$frontendPort) }
         Start-Process -FilePath $powershell -ArgumentList $arguments -WorkingDirectory $workspace -WindowStyle Normal | Out-Null
         $step++
     }
 
     Write-Host ''
     Write-Host '已提交前后端启动命令，请等待各日志窗口完成启动。'
-    Write-Host '登录页面：http://127.0.0.1:5173/login'
+    Write-Host "登录页面：http://127.0.0.1:$frontendPort/login"
     Write-Host '后端就绪检查：http://127.0.0.1:8080/actuator/health/readiness'
     Write-Host '停止前后端：在对应窗口按 Ctrl+C。'
     Write-Host '停止 Neo4j：docker compose --env-file .\.env -f .\deploy\compose.yaml stop neo4j'
