@@ -7,15 +7,15 @@
 /* ---------- Primitive 层：原始调色板与尺度 ---------- */
 :root {
   /* 蓝色系（品牌主色，学术理性） */
-  --color-blue-50: 205 100% 96%;
+  --color-blue-50: 214 65% 96%;
   --color-blue-100: 206 96% 90%;
   --color-blue-200: 207 92% 80%;
-  --color-blue-300: 206 90% 70%;
-  --color-blue-400: 207 88% 60%;
-  --color-blue-500: 207 90% 54%;
-  --color-blue-600: 209 92% 47%;
-  --color-blue-700: 210 90% 38%;
-  --color-blue-800: 211 85% 30%;
+  --color-blue-300: 212 76% 76%;
+  --color-blue-400: 212 76% 70%;
+  --color-blue-500: 213 68% 53%;
+  --color-blue-600: 214 68% 43%;
+  --color-blue-700: 214 66% 36%;
+  --color-blue-800: 214 62% 29%;
   --color-blue-900: 212 80% 23%;
   --color-blue-950: 213 78% 14%;
 
@@ -51,19 +51,19 @@
 
   /* 石板灰（中性色基底） */
   --color-slate-0: 0 0% 100%;
-  --color-slate-50: 210 40% 98%;
-  --color-slate-100: 210 40% 96%;
-  --color-slate-200: 214 32% 91%;
-  --color-slate-300: 213 27% 84%;
+  --color-slate-50: 216 25% 97%;
+  --color-slate-100: 216 22% 94%;
+  --color-slate-200: 215 22% 88%;
+  --color-slate-300: 215 19% 80%;
   --color-slate-400: 215 20% 65%;
-  --color-slate-500: 215 16% 47%;
+  --color-slate-500: 215 16% 42%;
   --color-slate-600: 215 19% 35%;
   --color-slate-700: 215 22% 27%;
   --color-slate-800: 217 28% 20%;
-  --color-slate-850: 218 32% 15%;
-  --color-slate-900: 219 36% 11%;
-  --color-slate-925: 220 42% 8%;
-  --color-slate-950: 222 47% 5%;
+  --color-slate-850: 218 23% 17%;
+  --color-slate-900: 218 25% 13%;
+  --color-slate-925: 218 26% 11%;
+  --color-slate-950: 220 27% 9%;
 
   /* 圆角尺度 */
   --radius-xs: 0.25rem;
@@ -88,18 +88,18 @@
   --space-16: 4rem;
 
   /* 字体 */
-  --font-sans: 'Inter', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-sans: 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
 
   /* 字号阶梯（独立命名空间，避免与 Tailwind --text-* 工具类冲突） */
   --font-size-2xs: 0.625rem;
   --font-size-xs: 0.6875rem;
   --font-size-sm: 0.75rem;
-  --font-size-base: 0.8125rem;
+  --font-size-base: 0.875rem;
   --font-size-md: 0.875rem;
   --font-size-lg: 1rem;
   --font-size-xl: 1.1875rem;
-  --font-size-2xl: 1.4375rem;
+  --font-size-2xl: 1.5rem;
   --font-size-3xl: 1.8125rem;
   --font-size-4xl: 2.25rem;
 
@@ -116,7 +116,7 @@
   --font-bold: 700;
 
   /* 字距 */
-  --tracking-tight: -0.03em;
+  --tracking-tight: -0.015em;
   --tracking-normal: 0;
   --tracking-wide: 0.05em;
   --tracking-wider: 0.1em;
@@ -131,17 +131,23 @@
 
   /* 动效 */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
   --duration-fast: 120ms;
   --duration-normal: 200ms;
-  --duration-slow: 320ms;
+  --duration-slow: 280ms;
+  --duration-chart: 320ms;
+  --motion-distance: 6px;
 
   /* 布局 */
   --sidebar-width: 15rem;
   --sidebar-width-collapsed: 4rem;
-  --topbar-height: 4rem;
+  --topbar-height: 3.75rem;
   --content-max-width: 100rem;
+  --z-topbar: 30;
+  --z-sidebar: 40;
+  --z-skip-link: 50;
+  --z-overlay: 2000;
 }
 
 /* ---------- Semantic 层：浅色主题 ---------- */
@@ -171,18 +177,18 @@
   --accent: var(--color-blue-50);
   --accent-foreground: var(--color-blue-700);
 
-  --destructive: var(--color-rose-500);
+  --destructive: 354 67% 43%;
   --destructive-foreground: var(--color-slate-0);
 
-  --success: var(--color-emerald-500);
+  --success: 162 70% 28%;
   --success-foreground: var(--color-slate-0);
   --success-subtle: 160 72% 95%;
 
-  --warning: var(--color-amber-500);
+  --warning: 30 82% 31%;
   --warning-foreground: var(--color-slate-900);
   --warning-subtle: 40 96% 94%;
 
-  --info: var(--color-cyan-500);
+  --info: 195 73% 31%;
   --info-foreground: var(--color-slate-0);
 
   --border: var(--color-slate-200);
@@ -191,7 +197,7 @@
   --input-background: var(--color-slate-0);
   --ring: var(--color-blue-400);
 
-  --sidebar: var(--color-slate-0);
+  --sidebar: 216 24% 95%;
   --sidebar-foreground: var(--color-slate-600);
   --sidebar-accent: var(--color-blue-50);
   --sidebar-accent-foreground: var(--color-blue-700);
@@ -330,7 +336,7 @@
 :root {
   /* 按钮 */
   --button-radius: var(--radius-sm);
-  --button-height-sm: 1.75rem;
+  --button-height-sm: 2rem;
   --button-height-md: 2.25rem;
   --button-height-lg: 2.75rem;
   --button-padding-x: var(--space-4);
@@ -347,7 +353,7 @@
   /* 卡片 */
   --card-radius: var(--radius-lg);
   --card-border: 1px solid hsl(var(--border));
-  --card-shadow: var(--shadow-sm);
+  --card-shadow: none;
   --card-padding: var(--space-5);
 
   /* 输入 */

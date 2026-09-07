@@ -1,492 +1,269 @@
 <script setup lang="ts">
-import type { ColumnDef } from '@tanstack/vue-table'
-import { Waypoints } from 'lucide-vue-next'
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { ElAlert, ElButton, ElDrawer, ElInput, ElOption, ElSelect } from 'element-plus'
+import { ArrowLeft, Circle, Maximize, RefreshCw, Search, Table2 } from 'lucide-vue-next'
+import { storeToRefs } from 'pinia'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { DataTable, FilterField, PageHeader, PanelSection, StatusPill } from '@/components/business'
-import GraphCanvas from '@/components/business/GraphCanvas.vue'
-import GraphEntityPicker from '@/components/business/GraphEntityPicker.vue'
-import GraphSavedQueries from '@/components/business/GraphSavedQueries.vue'
-import { Alert, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { toErrorMessage } from '@/services/api'
-import { graphApi } from '@/services/business'
-import { hasPermission } from '@/services/session'
-import type {
-  GraphEdge, GraphNode, GraphNodeType, GraphRelationshipType, GraphResponse, GraphSyncStatus,
-} from '@/types/api'
-import { GRAPH_NODE_LIMIT, mergeGraph, nodeTarget, relationshipLabel, toCytoscapeElements } from '@/utils/graph'
-import { formatDateTime, splitValues } from '@/utils/format'
-import type { GraphFilters } from '@/utils/graph-query'
+import { DataTable } from '@/components/business'
+import GraphCanvas from '@/components/business/graph-overview/GraphCanvas.vue'
+import NodeDetail from '@/components/business/graph-overview/NodeDetail.vue'
+import type { DataTableColumn } from '@/components/business/types'
+import { useGraphStore } from '@/stores/graph'
+import { useGraphOverviewStore } from '@/stores/graph-overview'
+import type { GraphNode, GraphEdge } from '@/types/api'
+import { nodeTarget, reviewStatusLabel } from '@/utils/graph'
+import { type CooperationEvidence } from '@/utils/graph-cooperation'
+import { graphDefinitions, toVisGraph } from '@/utils/graph-vis'
 
-const nodeTypes: Array<{ value: GraphNodeType; label: string }> = [
-  { value: 'ACHIEVEMENT', label: '成果' },
-  { value: 'AUTHOR', label: '作者' },
-  { value: 'INSTITUTION', label: '机构' },
-  { value: 'VENUE', label: '期刊/载体' },
-  { value: 'TOPIC', label: '主题' },
-]
-const relationshipTypes: Array<{ value: GraphRelationshipType; label: string }> = [
-  { value: 'AUTHORED', label: '创作' },
-  { value: 'AFFILIATED_WITH', label: '隶属' },
-  { value: 'PUBLISHED_IN', label: '发表于' },
-  { value: 'HAS_TOPIC', label: '主题' },
-  { value: 'CITES', label: '引用' },
-]
-
-const loading = ref(false)
+const store = useGraphOverviewStore()
+const legacyStore = useGraphStore()
+const { graph, visible, loading, filtering, errorMessage, history, cooperations, focusedCooperation } = storeToRefs(store)
 const route = useRoute()
-let graphRequestVersion = 0
-const errorMessage = ref('')
-const graph = ref<GraphResponse | null>(null)
-const syncStatus = ref<GraphSyncStatus | null>(null)
-const selectedNodeId = ref('')
-const selectedEdgeId = ref('')
-const viewMode = ref<'graph' | 'nodes' | 'edges'>('graph')
-const addedNodeIds = ref<string[]>([])
-
-const filters = reactive<GraphFilters>({
-  centerType: 'ACHIEVEMENT' as GraphNodeType,
-  centerId: '',
-  depth: '1',
-  nodeLimit: '100',
-  publicationYearFrom: '',
-  publicationYearTo: '',
-  nodeTypes: [] as GraphNodeType[],
-  relationshipTypes: [] as GraphRelationshipType[],
-  achievementTypes: '',
+const router = useRouter()
+const keyword = computed({ get: () => store.filters.keyword, set: value => { store.filters.keyword = value } })
+const nodeType = computed({ get: () => store.filters.nodeType, set: value => { store.filters.nodeType = value } })
+const relationship = computed({ get: () => store.filters.relationship, set: value => { store.filters.relationship = value } })
+const selectedNodeId = computed(() => store.selection?.kind === 'node' ? store.selection.id : '')
+const selectedEdgeId = computed(() => store.selection?.kind === 'edge' ? store.selection.id : '')
+const drawer = ref<'detail' | 'nodes' | 'edges' | 'cooperations' | ''>('')
+const canvas = ref<InstanceType<typeof GraphCanvas> | null>(null)
+const stage = ref<HTMLElement | null>(null)
+const menu = ref<HTMLElement | null>(null)
+const context = ref<{ kind: 'node' | 'edge'; id: string; x: number; y: number } | null>(null)
+const visibleCooperations = computed(() => cooperations.value.filter(item => visible.value?.edges.some(edge => edge.id === item.edge.id)))
+const canvasData = computed(() => visible.value ? toVisGraph(visible.value, graph.value ?? visible.value) : { nodes: [], edges: [] })
+const label = computed(() => `知识图谱，共${visible.value?.nodes.length ?? 0}个节点和${visible.value?.edges.length ?? 0}条关系`)
+const definitions = computed(() => graphDefinitions(graph.value))
+const nodeDefinitions = computed(() => definitions.value.filter(type => type.kind === 'NODE'
+  && (['AUTHOR', 'ACHIEVEMENT'].includes(type.code) || graph.value?.nodes.some(node => node.type === type.code))))
+const edgeDefinitions = computed(() => definitions.value.filter(type => type.kind === 'RELATIONSHIP'
+  && (['AUTHORED', 'COAUTHORED'].includes(type.code) || graph.value?.edges.some(edge => edge.type === type.code))))
+const selectedNode = computed(() => visible.value?.nodes.find(node => node.id === selectedNodeId.value))
+const selectedDisplayNode = computed(() => canvasData.value.nodes.find(node => node.id === selectedNodeId.value))
+const selectedEdge = computed(() => visible.value?.edges.find(edge => edge.id === selectedEdgeId.value))
+const selectedType = computed(() => definitions.value.find(type => selectedNode.value
+  ? type.kind === 'NODE' && type.code === selectedNode.value.type : type.kind === 'RELATIONSHIP' && type.code === selectedEdge.value?.type))
+const sharedWorks = computed(() => cooperations.value.find(item => item.edge.id === selectedEdgeId.value)?.works ?? [])
+const scopeKey = computed(() => `${history.value.at(-1)?.id ?? 'all'}:${store.focusedCooperationId}`)
+const positions = computed(() => {
+  const item = focusedCooperation.value
+  if (!item) return undefined
+  return Object.fromEntries([
+    [item.source.id, { x: 0, y: 0 }], [item.target.id, { x: 360, y: 0 }],
+    ...item.works.map((work, index) => [work.id, { x: 180, y: 180 + index * 160 }]),
+  ])
 })
-const pathQuery = reactive({
-  sourceType: 'AUTHOR' as GraphNodeType,
-  sourceId: '',
-  targetType: 'TOPIC' as GraphNodeType,
-  targetId: '',
-  maxHops: '6',
-})
-
-const selectedNode = computed<GraphNode | null>(() =>
-  graph.value?.nodes.find((node) => node.id === selectedNodeId.value) ?? null)
-const selectedEdge = computed<GraphEdge | null>(() =>
-  graph.value?.edges.find((edge) => edge.id === selectedEdgeId.value) ?? null)
-const selectedNodeTarget = computed(() => selectedNode.value ? nodeTarget(selectedNode.value) : null)
-const propertyRows = computed(() => {
-  const properties = selectedNode.value?.properties ?? selectedEdge.value?.properties ?? {}
-  return Object.entries(properties).map(([key, value]) => ({
-    key, value: typeof value === 'string' ? value : JSON.stringify(value),
-  }))
-})
-const canExpandSelected = computed(() => {
-  if (!selectedNode.value || (graph.value?.nodes.length ?? 0) >= GRAPH_NODE_LIMIT) return false
-  const businessId = Number(selectedNode.value.businessId)
-  return Number.isSafeInteger(businessId) && businessId > 0
-})
-const syncWarning = computed(() =>
-  Boolean(syncStatus.value && (!syncStatus.value.neo4jAvailable || syncStatus.value.lagThresholdExceeded || syncStatus.value.rebuildInProgress)))
-const syncLabel = computed(() => {
-  if (syncStatus.value?.rebuildInProgress) return '图投影正在重建'
-  if (syncStatus.value && !syncStatus.value.neo4jAvailable) return 'Neo4j 暂不可用'
-  if (syncStatus.value?.lagThresholdExceeded) return '图同步存在积压'
-  return graph.value?.syncedAt ? `投影于 ${formatDateTime(graph.value.syncedAt)}` : '等待加载图数据'
-})
-const graphElements = computed(() => graph.value ? toCytoscapeElements(graph.value) : [])
-const graphLabel = computed(() =>
-  `知识图谱，共${graph.value?.nodes.length ?? 0}个节点和${graph.value?.edges.length ?? 0}条关系`)
-
-const nodeColumns: ColumnDef<GraphNode, any>[] = [
-  { id: 'type', accessorFn: (row) => nodeTypeLabel(row.type), header: '类型', enableSorting: false, meta: { width: '120px' } },
-  { accessorKey: 'label', header: '名称', enableSorting: false },
-  { accessorKey: 'businessId', header: '业务ID', enableSorting: false, meta: { width: '140px' } },
-  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '90px' } },
+const counts = computed(() => ({
+  nodes: visible.value?.nodes.length ?? 0, edges: visible.value?.edges.length ?? 0,
+  nodeTypes: new Set(visible.value?.nodes.map(node => node.type)).size,
+  edgeTypes: new Set(visible.value?.edges.map(edge => edge.type)).size,
+}))
+const nodeColumns: DataTableColumn<GraphNode>[] = [
+  { accessorKey: 'label', header: '名称' },
+  { id: 'type', header: '类型', accessorFn: row => definitions.value.find(type => type.kind === 'NODE' && type.code === row.type)?.displayName ?? row.type },
+  { accessorKey: 'businessId', header: '业务ID' },
+  { id: 'actions', header: '操作', meta: { width: '80px' } },
 ]
-const edgeColumns: ColumnDef<GraphEdge, any>[] = [
-  { id: 'type', accessorFn: (row) => relationshipLabel(row.type), header: '关系', enableSorting: false, meta: { width: '120px' } },
-  { accessorKey: 'source', header: '起点', enableSorting: false },
-  { accessorKey: 'target', header: '终点', enableSorting: false },
-  { id: 'actions', header: '操作', enableSorting: false, meta: { width: '90px' } },
+const edgeColumns: DataTableColumn<GraphEdge>[] = [
+  { id: 'type', header: '关系', accessorFn: row => definitions.value.find(type => type.kind === 'RELATIONSHIP' && type.code === row.type)?.displayName ?? row.type },
+  { id: 'source', header: '起点', accessorFn: row => nodeLabel(row.source) },
+  { id: 'target', header: '终点', accessorFn: row => nodeLabel(row.target) },
+  { id: 'works', header: '共同作品', accessorFn: row => cooperations.value.find(item => item.edge.id === row.id)?.works.map(work => work.label).join('；') || '--' },
+  { id: 'actions', header: '操作', meta: { width: '80px' } },
+]
+const cooperationColumns: DataTableColumn<CooperationEvidence>[] = [
+  { id: 'authors', header: '合作作者', accessorFn: item => `${item.source.label} × ${item.target.label}` },
+  { id: 'works', header: '共同创作的作品' },
+  { id: 'actions', header: '操作', meta: { width: '115px' } },
 ]
 
-function numOrUndef(value: string): number | undefined {
-  const trimmed = value.trim()
-  return trimmed === '' ? undefined : Number(trimmed)
-}
+function nodeLabel(id: string): string { return graph.value?.nodes.find(node => node.id === id)?.label ?? id }
+function clearSelection(): void { context.value = null; store.clearSelection() }
+function selectNode(id: string): void { context.value = null; store.select('node', id); drawer.value = 'detail' }
 
-async function loadCenter(): Promise<void> {
-  const centerId = Number(filters.centerId)
-  if (!filters.centerId.trim() || !Number.isSafeInteger(centerId) || centerId < 1) {
-    errorMessage.value = '请输入大于0的中心节点业务ID。'
-    return
-  }
-  await loadGraph(() => graphApi.subgraph({
-    centerType: filters.centerType,
-    centerId,
-    depth: Number(filters.depth) || 1,
-    nodeLimit: Number(filters.nodeLimit) || 100,
-    relationshipTypes: filters.relationshipTypes.length ? filters.relationshipTypes : undefined,
-    nodeTypes: filters.nodeTypes.length ? filters.nodeTypes : undefined,
-    publicationYearFrom: numOrUndef(filters.publicationYearFrom),
-    publicationYearTo: numOrUndef(filters.publicationYearTo),
-    achievementTypes: splitAchievementTypes(),
-  }), false)
-}
-
-async function loadPath(): Promise<void> {
-  const sourceId = Number(pathQuery.sourceId)
-  const targetId = Number(pathQuery.targetId)
-  if (!Number.isSafeInteger(sourceId) || sourceId < 1 || !Number.isSafeInteger(targetId) || targetId < 1) {
-    errorMessage.value = '请输入大于0的路径起点和终点业务ID。'
-    return
-  }
-  await loadGraph(() => graphApi.path({
-    sourceType: pathQuery.sourceType,
-    sourceId,
-    targetType: pathQuery.targetType,
-    targetId,
-    maxHops: Number(pathQuery.maxHops) || 6,
-  }), false)
-}
-
-async function expandSelected(): Promise<void> {
-  const node = selectedNode.value
-  if (!node || !canExpandSelected.value) return
-  await loadGraph(() => graphApi.subgraph({
-    centerType: node.type,
-    centerId: Number(node.businessId),
-    depth: 1,
-    nodeLimit: Math.min(Number(filters.nodeLimit) || 100, GRAPH_NODE_LIMIT - (graph.value?.nodes.length ?? 0)),
-    relationshipTypes: filters.relationshipTypes.length ? filters.relationshipTypes : undefined,
-    nodeTypes: filters.nodeTypes.length ? filters.nodeTypes : undefined,
-    publicationYearFrom: numOrUndef(filters.publicationYearFrom),
-    publicationYearTo: numOrUndef(filters.publicationYearTo),
-    achievementTypes: splitAchievementTypes(),
-  }), true)
-}
-
-async function loadGraph(request: () => Promise<GraphResponse>, merge: boolean): Promise<void> {
-  const version = ++graphRequestVersion
-  loading.value = true
-  errorMessage.value = ''
-  try {
-    const response = await request()
-    if (version !== graphRequestVersion) return
-    const existingNodeIds = new Set(graph.value?.nodes.map((node) => node.id) ?? [])
-    addedNodeIds.value = merge
-      ? response.nodes.filter((node) => !existingNodeIds.has(node.id)).map((node) => node.id)
-      : []
-    graph.value = mergeGraph(merge ? graph.value : null, response)
-    selectedNodeId.value = response.rootNodeId
-    selectedEdgeId.value = ''
-    viewMode.value = 'graph'
-    await nextTick()
-  } catch (error) {
-    if (version === graphRequestVersion) errorMessage.value = toErrorMessage(error)
-  } finally {
-    if (version === graphRequestVersion) loading.value = false
-  }
-}
-
-async function loadSyncStatus(): Promise<void> {
-  if (!hasPermission('GRAPH_SYNC_READ')) return
-  try {
-    syncStatus.value = await graphApi.syncStatus()
-  } catch {
-    syncStatus.value = null
-  }
-}
-
-function toggleNodeType(type: GraphNodeType): void {
-  const index = filters.nodeTypes.indexOf(type)
-  if (index >= 0) filters.nodeTypes.splice(index, 1)
-  else filters.nodeTypes.push(type)
-}
-function toggleRelationshipType(type: GraphRelationshipType): void {
-  const index = filters.relationshipTypes.indexOf(type)
-  if (index >= 0) filters.relationshipTypes.splice(index, 1)
-  else filters.relationshipTypes.push(type)
-}
-
-function splitAchievementTypes(): string[] | undefined {
-  const values = splitValues(filters.achievementTypes)
-  return values.length ? [...new Set(values)] : undefined
-}
-
-function nodeTypeLabel(type: GraphNodeType): string {
-  return nodeTypes.find((item) => item.value === type)?.label ?? type
-}
-
-function selectNode(id: string): void {
-  selectedNodeId.value = id
-  selectedEdgeId.value = ''
-}
+/** 合作仍聚焦真实共同作品与双方创作边，切换时复用同一个画布实例。 */
 function selectEdge(id: string): void {
-  selectedEdgeId.value = id
-  selectedNodeId.value = ''
+  context.value = null
+  store.select('edge', id)
+  if (cooperations.value.some(item => item.edge.id === id)) {
+    store.focusedCooperationId = id
+    drawer.value = ''
+  } else drawer.value = 'detail'
 }
+function leaveCooperation(): void { clearSelection() }
 
-async function restoreQuery(value: GraphFilters): Promise<void> {
-  Object.assign(filters, value)
+/** 页面只协调抽屉和菜单；请求、竞态与历史提交由概览 store 负责。 */
+async function enterNode(id: string): Promise<void> {
+  const node = graph.value?.nodes.find(item => item.id === id)
+  if (!node) return
+  drawer.value = ''
+  context.value = null
+  await store.enterNode(node)
+}
+async function navigate(index: number): Promise<void> {
+  drawer.value = ''
+  context.value = null
+  await store.goTo(index)
+}
+async function refresh(): Promise<void> { context.value = null; await store.refresh() }
+
+/** 限制菜单在画布可见范围内，焦点落到可执行操作，支持 Escape 退出。 */
+async function openContext(value: NonNullable<typeof context.value>): Promise<void> {
+  store.select(value.kind, value.id)
+  context.value = { ...value, x: Math.max(0, Math.min(value.x, (stage.value?.clientWidth ?? 360) - 190)),
+    y: Math.max(0, Math.min(value.y, (stage.value?.clientHeight ?? 520) - 200)) }
   await nextTick()
-  filters.centerId = value.centerId
-  await loadCenter()
+  menu.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
 }
+function outsideMenu(event: PointerEvent): void {
+  if (context.value && event.target instanceof Node && !menu.value?.contains(event.target)) context.value = null
+}
+function closeContext(): void { context.value = null; stage.value?.querySelector<HTMLElement>('.graph-canvas')?.focus() }
 
-/** 详情页只传类型和规范ID；不把路由参数当作完整服务端查询。 */
-async function loadRouteCenter(): Promise<void> {
-  const { centerType, centerId } = route.query
-  if (centerType === undefined && centerId === undefined) return
-  if (typeof centerType !== 'string' || !nodeTypes.some((item) => item.value === centerType)
-    || typeof centerId !== 'string' || !/^\d+$/.test(centerId)
-    || !Number.isSafeInteger(Number(centerId)) || Number(centerId) < 1) {
-    errorMessage.value = '图谱入口参数无效，请重新选择中心节点。'
+watch(relationship, value => { if (value === 'COAUTHORED') nodeType.value = '' })
+watch([keyword, nodeType, relationship], () => { context.value = null })
+onMounted(async () => {
+  if (route.query.centerType !== undefined || route.query.centerId !== undefined || legacyStore.pendingQuery) {
+    await router.replace({ path: '/graph/explore', query: route.query })
     return
   }
-  filters.centerType = centerType as GraphNodeType
-  await nextTick()
-  filters.centerId = centerId
-  await loadCenter()
-}
-
-watch(() => [route.query.centerType, route.query.centerId], loadRouteCenter)
-onMounted(() => { void loadSyncStatus(); void loadRouteCenter() })
-onBeforeUnmount(() => { graphRequestVersion++ })
+  store.reset()
+  document.addEventListener('pointerdown', outsideMenu)
+  await refresh()
+})
+onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu); store.reset() })
 </script>
 
 <template>
-  <section class="page-stack">
-    <PageHeader
-      title="知识图谱"
-      description="搜索论文、作者或机构，探索它们之间的关系。图谱为局部数据视图，成果与统计以 MySQL 规范目录为准。"
-    >
-      <template #actions>
-        <div class="flex flex-wrap items-center gap-2">
-          <StatusPill :status="syncWarning ? 'DEGRADED' : 'UP'" :pulse="!syncWarning" />
-          <span class="text-sm font-medium">{{ syncLabel }}</span>
-          <span v-if="syncStatus" class="text-xs text-muted-foreground">
-            待处理 {{ syncStatus.pendingCount }} · 死信 {{ syncStatus.deadCount }}
-          </span>
-        </div>
-      </template>
-    </PageHeader>
-
-    <GraphSavedQueries :filters="filters" @restore="restoreQuery" />
-
-    <!-- 过滤区 -->
-    <PanelSection title="子图过滤" subtitle="深度最大2，累计最多300个节点；空类型过滤表示全部。">
-      <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <FilterField label="中心类型">
-          <Select v-model="filters.centerType">
-            <SelectTrigger placeholder="选择中心类型" />
-            <SelectContent>
-              <SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem>
-            </SelectContent>
-          </Select>
-        </FilterField>
-        <GraphEntityPicker v-model="filters.centerId" :type="filters.centerType" label="中心" class="sm:col-span-2" />
-        <FilterField label="查询深度"><Input v-model="filters.depth" type="number" min="1" max="2" /></FilterField>
-        <FilterField label="本次节点上限"><Input v-model="filters.nodeLimit" type="number" min="1" max="300" /></FilterField>
-        <FilterField label="起始年份"><Input v-model="filters.publicationYearFrom" type="number" min="1000" max="9999" /></FilterField>
-        <FilterField label="结束年份"><Input v-model="filters.publicationYearTo" type="number" min="1000" max="9999" /></FilterField>
-        <FilterField label="成果类型" class="sm:col-span-2" hint="多个类型使用英文逗号分隔">
-          <Input v-model="filters.achievementTypes" placeholder="如 article, review" @keydown.enter="loadCenter" />
-        </FilterField>
-      </div>
-
-      <div class="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div class="space-y-2">
-          <span class="text-sm font-medium text-muted-foreground">节点类型</span>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="item in nodeTypes"
-              :key="item.value"
-              type="button"
-              :aria-pressed="filters.nodeTypes.includes(item.value)"
-              class="rounded-full border px-3 py-1 text-xs transition-colors"
-              :class="filters.nodeTypes.includes(item.value)
-                ? 'border-primary bg-primary/12 text-primary'
-                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-              @click="toggleNodeType(item.value)"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-        </div>
-        <div class="space-y-2">
-          <span class="text-sm font-medium text-muted-foreground">关系类型</span>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="item in relationshipTypes"
-              :key="item.value"
-              type="button"
-              :aria-pressed="filters.relationshipTypes.includes(item.value)"
-              class="rounded-full border px-3 py-1 text-xs transition-colors"
-              :class="filters.relationshipTypes.includes(item.value)
-                ? 'border-primary bg-primary/12 text-primary'
-                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'"
-              @click="toggleRelationshipType(item.value)"
-            >
-              {{ item.label }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-4 flex justify-end border-t border-border pt-4">
-        <Button :loading="loading" @click="loadCenter">加载中心子图</Button>
-      </div>
-
-      <!-- 路径查询 -->
-      <details class="mt-4 rounded-lg border border-border bg-muted/30 px-4">
-        <summary class="cursor-pointer py-3 text-sm font-medium text-primary">查询两点间最短路径</summary>
-        <div class="grid grid-cols-1 items-end gap-3 pb-4 sm:grid-cols-2 lg:grid-cols-6">
-          <FilterField label="起点类型">
-            <Select v-model="pathQuery.sourceType">
-              <SelectTrigger placeholder="起点类型" />
-              <SelectContent><SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent>
-            </Select>
-          </FilterField>
-          <GraphEntityPicker v-model="pathQuery.sourceId" :type="pathQuery.sourceType" label="起点" />
-          <FilterField label="终点类型">
-            <Select v-model="pathQuery.targetType">
-              <SelectTrigger placeholder="终点类型" />
-              <SelectContent><SelectItem v-for="item in nodeTypes" :key="item.value" :value="item.value">{{ item.label }}</SelectItem></SelectContent>
-            </Select>
-          </FilterField>
-          <GraphEntityPicker v-model="pathQuery.targetId" :type="pathQuery.targetType" label="终点" />
-          <FilterField label="最大跳数"><Input v-model="pathQuery.maxHops" type="number" min="1" max="6" /></FilterField>
-          <Button variant="outline" :loading="loading" @click="loadPath">查询路径</Button>
-        </div>
-      </details>
-    </PanelSection>
-
-    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
-    <Alert v-if="graph?.truncated" variant="warning">
-      <AlertTitle>{{ graph.narrowingSuggestion || '图结果已达到服务端限制，请缩小过滤范围。' }}</AlertTitle>
-    </Alert>
-
-    <!-- 图工作区 -->
-    <div v-if="graph" class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)]">
-      <PanelSection :padded="false" class="overflow-hidden">
-        <template #title>
-          <div class="min-w-0">
-            <h2 class="truncate text-sm font-semibold">{{ graph.nodes.length }} 个节点 · {{ graph.edges.length }} 条关系</h2>
-            <span class="mono-evidence block text-xs text-muted-foreground">Trace {{ graph.traceId }}</span>
-          </div>
-        </template>
-        <template #actions>
-          <div class="flex items-center gap-1 rounded-md border border-border p-0.5" role="group" aria-label="图谱视图切换">
-            <button
-              v-for="mode in ([['graph', '图形'], ['nodes', '节点表'], ['edges', '关系表']] as const)"
-              :key="mode[0]"
-              type="button"
-              :aria-pressed="viewMode === mode[0]"
-              class="rounded px-2.5 py-1 text-xs font-medium transition-colors"
-              :class="viewMode === mode[0] ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
-              @click="viewMode = mode[0]"
-            >
-              {{ mode[1] }}
-            </button>
-          </div>
-        </template>
-
-        <!-- 图例 -->
-        <ul v-if="viewMode === 'graph'" class="flex flex-wrap gap-x-4 gap-y-1 border-b border-border px-4 py-2 text-xs text-muted-foreground" aria-label="节点类型图例">
-          <li v-for="item in nodeTypes" :key="item.value" class="flex items-center gap-1.5">
-            <span class="size-2.5 rounded-full" :class="{
-              'bg-graph-achievement': item.value === 'ACHIEVEMENT',
-              'bg-graph-author': item.value === 'AUTHOR',
-              'bg-graph-institution': item.value === 'INSTITUTION',
-              'bg-graph-venue': item.value === 'VENUE',
-              'bg-graph-topic': item.value === 'TOPIC',
-            }" aria-hidden="true" />
-            {{ item.label }}
-          </li>
-        </ul>
-
-        <div v-show="viewMode === 'graph'" class="p-2">
-          <GraphCanvas
-            :elements="graphElements"
-            :root-node-id="graph.rootNodeId"
-            :label="graphLabel"
-            :loading="loading"
-            :added-node-ids="addedNodeIds"
-            @select-node="selectNode"
-            @select-edge="selectEdge"
-          />
-        </div>
-
-        <div v-if="viewMode === 'nodes'" class="p-4">
-          <DataTable
-            :columns="nodeColumns"
-            :data="graph.nodes"
-            :get-row-id="(row) => row.id"
-            empty-text="暂无节点"
-            dense
-          >
-            <template #cell-actions="{ row }">
-              <Button variant="link" size="sm" class="h-auto p-0" @click="selectNode(row.id)">查看</Button>
-            </template>
-          </DataTable>
-        </div>
-        <div v-if="viewMode === 'edges'" class="p-4">
-          <DataTable
-            :columns="edgeColumns"
-            :data="graph.edges"
-            :get-row-id="(row) => row.id"
-            empty-text="暂无关系"
-            dense
-          >
-            <template #cell-actions="{ row }">
-              <Button variant="link" size="sm" class="h-auto p-0" @click="selectEdge(row.id)">查看</Button>
-            </template>
-          </DataTable>
-        </div>
-      </PanelSection>
-
-      <!-- 检查器 -->
-      <PanelSection class="xl:sticky xl:top-20" aria-live="polite">
-        <template v-if="selectedNode">
-          <span class="eyebrow">节点 · {{ nodeTypeLabel(selectedNode.type) }}</span>
-          <h2 class="mt-1 break-words text-xl font-semibold">{{ selectedNode.label }}</h2>
-          <p class="mono-evidence mt-1 text-xs text-muted-foreground">业务ID · {{ selectedNode.businessId }}</p>
-          <div class="my-4 flex items-center justify-between gap-3 border-b border-border pb-4">
-            <Button variant="outline" size="sm" :disabled="!canExpandSelected" @click="expandSelected">展开一跳</Button>
-            <RouterLink v-if="selectedNodeTarget" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" :to="selectedNodeTarget">
-              进入业务详情 →
-            </RouterLink>
-          </div>
-        </template>
-        <template v-else-if="selectedEdge">
-          <span class="eyebrow">关系</span>
-          <h2 class="mt-1 text-xl font-semibold">{{ relationshipLabel(selectedEdge.type) }}</h2>
-          <p class="mono-evidence mt-1 break-words text-xs text-muted-foreground">{{ selectedEdge.source }} → {{ selectedEdge.target }}</p>
-        </template>
-        <template v-else>
-          <span class="eyebrow">检查器</span>
-          <h2 class="mt-1 text-xl font-semibold">选择图中元素</h2>
-          <p class="mt-1 text-sm text-muted-foreground">点击节点或关系，查看有限摘要、主动展开或进入对应业务页面。</p>
-        </template>
-
-        <dl v-if="selectedNode || selectedEdge" class="grid grid-cols-[minmax(90px,0.7fr)_minmax(0,1.3fr)] gap-y-1">
-          <template v-for="item in propertyRows" :key="item.key">
-            <dt class="border-b border-border py-2 text-xs text-muted-foreground">{{ item.key }}</dt>
-            <dd class="break-words border-b border-border py-2 text-sm">{{ item.value }}</dd>
-          </template>
-        </dl>
-        <p v-if="(selectedNode || selectedEdge) && !propertyRows.length" class="mt-3 text-sm text-muted-foreground">该元素没有额外摘要属性。</p>
-      </PanelSection>
+  <section class="graph-overview" aria-labelledby="graph-title">
+    <header class="graph-heading">
+      <h1 id="graph-title"><Circle :size="17" aria-hidden="true" />图谱概览</h1>
+      <div class="graph-links"><RouterLink to="/graph/explore">高级查询</RouterLink><RouterLink to="/graph/path">路径分析</RouterLink><RouterLink to="/graph/queries">常用查询</RouterLink></div>
+    </header>
+    <div class="overview-toolbar">
+      <ElInput v-model="keyword" class="overview-search" aria-label="搜索当前图谱" placeholder="搜索当前图谱中的名称或 ID" clearable :maxlength="200"><template #suffix><Search :size="16" /></template></ElInput>
+      <ElSelect v-model="nodeType" :disabled="relationship === 'COAUTHORED'" aria-label="节点类型" placeholder="全部节点类型" clearable><ElOption v-for="type in nodeDefinitions" :key="type.code" :label="type.displayName" :value="type.code" /></ElSelect>
+      <ElSelect v-model="relationship" aria-label="关系类型" placeholder="全部关系类型" clearable><ElOption v-for="type in edgeDefinitions" :key="type.code" :label="type.displayName" :value="type.code" /></ElSelect>
+      <div class="overview-actions"><ElButton type="primary" :loading="loading" @click="refresh"><RefreshCw v-if="!loading" :size="15" class="mr-1.5" />刷新图谱</ElButton><ElButton @click="router.push('/graph/entities')">实体管理</ElButton><ElButton @click="router.push('/graph/relations')">关系管理</ElButton></div>
     </div>
-
-    <!-- 空态 -->
-    <PanelSection v-else>
-      <div class="flex flex-col items-center gap-3 px-6 py-14 text-center">
-        <Waypoints class="size-10 text-muted-foreground/50" aria-hidden="true" />
-        <strong class="text-base font-semibold">从一个确定的业务节点开始</strong>
-        <p class="max-w-md text-sm text-muted-foreground">
-          选择节点类型并输入业务ID。这里不会自动请求大范围图谱，也不会绕过服务端的深度和节点上限。
-        </p>
+    <nav class="overview-navigation" aria-label="图谱浏览历史">
+      <ElButton text :disabled="!history.length || loading" @click="navigate(history.length - 2)"><ArrowLeft :size="15" class="mr-1" />返回上一级</ElButton>
+      <ElButton text :aria-current="!history.length ? 'page' : undefined" :disabled="loading" @click="navigate(-1)">全部</ElButton>
+      <template v-for="(item, index) in history" :key="item.id"><span aria-hidden="true">/</span><ElButton text :title="item.name" :aria-current="index === history.length - 1 ? 'page' : undefined" :disabled="loading" @click="navigate(index)">{{ item.name }}</ElButton></template>
+      <span class="scope-description">{{ history.length ? '当前中心 · 双向两跳' : '受限概览' }} · 最多300个节点</span>
+    </nav>
+    <p class="overview-scope">筛选仅作用于当前读取范围。双击节点可查看两跳子图；右键查看操作。全局统计暂未提供。</p>
+    <div class="overview-write-actions"><ElButton size="small" disabled title="当前未提供节点新增接口">新增节点</ElButton><ElButton size="small" disabled title="当前未提供关系新增接口">拖动建立关系</ElButton><span>节点和关系的增删改暂不可用，当前仅支持浏览。</span></div>
+    <p v-if="loading || filtering" role="status" class="overview-scope">{{ filtering ? '正在等待筛选…' : graph ? '正在更新图谱，当前显示上次成功结果…' : '正在读取图谱…' }}</p>
+    <ElAlert v-if="errorMessage" class="overview-notice" type="error" :closable="false" :title="graph ? errorMessage + '；保留上次成功结果' : errorMessage" show-icon />
+    <ElAlert v-if="graph?.truncated" class="overview-notice" type="warning" :closable="false" title="当前显示受限网络，可通过高级查询进一步定位作者或作品。" show-icon />
+    <p v-if="relationship === 'COAUTHORED'" class="px-4 pb-2 text-xs text-muted-foreground">合作视图同时保留共同作品和双方创作连线，点击合作线可单独查看。</p>
+    <div ref="stage" class="overview-stage" :class="{ 'has-cooperation': focusedCooperation }">
+      <GraphCanvas ref="canvas" :data="canvasData" :label="label" :loading="loading || filtering" :scope-key="scopeKey" :positions="positions" :selected-node-id="selectedNodeId" :selected-edge-id="selectedEdgeId" @select-node="selectNode" @select-edge="selectEdge" @double-click-node="enterNode" @clear-selection="leaveCooperation" @context-menu="openContext" @dismiss-context="context = null" />
+      <div v-if="context" ref="menu" class="graph-context-menu" role="menu" aria-label="图谱操作" :style="{ left: context.x + 'px', top: context.y + 'px' }" @keydown.esc.stop.prevent="closeContext">
+        <button role="menuitem" @click="context.kind === 'node' ? selectNode(context.id) : selectEdge(context.id)">查看详情</button>
+        <button v-if="context.kind === 'node'" role="menuitem" @click="enterNode(context.id)">查看两跳子图</button>
+        <button v-if="context.kind === 'node'" role="menuitem" disabled title="当前未提供节点编辑接口">编辑节点（暂不可用）</button>
+        <button role="menuitem" disabled title="当前未提供删除接口">{{ context.kind === 'node' ? '删除节点' : '删除关系' }}（暂不可用）</button>
       </div>
-    </PanelSection>
+      <div class="canvas-controls"><ElButton text size="small" :disabled="!visibleCooperations.length" @click="drawer = 'cooperations'">合作作品</ElButton><span aria-hidden="true">|</span><ElButton text size="small" :disabled="!counts.nodes" @click="canvas?.fit()"><Maximize :size="15" class="mr-1" />适应画布</ElButton><span aria-hidden="true">|</span><ElButton text size="small" @click="drawer = 'nodes'"><Table2 :size="15" class="mr-1" />节点表</ElButton><ElButton text size="small" @click="drawer = 'edges'">关系表</ElButton></div>
+      <dl v-if="graph && !focusedCooperation" class="canvas-statistics" aria-label="当前图谱统计"><div class="statistics-heading">当前视图</div><div><dt>图谱节点数：</dt><dd>{{ counts.nodes }}</dd></div><div><dt>节点类型数：</dt><dd>{{ counts.nodeTypes }}</dd></div><div><dt>关系类型数：</dt><dd>{{ counts.edgeTypes }}</dd></div><div><dt>关系数量：</dt><dd>{{ counts.edges }}</dd></div></dl>
+      <section v-if="focusedCooperation" class="cooperation-panel" aria-label="合作作品详情">
+        <div class="flex items-center justify-between gap-2"><h2 class="text-sm font-semibold">共同创作</h2><ElButton link type="primary" @click="leaveCooperation">返回完整图谱</ElButton></div>
+        <p class="cooperation-authors">{{ focusedCooperation.source.label }} <span>×</span> {{ focusedCooperation.target.label }}</p>
+        <p class="text-xs text-muted-foreground">共同作品依据（{{ focusedCooperation.works.length }}）</p>
+        <ul class="cooperation-works"><li v-for="work in focusedCooperation.works" :key="work.id"><RouterLink :to="nodeTarget(work) ?? '/catalog'">《{{ work.label }}》</RouterLink><span>{{ focusedCooperation.source.label }}、{{ focusedCooperation.target.label }}共同创作</span></li></ul>
+        <p v-if="focusedCooperation.incomplete" role="status" class="text-sm">部分作品依据未完整返回，请通过高级查询核对。</p>
+        <p class="text-xs text-muted-foreground">画布保留两位作者、共同作品及双方创作连线。以上依据仅覆盖当前读取的图谱。</p>
+      </section>
+      <div v-if="!counts.nodes" class="overview-empty" role="status"><p>{{ loading ? '正在读取图谱…' : errorMessage ? '图谱读取失败，请刷新重试' : graph?.nodes.length ? '没有匹配的节点或关系' : '暂无已同步的作者和作品' }}</p><span v-if="!loading && !errorMessage">{{ graph?.nodes.length ? '调整搜索或下拉筛选，查看其他结果。' : '数据完成图投影后，可在这里浏览创作与合作关系。' }}</span></div>
+      <ul class="canvas-legend" aria-label="节点类型图例"><li v-for="type in nodeDefinitions" :key="type.code"><span :style="{ backgroundColor: type.color }" />{{ type.displayName }}</li><li class="legend-note">有向连线：创作 · 无向虚线：合作</li></ul>
+    </div>
+    <footer class="overview-footer"><span>统计仅覆盖当前视图</span><span>合作依据来自当前网络的共同作品</span><span>类型颜色和尺寸沿用已保存配置</span></footer>
+    <ElDrawer :model-value="Boolean(drawer)" :title="drawer === 'nodes' ? '节点表' : drawer === 'edges' ? '关系表' : drawer === 'cooperations' ? '合作作品' : '图谱详情'" size="min(720px, 100vw)" @update:model-value="value => { if (!value) drawer = '' }">
+      <template v-if="drawer === 'cooperations'">
+        <p class="mb-4 text-sm text-muted-foreground">每组合作作者与他们共同创作的作品，可在图中逐组查看。</p>
+        <DataTable :columns="cooperationColumns" :data="visibleCooperations" :get-row-id="item => item.edge.id" empty-text="当前筛选没有合作关系">
+          <template #cell-works="{ row }"><ul class="grid gap-2"><li v-for="work in row.works" :key="work.id">{{ work.label }}</li></ul><span v-if="row.incomplete" class="text-xs text-muted-foreground">部分依据未返回</span></template>
+          <template #cell-actions="{ row }"><ElButton link type="primary" @click="selectEdge(row.edge.id)">在图中查看</ElButton></template>
+        </DataTable>
+      </template>
+      <DataTable v-else-if="drawer === 'nodes'" :columns="nodeColumns" :data="visible?.nodes ?? []" :get-row-id="row => row.id" empty-text="暂无匹配节点"><template #cell-actions="{ row }"><ElButton link type="primary" @click="selectNode(row.id)">详情</ElButton></template></DataTable>
+      <DataTable v-else-if="drawer === 'edges'" :columns="edgeColumns" :data="visible?.edges ?? []" :get-row-id="row => row.id" empty-text="暂无匹配关系"><template #cell-actions="{ row }"><ElButton link type="primary" @click="selectEdge(row.id)">详情</ElButton></template></DataTable>
+      <div v-else-if="drawer === 'detail'" class="grid gap-4 text-sm">
+        <template v-if="selectedNode || selectedEdge">
+          <h2 class="text-base font-semibold">{{ selectedNode?.label ?? `${nodeLabel(selectedEdge!.source)} — ${nodeLabel(selectedEdge!.target)}` }}</h2>
+          <p>类型：{{ selectedType?.displayName ?? '--' }}</p><p>类型审核：{{ reviewStatusLabel(selectedType?.reviewStatus) }} · {{ selectedType?.size ?? '--' }} px</p>
+          <template v-if="selectedEdge?.type === 'COAUTHORED'"><p>合作关系由当前图谱中的共同作品推导，不代表全库合作总量。</p><h3 class="font-medium">共同作品依据（{{ sharedWorks.length }}）</h3><ul class="grid gap-2"><li v-for="work in sharedWorks" :key="work.id"><RouterLink :to="nodeTarget(work) ?? '/catalog'" class="text-primary">{{ work.label }}</RouterLink></li></ul></template>
+          <NodeDetail v-if="selectedNode && selectedDisplayNode" :node="selectedNode" :display="selectedDisplayNode" :loading="loading" @explore="enterNode(selectedNode.id)" />
+          <template v-if="selectedEdge"><p>关系ID：{{ selectedEdge.id }}</p><ElButton disabled title="当前未提供关系删除接口">删除关系（暂不可用）</ElButton></template>
+        </template><p v-else>选择节点或关系，查看类型配置与作品依据。</p>
+      </div>
+    </ElDrawer>
   </section>
 </template>
+
+<style scoped>
+.overview-navigation { display: flex; align-items: center; gap: 4px; padding: 0 12px 8px; flex-wrap: wrap; }
+.overview-navigation :deep(.el-button) { max-width: 240px; margin-left: 0; }
+.overview-navigation :deep(.el-button > span) { overflow: hidden; text-overflow: ellipsis; }
+.overview-navigation :deep([aria-current="page"]) { color: hsl(var(--primary)); font-weight: 600; }
+.scope-description { color: hsl(var(--muted-foreground)); font-size: 12px; margin-left: auto; }
+.overview-scope { padding: 0 16px 8px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.overview-write-actions { padding: 0 16px 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.overview-write-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.statistics-heading { font-weight: 600; padding-bottom: 4px; }
+.graph-context-menu { position: absolute; z-index: 3; width: 188px; padding: 4px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover)); box-shadow: var(--shadow-md); display: grid; }
+.graph-context-menu button { text-align: left; padding: 8px 10px; font-size: 13px; border-radius: 4px; }
+.graph-context-menu button:focus-visible, .graph-context-menu button:hover:not(:disabled) { outline: none; background: hsl(var(--accent)); }
+.graph-context-menu button:disabled { color: hsl(var(--muted-foreground)); cursor: not-allowed; }
+.graph-overview { margin: 12px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); min-width: 0; }
+.graph-heading { min-height: 52px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid hsl(var(--border)); }
+.graph-heading h1 { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
+.graph-heading h1 svg { color: hsl(var(--primary)); stroke-width: 3; }
+.graph-links { display: flex; gap: 16px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.graph-links a:hover { color: hsl(var(--primary)); }
+.overview-toolbar { padding: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.overview-toolbar .overview-search { width: 280px; }
+.overview-toolbar :deep(.el-select) { width: 160px; }
+.overview-actions { display: flex; gap: 8px; margin-left: auto; }
+.overview-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.overview-stage { position: relative; height: max(520px, calc(100dvh - 236px)); overflow: hidden; }
+.overview-stage.has-cooperation :deep(.graph-canvas) { width: calc(100% - 350px); }
+.cooperation-panel { position: absolute; right: 12px; top: 16px; width: 326px; max-height: calc(100% - 32px); overflow: auto; padding: 16px; display: grid; gap: 14px; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); border-radius: 6px; }
+.cooperation-authors { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+.cooperation-authors span { color: hsl(var(--muted-foreground)); margin: 0 5px; }
+.cooperation-works { display: grid; gap: 14px; font-size: 14px; overflow-wrap: anywhere; }
+.cooperation-works a { color: hsl(var(--primary)); }
+.cooperation-works span { display: block; font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 5px; }
+.overview-stage :deep(.graph-canvas) { background: hsl(var(--card)) !important; }
+.canvas-controls, .canvas-statistics, .canvas-legend { position: absolute; z-index: 1; background: hsl(var(--card) / .96); }
+.canvas-controls { top: 16px; left: 12px; display: flex; align-items: center; padding: 4px; border: 1px solid hsl(var(--border)); border-radius: 4px; color: hsl(var(--muted-foreground)); }
+.canvas-controls :deep(.el-button + .el-button) { margin-left: 0; }
+.canvas-statistics { top: 16px; right: 12px; padding: 14px 18px; border: 1px solid hsl(var(--border)); font-size: 13px; line-height: 1.9; }
+.canvas-statistics div { display: flex; justify-content: space-between; gap: 10px; }
+.canvas-statistics dd { font-variant-numeric: tabular-nums; }
+.canvas-legend { left: 12px; bottom: 12px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 8px 12px; font-size: 12px; }
+.canvas-legend li { display: flex; gap: 6px; align-items: center; }
+.canvas-legend li > span { width: 12px; height: 12px; border-radius: 50%; }
+.legend-note { color: hsl(var(--muted-foreground)); }
+.overview-footer { border-top: 1px solid hsl(var(--border)); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.overview-notice { margin: 0 12px 8px; width: auto; }
+.overview-empty { position: absolute; inset: 180px 24px 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; pointer-events: none; font-size: 14px; }
+.overview-empty span { font-size: 12px; color: hsl(var(--muted-foreground)); }
+@media (max-width: 767px) {
+  .graph-overview { margin: 8px; }
+  .graph-heading { flex-wrap: wrap; }
+  .overview-toolbar .overview-search { width: 100%; }
+  .overview-toolbar :deep(.el-select) { width: calc(50% - 5px); }
+  .overview-actions { width: 100%; margin-left: 0; }
+  .overview-stage.has-cooperation { height: auto; }
+  .overview-stage.has-cooperation :deep(.graph-canvas) { width: 100%; height: 450px !important; }
+  .cooperation-panel { position: static; width: auto; max-height: none; margin: 12px; }
+  .has-cooperation .canvas-legend { position: static; margin: 12px; }
+  .canvas-controls { right: 12px; flex-wrap: wrap; }
+  .canvas-statistics { top: 100px; font-size: 12px; padding: 8px 12px; }
+  .canvas-legend { right: 12px; gap: 8px 16px; }
+}
+</style>

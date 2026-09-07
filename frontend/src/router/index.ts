@@ -5,7 +5,8 @@ import {
   type RouteRecordRaw,
 } from 'vue-router'
 
-import { ensureSession, hasPermission, session } from '@/services/session'
+import { useSessionStore } from '@/stores/session'
+import { cancelSessionRequests } from '@/services/http'
 import type { Permission } from '@/types/api'
 
 declare module 'vue-router' {
@@ -89,9 +90,47 @@ export const routes: RouteRecordRaw[] = [
       },
       {
         path: 'graph',
-        name: 'graph',
-        component: () => import('@/views/GraphView.vue'),
         meta: { permission: 'GRAPH_READ', title: '知识图谱' },
+        children: [
+          {
+            path: '',
+            name: 'graph',
+            component: () => import('@/views/GraphView.vue'),
+            meta: { permission: 'GRAPH_READ', title: '图谱概览' },
+          },
+          {
+            path: 'explore',
+            name: 'graph-explore',
+            component: () => import('@/views/GraphExploreView.vue'),
+            meta: { permission: 'GRAPH_READ', title: '高级查询' },
+          },
+          {
+            path: 'entities',
+            name: 'graph-entities',
+            component: () => import('@/views/GraphTypesView.vue'),
+            props: { kind: 'NODE' },
+            meta: { permission: 'GRAPH_READ', title: '实体管理' },
+          },
+          {
+            path: 'relations',
+            name: 'graph-relations',
+            component: () => import('@/views/GraphTypesView.vue'),
+            props: { kind: 'RELATIONSHIP' },
+            meta: { permission: 'GRAPH_READ', title: '关系管理' },
+          },
+          {
+            path: 'path',
+            name: 'graph-path',
+            component: () => import('@/views/GraphPathView.vue'),
+            meta: { permission: 'GRAPH_READ', title: '路径分析' },
+          },
+          {
+            path: 'queries',
+            name: 'graph-queries',
+            component: () => import('@/views/GraphQueriesView.vue'),
+            meta: { permission: 'GRAPH_READ', title: '常用查询' },
+          },
+        ],
       },
       {
         path: 'analytics',
@@ -133,20 +172,27 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     routes,
   })
 
+  // 成功导航提交后、目标页面挂载前，取消上个页面的业务读取与轮询请求。
+  router.afterEach((_to, _from, failure) => {
+    if (!failure) cancelSessionRequests()
+  })
+
   router.beforeEach(async (to) => {
     document.title = to.meta.title ? `${to.meta.title} · AACV System` : 'AACV System'
+    // 在守卫内部取 store：模块加载期不访问 Pinia，避免与路由的初始化顺序冲突。
+    const sessionStore = useSessionStore()
     if (to.meta.public) {
-      if (to.name === 'login' && (await ensureSession())) {
+      if (to.name === 'login' && (await sessionStore.ensureSession())) {
         return { name: 'overview' }
       }
       return true
     }
 
-    const user = await ensureSession()
+    const user = await sessionStore.ensureSession()
     if (!user) {
-      return sessionExpiredTarget(to.fullPath)
+      return sessionExpiredTarget(to.fullPath, sessionStore.lastError)
     }
-    if (!hasPermission(to.meta.permission)) {
+    if (!sessionStore.hasPermission(to.meta.permission)) {
       return { name: 'forbidden' }
     }
     return true
@@ -155,10 +201,10 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
   return router
 }
 
-function sessionExpiredTarget(fullPath: string) {
+function sessionExpiredTarget(fullPath: string, lastError: string) {
   return {
     name: 'login',
-    query: { redirect: fullPath, reason: session.lastError ? 'unavailable' : undefined },
+    query: { redirect: fullPath, reason: lastError ? 'unavailable' : undefined },
   }
 }
 

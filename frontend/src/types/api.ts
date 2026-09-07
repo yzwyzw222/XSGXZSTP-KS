@@ -367,13 +367,14 @@ export interface GraphNode {
 
 export interface GraphEdge {
   id: string
-  type: GraphRelationshipType
+  type: GraphRelationshipType | 'COAUTHORED'
   source: string
   target: string
   properties: Record<string, unknown>
 }
 
 export interface GraphResponse {
+  typeDefinitions?: GraphTypeDefinition[]
   nodes: GraphNode[]
   edges: GraphEdge[]
   rootNodeId: string
@@ -387,6 +388,16 @@ export interface GraphResponse {
   syncedAt: string | null
   projectionLagSeconds: number | null
   traceId: string
+}
+
+export interface GraphTypeDefinition {
+  kind: 'NODE' | 'RELATIONSHIP'
+  code: GraphNodeType | GraphRelationshipType | 'COAUTHORED'
+  displayName: string
+  color: string
+  size: number
+  reviewStatus: 'PENDING' | 'APPROVED' | 'REJECTED'
+  version: number
 }
 
 export interface GraphSyncStatus {

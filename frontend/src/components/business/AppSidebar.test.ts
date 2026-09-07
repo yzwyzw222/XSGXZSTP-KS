@@ -18,9 +18,22 @@ describe('四组侧栏导航', () => {
     expect(wrapper.findAll('nav section').map((section) => section.attributes('aria-label')))
       .toEqual(['可视化', '爬虫管理', '系统状态', '用户管理'])
     expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/catalog')
-    expect(wrapper.findAll('nav a')).toHaveLength(11)
+    expect(wrapper.findAll('nav a, nav button')).toHaveLength(11)
+    expect(wrapper.get('button[aria-label="知识图谱"]').attributes('aria-expanded')).toBe('false')
     expect(wrapper.get('section[aria-label="系统状态"]').text()).toContain('日志管理')
     expect(wrapper.get('section[aria-label="用户管理"]').text()).toContain('账号管理')
+    wrapper.unmount()
+  })
+
+  it('知识图谱父菜单独立折叠且三个子项按指定顺序展开', async () => {
+    const wrapper = await render()
+    const toggle = wrapper.get('button[aria-label="知识图谱"]')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(wrapper.findAll('.graph-submenu-link').map(link => link.text())).toEqual(['图谱概览', '实体管理', '关系管理'])
+    expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/catalog')
+    await toggle.trigger('click')
+    expect(wrapper.findAll('.graph-submenu-link')).toHaveLength(0)
     wrapper.unmount()
   })
 

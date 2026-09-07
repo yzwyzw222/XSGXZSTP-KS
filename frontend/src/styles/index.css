@@ -1,6 +1,11 @@
+@layer theme, base, element-plus, components, utilities;
 @import 'tailwindcss';
-@import 'tw-animate-css';
+@import 'element-plus/dist/index.css' layer(element-plus);
+@import 'element-plus/theme-chalk/dark/css-vars.css' layer(element-plus);
 @import './tokens.css';
+/* Element Plus 变量映射必须在 tokens.css 之后，依赖其中的语义令牌。 */
+@import './element-plus.css';
+@import './workbench.css';
 
 /* 将 semantic token 映射为 Tailwind 工具类（bg-background / text-foreground / border-border ...） */
 @theme inline {
@@ -119,13 +124,15 @@
 
   body {
     min-width: 320px;
-    min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     overflow-x: hidden;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-size: var(--font-size-md);
     line-height: var(--leading-normal);
+    font-variant-numeric: tabular-nums;
+    caret-color: hsl(var(--primary));
     transition: background-color var(--duration-normal) var(--ease-standard),
       color var(--duration-normal) var(--ease-standard);
   }
@@ -182,6 +189,9 @@
     background: hsl(var(--muted-foreground));
   }
 
+  /* 减少动态效果：全局关闭非必要动画与平滑滚动。
+     element-plus.css 中的同媒体查询块是唯一允许使用 !important 的例外，
+     用于压过 Element Plus 的非分层过渡声明。 */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       scroll-behavior: auto !important;
@@ -193,7 +203,7 @@
 }
 
 @layer components {
-  /* 小型大写字母引导标题（学术感） */
+  /* 小型大写字母引导标题（学术感）；仅用于分类引导词，不用于装饰性英文副标题 */
   .eyebrow {
     display: inline-block;
     color: hsl(var(--muted-foreground));
@@ -207,8 +217,12 @@
   .page-stack {
     display: grid;
     gap: var(--space-4);
-    padding: var(--space-6);
+    padding: var(--space-5) var(--space-4) var(--space-8);
     min-width: 0;
+    width: 100%;
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    align-content: start;
   }
   @media (min-width: 1024px) {
     .page-stack {

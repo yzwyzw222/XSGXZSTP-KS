@@ -74,7 +74,8 @@ test('研究人员查看MySQL统计图表、表格摘要和实际筛选范围', 
   await expect(page.getByRole('cell', { name: '2026' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '7', exact: true })).toBeVisible()
 
-  await page.locator('label:has-text("起始年份") input').fill('2025')
+  await page.getByRole('button', { name: '选择起始年份' }).click()
+  await page.getByRole('button', { name: '2025', exact: true }).click()
   const filteredRequest = page.waitForRequest((request) =>
     request.url().includes('/api/v1/analytics/overview?publicationYearFrom=2025'),
   )

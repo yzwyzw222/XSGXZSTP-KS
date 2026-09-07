@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ColumnDef } from '@tanstack/vue-table'
+import { ElAlert, ElButton, ElCheckbox, ElDialog, ElDrawer, ElInput, ElMessage, ElOption, ElSelect, ElSkeleton, ElTag } from 'element-plus'
+import FormField from '@/components/business/FormField.vue'
+import type { DataTableColumn } from '@/components/business/types'
 import { Plus, UserCog } from 'lucide-vue-next'
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -7,27 +9,17 @@ import UserProfileFields from '@/components/business/UserProfileFields.vue'
 import UserRoleChart from '@/components/business/UserRoleChart.vue'
 import AuditLogTable from '@/components/business/AuditLogTable.vue'
 import ErrorState from '@/components/business/ErrorState.vue'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { profileForm, validateProfile } from '@/utils/user-profile'
 import { getAudits } from '@/services/audits'
-import { session } from '@/services/session'
+import { useSessionStore } from '@/stores/session'
 
 import { ConfirmDialog, DataTable, PageHeader, PanelSection, StatusPill } from '@/components/business'
-import { Alert, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
-import { FormItem, FormLabel } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { toast } from '@/components/ui/sonner'
 import { ApiError, toErrorMessage } from '@/services/api'
 import { userApi } from '@/services/users'
 import type { AuditLog, PageResponse, RoleCode, UserAccount, UserStatistics } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
+
+const session = useSessionStore()
 
 const allRoles: Array<{ value: RoleCode; label: string }> = [
   { value: 'ADMIN', label: '管理员' },
@@ -126,7 +118,7 @@ async function saveUser(): Promise<void> {
     await userApi.update(selectedUser, editProfile.value, editRoles.value, editStatus.value)
     if (disposed) return
     editVisible.value = false
-    toast.success('用户已更新')
+    ElMessage.success('用户已更新')
     await Promise.all([load(users.value.page), loadStatistics()])
   } catch (error) {
     editError.value = userError(error)
@@ -134,7 +126,7 @@ async function saveUser(): Promise<void> {
   } finally { saving.value = false }
 }
 
-const columns: ColumnDef<UserAccount, any>[] = [
+const columns: DataTableColumn<UserAccount>[] = [
   { accessorKey: 'username', header: '用户名', enableSorting: false },
   { id: 'realName', accessorFn: (row) => row.realName || '--', header: '姓名', enableSorting: false },
   { id: 'organization', accessorFn: (row) => row.organization || '--', header: '所属单位', enableSorting: false },
@@ -196,7 +188,7 @@ async function createUser(): Promise<void> {
     if (disposed) return
     createVisible.value = false
     Object.assign(createForm, { username: '', password: '', roles: ['RESEARCHER'] })
-    toast.success('用户已创建')
+    ElMessage.success('用户已创建')
     await Promise.all([load(), loadStatistics()])
   } catch (error) {
     createError.value = userError(error)
@@ -212,7 +204,7 @@ async function applyToggle(): Promise<void> {
   try {
     await userApi.setEnabled(user, user.status !== 'ACTIVE')
     if (disposed) return
-    toast.success('用户状态已更新')
+    ElMessage.success('用户状态已更新')
     confirmToggle.value = null
     await Promise.all([load(users.value.page), loadStatistics()])
   } catch (error) {
@@ -242,7 +234,7 @@ async function saveRoles(): Promise<void> {
     await userApi.replaceRoles(selected.value, roleForm.value)
     if (disposed) return
     rolesVisible.value = false
-    toast.success('用户角色已更新')
+    ElMessage.success('用户角色已更新')
     await Promise.all([load(users.value.page), loadStatistics()])
   } catch (error) {
     rolesError.value = userError(error)
@@ -271,7 +263,7 @@ async function resetPassword(): Promise<void> {
     await userApi.resetPassword(selected.value, newPassword.value)
     if (disposed) return
     passwordVisible.value = false
-    toast.success('密码已重置')
+    ElMessage.success('密码已重置')
     await Promise.all([load(users.value.page), loadStatistics()])
   } catch (error) {
     passwordError.value = userError(error)
@@ -296,23 +288,23 @@ onBeforeUnmount(() => {
       description="创建内部账号、维护角色与启用状态，并在必要时重置登录凭据。"
     >
       <template #actions>
-        <Button @click="openCreate"><Plus class="size-4" />新增用户</Button>
+        <ElButton @click="openCreate" type="primary"><Plus class="size-4" />新增用户</ElButton>
       </template>
     </PageHeader>
 
-    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <ElAlert v-if="errorMessage" type="error" :closable="false" show-icon><template #title>{{ errorMessage }}</template></ElAlert>
 
     <div class="grid gap-4 xl:grid-cols-3">
       <PanelSection title="用户类型分布" class="xl:col-span-1">
-        <template #actions><Button variant="ghost" size="sm" :disabled="statisticsLoading" @click="loadStatistics">刷新</Button></template>
+        <template #actions><ElButton size="small" :disabled="statisticsLoading" @click="loadStatistics" text>刷新</ElButton></template>
         <ErrorState v-if="statisticsError" :message="statisticsError" retryable @retry="loadStatistics" />
-        <Skeleton v-else-if="statisticsLoading && !statistics" class="h-80 w-full" />
+        <ElSkeleton animated v-else-if="statisticsLoading && !statistics" class="h-80 w-full" />
         <div v-else-if="statistics" :aria-busy="statisticsLoading" :class="statisticsLoading ? 'opacity-60' : ''"><UserRoleChart :statistics="statistics" /></div>
       </PanelSection>
       <PanelSection title="最近登录日志" subtitle="最近 10 条登录、失败及退出记录" class="min-w-0 xl:col-span-2">
         <template #actions>
-          <Button variant="ghost" size="sm" :disabled="logsLoading" @click="loadLogs">刷新</Button>
-          <Button as-child variant="outline" size="sm"><RouterLink to="/logs?category=LOGIN">查看全部</RouterLink></Button>
+          <ElButton size="small" :disabled="logsLoading" @click="loadLogs" text>刷新</ElButton>
+          <ElButton as-child size="small" plain><RouterLink to="/logs?category=LOGIN">查看全部</RouterLink></ElButton>
         </template>
         <ErrorState v-if="logsError" :message="logsError" retryable @retry="loadLogs" />
         <AuditLogTable v-else :items="recentLogs" :loading="logsLoading" compact />
@@ -328,7 +320,7 @@ onBeforeUnmount(() => {
       >
         <template #cell-roles="{ row }">
           <div class="flex flex-wrap gap-1">
-            <Badge v-for="role in row.roles" :key="role" variant="subtle">{{ role }}</Badge>
+            <ElTag v-for="role in row.roles" :key="role" type="info" size="small">{{ role }}</ElTag>
           </div>
         </template>
         <template #cell-status="{ row }">
@@ -336,124 +328,112 @@ onBeforeUnmount(() => {
         </template>
         <template #cell-actions="{ row }">
           <div class="flex flex-wrap items-center gap-3">
-            <Button variant="link" size="sm" class="h-auto p-0" @click="openEdit(row)">编辑</Button>
-            <Button variant="link" size="sm" class="h-auto p-0" @click="openRoles(row)">角色</Button>
-            <Button variant="link" size="sm" class="h-auto p-0" @click="openPassword(row)">重置密码</Button>
-            <Button
-              variant="link" size="sm" class="h-auto p-0"
+            <ElButton size="small" class="h-auto p-0" @click="openEdit(row)" link type="primary">编辑</ElButton>
+            <ElButton size="small" class="h-auto p-0" @click="openRoles(row)" link type="primary">角色</ElButton>
+            <ElButton size="small" class="h-auto p-0" @click="openPassword(row)" link type="primary">重置密码</ElButton>
+            <ElButton size="small" class="h-auto p-0"
               :class="row.status === 'ACTIVE' ? 'text-destructive' : 'text-success'"
               @click="confirmToggle = row"
-            >{{ row.status === 'ACTIVE' ? '停用' : '启用' }}</Button>
+             link type="primary">{{ row.status === 'ACTIVE' ? '停用' : '启用' }}</ElButton>
           </div>
         </template>
       </DataTable>
     </PanelSection>
 
     <!-- 新增用户 -->
-    <Dialog v-model:open="createVisible">
-      <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>新增用户</DialogTitle>
-          <DialogDescription>创建内部账号并分配角色。</DialogDescription>
-        </DialogHeader>
+    <ElDialog v-model="createVisible" width="min(576px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+
+          <template #header="{ titleId }"><h2 :id="titleId">新增用户</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">创建内部账号并分配角色。</p>
+
         <form class="grid gap-4" novalidate @submit.prevent="createUser">
-          <Alert v-if="createError" variant="destructive"><AlertTitle>{{ createError }}</AlertTitle></Alert>
-          <FormItem><FormLabel for="newUsername">用户名</FormLabel><Input id="newUsername" v-model="createForm.username" :maxlength="64" /></FormItem>
-          <FormItem><FormLabel for="newPassword">初始密码</FormLabel><Input id="newPassword" v-model="createForm.password" type="password" :maxlength="128" autocomplete="new-password" /></FormItem>
-          <FormItem>
-            <FormLabel>角色</FormLabel>
+          <ElAlert v-if="createError" type="error" :closable="false" show-icon><template #title>{{ createError }}</template></ElAlert>
+          <FormField for="newUsername" label="用户名"><ElInput id="newUsername" v-model="createForm.username" :maxlength="64"  /></FormField>
+          <FormField for="newPassword" label="初始密码"><ElInput id="newPassword" v-model="createForm.password" type="password" :maxlength="128" autocomplete="new-password"  /></FormField>
+          <FormField label="角色">
             <div class="flex flex-wrap gap-4">
               <label v-for="role in allRoles" :key="role.value" class="flex items-center gap-2 text-sm">
-                <Checkbox
+                <ElCheckbox
                   :model-value="createForm.roles.includes(role.value)"
                   @update:model-value="createForm.roles = toggleRole(createForm.roles, role.value)"
                 />
                 {{ role.label }}
               </label>
             </div>
-          </FormItem>
+          </FormField>
           <UserProfileFields v-model="createProfile" prefix="create" require-name :disabled="saving" />
-          <Alert variant="warning"><AlertTitle>初始密码至少 12 个字符，请通过安全渠道交付给用户。</AlertTitle></Alert>
-          <DialogFooter>
-            <Button type="button" variant="outline" @click="createVisible = false">取消</Button>
-            <Button type="submit" :loading="saving">创建用户</Button>
-          </DialogFooter>
+          <ElAlert type="warning" :closable="false" show-icon><template #title>初始密码至少 12 个字符，请通过安全渠道交付给用户。</template></ElAlert>
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <ElButton native-type="button" @click="createVisible = false" plain>取消</ElButton>
+            <ElButton native-type="submit" :loading="saving" type="primary">创建用户</ElButton>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ElDialog>
 
-    <Sheet :open="editVisible" @update:open="(open) => { if (!saving) editVisible = open }">
-      <SheetContent class="w-full sm:max-w-xl" @interact-outside="(event) => { if (saving) event.preventDefault() }" @escape-key-down="(event) => { if (saving) event.preventDefault() }">
-        <SheetHeader class="border-b p-6">
-          <SheetTitle>编辑用户 · {{ editUser?.username }}</SheetTitle>
-          <SheetDescription>资料修改保持登录；角色或状态变化将使已有登录失效。</SheetDescription>
-        </SheetHeader>
+    <ElDrawer v-model="editVisible" :close-on-click-modal="!saving" :close-on-press-escape="!saving" :show-close="!saving" size="min(576px, 100vw)" append-to-body destroy-on-close class="aacv-drawer">
+          <template #header="{ titleId }"><h2 :id="titleId">编辑用户 · {{ editUser?.username }}</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">资料修改保持登录；角色或状态变化将使已有登录失效。</p>
+
         <form class="flex min-h-0 flex-1 flex-col" novalidate @submit.prevent="saveUser">
           <div class="flex-1 space-y-5 overflow-y-auto px-6 pb-6">
-            <Alert v-if="editError" variant="destructive"><AlertTitle>{{ editError }}</AlertTitle></Alert>
-            <Button v-if="editConflict" type="button" variant="outline" :disabled="loading" @click="reloadEditedUser">重新加载并替换表单</Button>
-            <FormItem><FormLabel for="edit-username">用户名</FormLabel><Input id="edit-username" :model-value="editUser?.username" readonly /></FormItem>
+            <ElAlert v-if="editError" type="error" :closable="false" show-icon><template #title>{{ editError }}</template></ElAlert>
+            <ElButton v-if="editConflict" native-type="button" :disabled="loading" @click="reloadEditedUser" plain>重新加载并替换表单</ElButton>
+            <FormField for="edit-username" label="用户名"><ElInput id="edit-username" :model-value="editUser?.username" readonly  /></FormField>
             <UserProfileFields v-model="editProfile" prefix="edit" :disabled="saving" />
-            <FormItem><FormLabel>角色</FormLabel>
+            <FormField label="角色">
               <div class="flex flex-wrap gap-4">
                 <label v-for="role in allRoles" :key="role.value" class="flex items-center gap-2 text-sm">
-                  <Checkbox :model-value="editRoles.includes(role.value)" :disabled="saving || (editUser?.id === session.user?.id && role.value === 'ADMIN')"
+                  <ElCheckbox :model-value="editRoles.includes(role.value)" :disabled="saving || (editUser?.id === session.user?.id && role.value === 'ADMIN')"
                     @update:model-value="editRoles = toggleRole(editRoles, role.value)" />{{ role.label }}
                 </label>
               </div>
-            </FormItem>
-            <FormItem><FormLabel for="edit-status">账号状态</FormLabel>
-              <select id="edit-status" v-model="editStatus" class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm" :disabled="saving || editUser?.id === session.user?.id">
-                <option value="ACTIVE">启用</option><option value="DISABLED">停用</option>
-                <option v-if="editUser?.status === 'PASSWORD_RESET_REQUIRED'" value="PASSWORD_RESET_REQUIRED">待重置密码</option>
-              </select>
-            </FormItem>
+            </FormField>
+            <FormField for="edit-status" label="账号状态">
+              <ElSelect id="edit-status" v-model="editStatus" class="w-full" :disabled="saving || editUser?.id === session.user?.id">
+                <ElOption value="ACTIVE" label="启用" /><ElOption value="DISABLED" label="停用" />
+                <ElOption v-if="editUser?.status === 'PASSWORD_RESET_REQUIRED'" value="PASSWORD_RESET_REQUIRED" label="待重置密码" />
+              </ElSelect>
+            </FormField>
             <p v-if="editUser?.id === session.user?.id" class="text-xs text-muted-foreground">不能停用自己或移除自己的管理员角色。</p>
           </div>
           <div class="flex justify-end gap-2 border-t bg-card p-4">
-            <Button type="button" variant="outline" :disabled="saving" @click="editVisible = false">取消</Button>
-            <Button type="submit" :loading="saving" :disabled="editConflict">保存修改</Button>
+            <ElButton native-type="button" :disabled="saving" @click="editVisible = false" plain>取消</ElButton>
+            <ElButton native-type="submit" :loading="saving" :disabled="editConflict" type="primary">保存修改</ElButton>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </ElDrawer>
 
     <!-- 调整角色 -->
-    <Dialog v-model:open="rolesVisible">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader><DialogTitle>调整角色 · {{ selected?.username }}</DialogTitle></DialogHeader>
-        <Alert v-if="rolesError" variant="destructive"><AlertTitle>{{ rolesError }}</AlertTitle></Alert>
+    <ElDialog v-model="rolesVisible" width="min(448px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+        <template #header="{ titleId }"><h2 :id="titleId">调整角色 · {{ selected?.username }}</h2></template>
+        <ElAlert v-if="rolesError" type="error" :closable="false" show-icon><template #title>{{ rolesError }}</template></ElAlert>
         <div class="grid gap-3">
           <label v-for="role in allRoles" :key="role.value" class="flex items-center gap-2 text-sm">
-            <Checkbox
+            <ElCheckbox
               :model-value="roleForm.includes(role.value)"
               @update:model-value="roleForm = toggleRole(roleForm, role.value)"
             />
             {{ role.label }}（{{ role.value }}）
           </label>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="rolesVisible = false">取消</Button>
-          <Button :loading="saving" @click="saveRoles">保存角色</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
+          <ElButton @click="rolesVisible = false" plain>取消</ElButton>
+          <ElButton :loading="saving" @click="saveRoles" type="primary">保存角色</ElButton>
+        </div>
+      </ElDialog>
 
     <!-- 重置密码 -->
-    <Dialog v-model:open="passwordVisible">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader><DialogTitle>重置密码 · {{ selected?.username }}</DialogTitle></DialogHeader>
-        <Alert v-if="passwordError" variant="destructive"><AlertTitle>{{ passwordError }}</AlertTitle></Alert>
-        <FormItem>
-          <FormLabel for="resetPassword">新密码</FormLabel>
-          <Input id="resetPassword" v-model="newPassword" type="password" :maxlength="128" autocomplete="new-password" placeholder="输入至少 12 个字符的新密码" />
-        </FormItem>
-        <DialogFooter>
-          <Button variant="outline" @click="passwordVisible = false">取消</Button>
-          <Button :loading="saving" @click="resetPassword">确认重置</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ElDialog v-model="passwordVisible" width="min(448px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+        <template #header="{ titleId }"><h2 :id="titleId">重置密码 · {{ selected?.username }}</h2></template>
+        <ElAlert v-if="passwordError" type="error" :closable="false" show-icon><template #title>{{ passwordError }}</template></ElAlert>
+        <FormField for="resetPassword" label="新密码">
+          <ElInput id="resetPassword" v-model="newPassword" type="password" :maxlength="128" autocomplete="new-password" placeholder="输入至少 12 个字符的新密码"  />
+        </FormField>
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
+          <ElButton @click="passwordVisible = false" plain>取消</ElButton>
+          <ElButton :loading="saving" @click="resetPassword" type="primary">确认重置</ElButton>
+        </div>
+      </ElDialog>
 
     <!-- 状态确认 -->
     <ConfirmDialog

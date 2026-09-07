@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import type { ColumnDef } from '@tanstack/vue-table'
+import { ElAlert, ElTag } from 'element-plus'
 import { ArrowLeft, FileText } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { DataTable, LoadingSkeleton, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import ScholarlySourcePanel from '@/components/business/ScholarlySourcePanel.vue'
-import { Alert, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
+import type { DataTableColumn } from '@/components/business/types'
 import { toErrorMessage } from '@/services/api'
 import { catalogApi } from '@/services/business'
-import { hasPermission } from '@/services/session'
+import { useSessionStore } from '@/stores/session'
 import type { AchievementDetail } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 
 const route = useRoute()
+const sessionStore = useSessionStore()
+const { hasPermission } = sessionStore
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref<AchievementDetail | null>(null)
@@ -49,18 +50,18 @@ function organizationNames(authorship: Authorship): string {
   return authorship.organizations.map((item) => item.displayName).join('；') || '—'
 }
 
-const authorColumns: ColumnDef<Authorship, any>[] = [
+const authorColumns: DataTableColumn<Authorship>[] = [
   { accessorKey: 'position', header: '顺序', enableSorting: false, meta: { width: '70px' } },
   { accessorKey: 'displayName', header: '作者', enableSorting: false },
   { accessorKey: 'orcid', header: 'ORCID', enableSorting: false },
   { id: 'organizations', accessorFn: (row) => organizationNames(row), header: '所属机构', enableSorting: false },
 ]
-const sourceColumns: ColumnDef<SourceRow, any>[] = [
+const sourceColumns: DataTableColumn<SourceRow>[] = [
   { accessorKey: 'sourceCode', header: '来源', enableSorting: false, meta: { width: '100px' } },
   { accessorKey: 'externalRecordId', header: '外部记录', enableSorting: false },
   { id: 'lastSeen', accessorFn: (row) => formatDateTime(row.lastSeenAt), header: '最后发现', enableSorting: false },
 ]
-const fieldColumns: ColumnDef<FieldRow, any>[] = [
+const fieldColumns: DataTableColumn<FieldRow>[] = [
   { accessorKey: 'fieldName', header: '字段', enableSorting: false },
   { accessorKey: 'sourceCode', header: '来源', enableSorting: false, meta: { width: '90px' } },
   { id: 'override', accessorFn: (row) => (row.manualOverride ? '人工' : '自动'), header: '覆盖', enableSorting: false, meta: { width: '80px' } },
@@ -86,18 +87,18 @@ onBeforeUnmount(() => { ++requestSequence })
           to="/catalog"
           class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
         >
-          <ArrowLeft class="size-4" />返回成果目录
+          <ArrowLeft class="size-4" aria-hidden="true" />返回成果目录
         </RouterLink>
       </template>
     </PageHeader>
 
-    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
 
     <LoadingSkeleton v-if="loading && !detail" variant="text" :rows="6" />
 
-    <template v-if="detail">
+    <div v-if="detail" class="achievement-layout">
       <!-- 规范记录 -->
-      <PanelSection title="规范记录">
+      <PanelSection title="规范记录" class="achievement-record">
         <template #actions><FileText class="size-4 text-muted-foreground" aria-hidden="true" /></template>
         <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           <div class="space-y-1"><dt class="text-xs text-muted-foreground">DOI</dt><dd class="mono-evidence text-sm">{{ detail.summary.doi || '—' }}</dd></div>
@@ -112,31 +113,31 @@ onBeforeUnmount(() => { ++requestSequence })
           <div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
             <dt class="text-xs text-muted-foreground">主题</dt>
             <dd class="flex flex-wrap gap-1.5">
-              <Badge v-for="topic in detail.summary.topics" :key="topic" variant="subtle">{{ topic }}</Badge>
+              <ElTag v-for="topic in detail.summary.topics" :key="topic" size="small" type="info" effect="plain">{{ topic }}</ElTag>
               <span v-if="!detail.summary.topics.length" class="text-sm text-muted-foreground">暂无主题</span>
             </dd>
           </div>
           <div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
             <dt class="text-xs text-muted-foreground">摘要</dt>
-            <dd class="rounded-lg bg-muted/40 p-3 text-sm leading-relaxed text-foreground/90">{{ detail.abstractText || '暂无摘要' }}</dd>
+            <dd class="achievement-abstract">{{ detail.abstractText || '暂无摘要' }}</dd>
           </div>
         </dl>
       </PanelSection>
 
-      <PanelSection title="来源学术指标与版本">
+      <PanelSection title="来源学术指标与版本" subtitle="逐来源核对观测值与版本关系" class="achievement-sources">
         <ScholarlySourcePanel :sources="detail.sources" />
       </PanelSection>
 
       <!-- 引用标识 -->
-      <PanelSection title="引用标识">
+      <PanelSection title="引用标识" class="achievement-references">
         <div v-if="detail.referencedWorkIds.length" class="flex flex-wrap gap-1.5">
-          <Badge v-for="workId in detail.referencedWorkIds" :key="workId" variant="info" class="mono-evidence">{{ workId }}</Badge>
+          <ElTag v-for="workId in detail.referencedWorkIds" :key="workId" size="small" type="info" effect="plain" class="mono-evidence">{{ workId }}</ElTag>
         </div>
         <p v-else class="text-sm text-muted-foreground">暂无引用标识</p>
       </PanelSection>
 
       <!-- 作者署名 -->
-      <PanelSection title="作者署名">
+      <PanelSection title="作者署名" class="achievement-authors">
         <DataTable
           :columns="authorColumns"
           :data="detail.authorships"
@@ -147,7 +148,7 @@ onBeforeUnmount(() => { ++requestSequence })
       </PanelSection>
 
       <!-- 来源轨迹 + 字段状态 -->
-      <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <div class="achievement-provenance grid grid-cols-1 gap-4 xl:grid-cols-2">
         <PanelSection title="来源轨迹">
           <DataTable
             :columns="sourceColumns"
@@ -166,11 +167,26 @@ onBeforeUnmount(() => { ++requestSequence })
             dense
           >
             <template #cell-override="{ row }">
-              <Badge :variant="row.manualOverride ? 'warning' : 'info'">{{ row.manualOverride ? '人工' : '自动' }}</Badge>
+              <ElTag size="small" :type="row.manualOverride ? 'warning' : 'info'" effect="plain">
+                {{ row.manualOverride ? '人工' : '自动' }}
+              </ElTag>
             </template>
           </DataTable>
         </PanelSection>
       </div>
-    </template>
+    </div>
   </section>
 </template>
+
+<style scoped>
+.achievement-layout { display: grid; gap: var(--space-5); align-items: start; }
+.achievement-abstract { max-width: 65ch; font-size: var(--font-size-md); line-height: 1.85; padding-top: var(--space-1); }
+@media (min-width: 1280px) {
+  .achievement-layout { grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); }
+  .achievement-record { grid-column: 1; grid-row: 1; }
+  .achievement-sources { grid-column: 2; grid-row: 1 / 4; }
+  .achievement-authors { grid-column: 1; grid-row: 2; }
+  .achievement-references { grid-column: 1; grid-row: 3; }
+  .achievement-provenance { grid-column: 1 / -1; }
+}
+</style>

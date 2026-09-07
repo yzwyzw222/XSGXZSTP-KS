@@ -1,26 +1,20 @@
 <script setup lang="ts">
-import type { ColumnDef } from '@tanstack/vue-table'
+import { ElAlert, ElButton, ElDialog, ElInput, ElInputNumber, ElMessage, ElOption, ElSelect, ElTag } from 'element-plus'
+import FormField from '@/components/business/FormField.vue'
+import type { DataTableColumn } from '@/components/business/types'
 import { GitCompareArrows, ShieldCheck } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { DataTable, FilterBar, FilterField, JsonEvidence, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import CandidateComparisonPanel from '@/components/business/CandidateComparisonPanel.vue'
-import { Alert, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
-import { FormItem, FormLabel } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { toast } from '@/components/ui/sonner'
-import { Textarea } from '@/components/ui/textarea'
 import { toErrorMessage } from '@/services/api'
 import { governanceApi } from '@/services/business'
-import { hasPermission } from '@/services/session'
+import { useSessionStore } from '@/stores/session'
 import type { CandidateComparison, DuplicateCandidate, FieldOverride, MergeDecision, PageResponse } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
+
+const session = useSessionStore()
+const { hasPermission } = session
 
 const candidates = ref<PageResponse<DuplicateCandidate>>({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 })
 const loading = ref(false)
@@ -41,7 +35,7 @@ const decisionForm = reactive({ canonicalEntityId: '' as string, reason: '' })
 const overrideForm = reactive({ achievementId: '', fieldName: '', value: '', reason: '', version: '0' })
 const revertReason = ref('')
 
-const columns: ColumnDef<DuplicateCandidate, any>[] = [
+const columns: DataTableColumn<DuplicateCandidate>[] = [
   { accessorKey: 'id', header: '编号', enableSorting: false, meta: { width: '80px' } },
   { accessorKey: 'entityType', header: '实体类型', enableSorting: false, meta: { width: '120px' } },
   { id: 'pair', accessorFn: (row) => `#${row.leftEntityId} ↔ #${row.rightEntityId}`, header: '实体对', enableSorting: false },
@@ -131,7 +125,7 @@ async function decide(action: 'accept' | 'reject'): Promise<void> {
       ? await governanceApi.accept(candidate, Number(decisionForm.canonicalEntityId), decisionForm.reason.trim())
       : await governanceApi.reject(candidate, decisionForm.reason.trim())
     if (sequence === detailSequence) latestDecision.value = decision
-    toast.success(action === 'accept' ? '重复候选已接受' : '重复候选已拒绝')
+    ElMessage.success(action === 'accept' ? '重复候选已接受' : '重复候选已拒绝')
     await load(candidates.value.page)
   } catch (error) {
     if (sequence === detailSequence) detailError.value = toErrorMessage(error)
@@ -149,7 +143,7 @@ async function revertDecision(): Promise<void> {
   saving.value = true
   try {
     latestDecision.value = await governanceApi.revertDecision(latestDecision.value, revertReason.value.trim())
-    toast.success('治理决定已撤销')
+    ElMessage.success('治理决定已撤销')
     detailVisible.value = false
     await load(candidates.value.page)
   } catch (error) {
@@ -181,7 +175,7 @@ async function saveOverride(): Promise<void> {
       overrideForm.reason.trim(),
       Number(overrideForm.version) || 0,
     )
-    toast.success('字段人工覆盖已保存')
+    ElMessage.success('字段人工覆盖已保存')
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
   } finally {
@@ -197,7 +191,7 @@ async function revertOverride(): Promise<void> {
   saving.value = true
   try {
     latestOverride.value = await governanceApi.revertOverride(latestOverride.value, revertReason.value.trim())
-    toast.success('字段覆盖已撤销')
+    ElMessage.success('字段覆盖已撤销')
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
   } finally {
@@ -225,28 +219,25 @@ onMounted(() => load())
       description="基于证据审阅重复候选；所有接受、拒绝、撤销与字段覆盖均保留原因和乐观锁版本。"
     >
       <template #actions>
-        <Button v-if="canManage" @click="openOverride"><ShieldCheck class="size-4" />字段人工覆盖</Button>
+        <ElButton v-if="canManage" @click="openOverride" type="primary"><ShieldCheck class="size-4" />字段人工覆盖</ElButton>
       </template>
     </PageHeader>
 
     <FilterBar :columns="4" :applying="loading" apply-text="查询候选" @apply="load()" @reset="reset">
-      <FilterField label="实体类型"><Input v-model="filters.entityType" /></FilterField>
+      <FilterField label="实体类型"><ElInput v-model="filters.entityType"  /></FilterField>
       <FilterField label="候选状态">
-        <Select v-model="filters.status">
-          <SelectTrigger placeholder="全部状态" />
-          <SelectContent>
-            <SelectItem value="PENDING">待审阅</SelectItem>
-            <SelectItem value="ACCEPTED">已接受</SelectItem>
-            <SelectItem value="REJECTED">已拒绝</SelectItem>
-          </SelectContent>
-        </Select>
+        <ElSelect v-model="filters.status" placeholder="全部状态"  filterable>
+            <ElOption value="PENDING" :label="'待审阅'" />
+            <ElOption value="ACCEPTED" :label="'已接受'" />
+            <ElOption value="REJECTED" :label="'已拒绝'" />
+          </ElSelect>
       </FilterField>
-      <FilterField label="来源 ID"><Input v-model="filters.sourceId" type="number" min="1" /></FilterField>
-      <FilterField label="规则版本"><Input v-model="filters.ruleVersion" type="number" min="1" /></FilterField>
+      <FilterField label="来源 ID"><ElInputNumber :model-value="filters.sourceId === '' ? undefined : Number(filters.sourceId)" @update:model-value="(value) => { filters.sourceId = value == null ? '' : String(value) }"  :min="1"  controls-position="right" style="width: 100%" /></FilterField>
+      <FilterField label="规则版本"><ElInputNumber :model-value="filters.ruleVersion === '' ? undefined : Number(filters.ruleVersion)" @update:model-value="(value) => { filters.ruleVersion = value == null ? '' : String(value) }"  :min="1"  controls-position="right" style="width: 100%" /></FilterField>
       <template #meta>默认仅显示待审阅候选</template>
     </FilterBar>
 
-    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <ElAlert v-if="errorMessage" type="error" :closable="false" show-icon><template #title>{{ errorMessage }}</template></ElAlert>
 
     <PanelSection title="重复候选" :subtitle="`共 ${candidates.totalElements} 条`">
       <template #actions><GitCompareArrows class="size-4 text-muted-foreground" aria-hidden="true" /></template>
@@ -268,24 +259,23 @@ onMounted(() => load())
           />
         </template>
         <template #cell-actions="{ row }">
-          <Button variant="link" size="sm" class="h-auto p-0" :disabled="saving" @click="openCandidate(row)">审阅证据</Button>
+          <ElButton size="small" class="h-auto p-0" :disabled="saving" @click="openCandidate(row)" link type="primary">审阅证据</ElButton>
         </template>
       </DataTable>
     </PanelSection>
 
     <!-- 候选审阅 -->
-    <Dialog v-model:open="detailVisible">
-      <DialogContent class="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>重复候选审阅</DialogTitle>
-          <DialogDescription>对照当前本地字段与匹配证据。差异行已标出，请明确选择保留记录并填写原因。</DialogDescription>
-        </DialogHeader>
+    <ElDialog v-model="detailVisible" width="min(768px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+
+          <template #header="{ titleId }"><h2 :id="titleId">重复候选审阅</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">对照当前本地字段与匹配证据。差异行已标出，请明确选择保留记录并填写原因。</p>
+
         <p v-if="detailLoading" role="status" class="text-sm text-muted-foreground">正在加载两侧实体与证据…</p>
-        <Alert v-if="detailError" variant="destructive"><AlertTitle>{{ detailError }}</AlertTitle></Alert>
+        <ElAlert v-if="detailError" type="error" :closable="false" show-icon><template #title>{{ detailError }}</template></ElAlert>
         <template v-if="selected">
           <div class="flex items-center justify-center gap-5 text-2xl font-semibold">
             <span>#{{ selected.leftEntityId }}</span>
-            <Badge variant="subtle">↔</Badge>
+            <ElTag type="info" size="small">↔</ElTag>
             <span class="text-primary">#{{ selected.rightEntityId }}</span>
           </div>
           <p class="text-center text-xs text-muted-foreground">
@@ -293,73 +283,65 @@ onMounted(() => load())
           </p>
           <JsonEvidence :data="selected.evidence" max-height="220px" label="重复候选证据" />
           <CandidateComparisonPanel v-if="comparison" :comparison="comparison" />
-          <Alert v-if="comparison?.explicitVersionRelation" variant="warning">
-            <AlertTitle>来源明确声明版本关系，应保留独立记录；可拒绝此重复候选。</AlertTitle>
-          </Alert>
+          <ElAlert v-if="comparison?.explicitVersionRelation" type="warning" :closable="false" show-icon>
+            <template #title>来源明确声明版本关系，应保留独立记录；可拒绝此重复候选。</template>
+          </ElAlert>
 
           <div v-if="canManage && selected.status === 'PENDING' && comparison && !latestDecision" class="grid gap-4 border-t border-border pt-4">
-            <FormItem>
-              <FormLabel for="canonicalEntityId">保留的规范实体 ID</FormLabel>
-              <Select v-model="decisionForm.canonicalEntityId" :disabled="saving || comparison.explicitVersionRelation">
-                <SelectTrigger id="canonicalEntityId" placeholder="请对照后选择，不默认保留任意一侧" />
-                <SelectContent>
-                  <SelectItem :value="String(selected.leftEntityId)">保留左侧 #{{ selected.leftEntityId }}</SelectItem>
-                  <SelectItem :value="String(selected.rightEntityId)">保留右侧 #{{ selected.rightEntityId }}</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormItem>
-            <FormItem>
-              <FormLabel for="decisionReason" required>治理原因</FormLabel>
-              <Textarea id="decisionReason" v-model="decisionForm.reason" :rows="3" :maxlength="1000" placeholder="说明接受或拒绝的依据" />
-            </FormItem>
+            <FormField for="canonicalEntityId" label="保留的规范实体 ID">
+              <ElSelect v-model="decisionForm.canonicalEntityId" :disabled="saving || comparison.explicitVersionRelation" id="canonicalEntityId" placeholder="请对照后选择，不默认保留任意一侧"  filterable>
+                  <ElOption :value="String(selected.leftEntityId)" :label="'保留左侧 #' + (selected.leftEntityId)" />
+                  <ElOption :value="String(selected.rightEntityId)" :label="'保留右侧 #' + (selected.rightEntityId)" />
+                </ElSelect>
+            </FormField>
+            <FormField for="decisionReason" required label="治理原因">
+              <ElInput type="textarea" id="decisionReason" v-model="decisionForm.reason" :rows="3" :maxlength="1000" placeholder="说明接受或拒绝的依据" />
+            </FormField>
             <div class="flex justify-end gap-2">
-              <Button variant="outline" :loading="saving" @click="decide('reject')">拒绝候选</Button>
-              <Button :loading="saving" :disabled="comparison.explicitVersionRelation" @click="decide('accept')">接受并合并</Button>
+              <ElButton :loading="saving" @click="decide('reject')" plain>拒绝候选</ElButton>
+              <ElButton :loading="saving" :disabled="comparison.explicitVersionRelation" @click="decide('accept')" type="primary">接受并合并</ElButton>
             </div>
           </div>
 
           <div v-if="latestDecision" class="grid gap-2 rounded-lg border border-warning/40 bg-warning/8 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div class="space-y-2">
               <strong class="text-sm">决定 #{{ latestDecision.id }} 已记录</strong>
-              <Input v-model="revertReason" placeholder="填写撤销原因" :maxlength="1000" />
+              <ElInput v-model="revertReason" placeholder="填写撤销原因" :maxlength="1000"  />
             </div>
-            <Button variant="outline" :loading="saving" @click="revertDecision">撤销本次决定</Button>
+            <ElButton :loading="saving" @click="revertDecision" plain>撤销本次决定</ElButton>
           </div>
         </template>
-      </DialogContent>
-    </Dialog>
+      </ElDialog>
 
     <!-- 字段覆盖 -->
-    <Dialog v-model:open="overrideVisible">
-      <DialogContent class="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>字段人工覆盖</DialogTitle>
-          <DialogDescription>请先从成果详情确认当前数据版本；提交冲突时必须刷新后重试。</DialogDescription>
-        </DialogHeader>
-        <Alert variant="warning"><AlertTitle>覆盖会记录修订与原因，可撤销但全程留痕。</AlertTitle></Alert>
+    <ElDialog v-model="overrideVisible" width="min(672px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+
+          <template #header="{ titleId }"><h2 :id="titleId">字段人工覆盖</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">请先从成果详情确认当前数据版本；提交冲突时必须刷新后重试。</p>
+
+        <ElAlert type="warning" :closable="false" show-icon><template #title>覆盖会记录修订与原因，可撤销但全程留痕。</template></ElAlert>
         <form class="grid gap-4" novalidate @submit.prevent="saveOverride">
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormItem><FormLabel for="ovAchievementId">成果 ID</FormLabel><Input id="ovAchievementId" v-model="overrideForm.achievementId" type="number" min="1" /></FormItem>
-            <FormItem><FormLabel for="ovVersion">成果数据版本</FormLabel><Input id="ovVersion" v-model="overrideForm.version" type="number" min="0" /></FormItem>
-            <FormItem><FormLabel for="ovField">字段名</FormLabel><Input id="ovField" v-model="overrideForm.fieldName" :maxlength="64" /></FormItem>
-            <FormItem><FormLabel for="ovValue">覆盖值（文本或 JSON）</FormLabel><Input id="ovValue" v-model="overrideForm.value" /></FormItem>
+            <FormField for="ovAchievementId" label="成果 ID"><ElInputNumber id="ovAchievementId" :model-value="overrideForm.achievementId === '' ? undefined : Number(overrideForm.achievementId)" @update:model-value="(value) => { overrideForm.achievementId = value == null ? '' : String(value) }"  :min="1"  controls-position="right" style="width: 100%" /></FormField>
+            <FormField for="ovVersion" label="成果数据版本"><ElInputNumber id="ovVersion" :model-value="overrideForm.version === '' ? undefined : Number(overrideForm.version)" @update:model-value="(value) => { overrideForm.version = value == null ? '' : String(value) }"  :min="0"  controls-position="right" style="width: 100%" /></FormField>
+            <FormField for="ovField" label="字段名"><ElInput id="ovField" v-model="overrideForm.fieldName" :maxlength="64"  /></FormField>
+            <FormField for="ovValue" label="覆盖值（文本或 JSON）"><ElInput id="ovValue" v-model="overrideForm.value"  /></FormField>
           </div>
-          <FormItem><FormLabel for="ovReason" required>覆盖原因</FormLabel><Textarea id="ovReason" v-model="overrideForm.reason" :rows="3" :maxlength="1000" /></FormItem>
+          <FormField for="ovReason" required label="覆盖原因"><ElInput type="textarea" id="ovReason" v-model="overrideForm.reason" :rows="3" :maxlength="1000" /></FormField>
 
           <div v-if="latestOverride" class="grid gap-2 rounded-lg border border-warning/40 bg-warning/8 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
             <div class="space-y-2">
               <strong class="text-sm">覆盖修订 #{{ latestOverride.revisionId }} 已保存</strong>
-              <Input v-model="revertReason" placeholder="填写撤销原因" :maxlength="1000" />
+              <ElInput v-model="revertReason" placeholder="填写撤销原因" :maxlength="1000"  />
             </div>
-            <Button variant="outline" :loading="saving" @click="revertOverride">撤销本次覆盖</Button>
+            <ElButton :loading="saving" @click="revertOverride" plain>撤销本次覆盖</ElButton>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" @click="overrideVisible = false">关闭</Button>
-            <Button type="submit" :loading="saving">保存覆盖</Button>
-          </DialogFooter>
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <ElButton native-type="button" @click="overrideVisible = false" plain>关闭</ElButton>
+            <ElButton native-type="submit" :loading="saving" type="primary">保存覆盖</ElButton>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ElDialog>
   </section>
 </template>

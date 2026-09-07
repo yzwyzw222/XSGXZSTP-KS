@@ -33,7 +33,7 @@ export default defineConfig({
     deps: {
       optimizer: {
         web: {
-          include: ['reka-ui', 'lucide-vue-next', '@tanstack/vue-table', '@vueuse/core', 'vue-sonner'],
+          include: ['element-plus', 'lucide-vue-next', '@vueuse/core'],
         },
       },
     },

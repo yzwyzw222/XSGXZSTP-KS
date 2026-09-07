@@ -16,7 +16,12 @@ export const colorMode = useColorMode({
     auto: 'auto',
   },
   initialValue: 'auto',
+  emitAuto: true,
   disableTransition: false,
+  onChanged(mode, defaultHandler) {
+    defaultHandler(mode)
+    syncHtmlClass(mode === 'dark' ? 'dark' : 'light')
+  },
 })
 
 export function useTheme() {
@@ -25,10 +30,7 @@ export function useTheme() {
   const resolvedTheme = computed<'light' | 'dark'>(() => {
     if (colorMode.value === 'dark') return 'dark'
     if (colorMode.value === 'light') return 'light'
-    return typeof window !== 'undefined'
-      && window.matchMedia?.('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light'
+    return colorMode.system.value === 'dark' ? 'dark' : 'light'
   })
   const isDark = computed(() => resolvedTheme.value === 'dark')
 

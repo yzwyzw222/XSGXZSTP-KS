@@ -1,4 +1,4 @@
-import { computed, watch, type ComputedRef, type Ref } from 'vue'
+import { computed, type ComputedRef, type Ref } from 'vue'
 
 import { useTheme } from '@/composables/useTheme'
 
@@ -14,14 +14,15 @@ export interface ChartPalette {
   cardBg: string
 }
 
-/** 把 "210 40% 96%" 这类 HSL 分量转换为可用的 hsl() 字符串。 */
+/** 使用逗号格式兼容图表引擎的颜色解析器，避免 CSS Color 4 空格格式回退为黑色。 */
 function readHsl(name: string, fallback: string, alpha?: number): string {
   if (typeof window === 'undefined') return fallback
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
   if (!raw) return fallback
   // 已经是完整颜色值（如 #hex 或 hsl(...)）
   if (raw.startsWith('#') || raw.startsWith('hsl') || raw.startsWith('rgb')) return raw
-  return alpha === undefined ? `hsl(${raw})` : `hsl(${raw} / ${alpha})`
+  const components = raw.split(/\s+/).join(', ')
+  return alpha === undefined ? `hsl(${components})` : `hsla(${components}, ${alpha})`
 }
 
 /** 订阅主题变化，实时解析 CSS token 为图表色板。 */
@@ -55,13 +56,4 @@ export function useChartTheme(): {
   })
 
   return { isDark, palette }
-}
-
-/** 主题切换时执行回调（用于图表重渲染）。 */
-export function onThemeChange(callback: () => void): void {
-  const { isDark } = useTheme()
-  watch(isDark, () => {
-    // 等待 CSS 变量应用完成
-    requestAnimationFrame(() => requestAnimationFrame(callback))
-  })
 }

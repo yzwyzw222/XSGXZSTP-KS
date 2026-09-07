@@ -19,6 +19,13 @@ async function fulfill(route: Route, body: unknown, status = 200): Promise<void>
 }
 
 test('管理员在Neo4j降级时查看运行信息并执行受控处置', async ({ page }) => {
+  const browserErrors: string[] = []
+  page.on('pageerror', error => browserErrors.push(error.message))
+  await page.addInitScript(() => {
+    const runtime = window as typeof window & { aacvTestErrors: string[] }
+    runtime.aacvTestErrors = []
+    window.addEventListener('error', event => runtime.aacvTestErrors.push(event.message))
+  })
   await page.route('**/api/v1/auth/me', (route) => fulfill(route, administrator))
   await page.route('**/api/v1/auth/csrf', (route) => fulfill(route, {
     headerName: 'X-CSRF-TOKEN',
@@ -207,4 +214,8 @@ test('管理员在Neo4j降级时查看运行信息并执行受控处置', async 
   await page.getByRole('tab', { name: '审计记录 1' }).click()
   await expect(page.getByRole('cell', { name: 'ALERT_ACKNOWLEDGED' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'trace-stage7-operations' })).toBeVisible()
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  const reported = await page.evaluate(() => (window as typeof window & { aacvTestErrors: string[] }).aacvTestErrors)
+  expect(reported).toEqual([])
+  expect(browserErrors).toEqual([])
 })

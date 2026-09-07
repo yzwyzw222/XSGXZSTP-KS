@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { ColumnDef } from '@tanstack/vue-table'
+import { ElAlert, ElButton, ElDialog, ElInput, ElInputNumber, ElTag } from 'element-plus'
 import { Gauge } from 'lucide-vue-next'
 import { onMounted, reactive, ref } from 'vue'
 
-import { DataTable, FilterBar, FilterField, JsonEvidence, LoadingSkeleton, PageHeader, PanelSection } from '@/components/business'
-import { Alert, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import {
+  DataTable, FilterBar, FilterField, JsonEvidence, LoadingSkeleton, PageHeader, PanelSection,
+} from '@/components/business'
+import type { DataTableColumn } from '@/components/business/types'
 import { toErrorMessage } from '@/services/api'
 import { qualityApi } from '@/services/business'
 import type { PageResponse, QualityMetric, QualityMetricDetail } from '@/types/api'
@@ -20,11 +18,15 @@ const metrics = ref<PageResponse<QualityMetric>>({ items: [], page: 0, size: 20,
 const loading = ref(false)
 const detailLoading = ref(false)
 const errorMessage = ref('')
+/** 弹窗内错误独立于页面级错误，避免提示跑到弹窗下层。 */
+const detailError = ref('')
 const detailVisible = ref(false)
 const detail = ref<QualityMetricDetail | null>(null)
+/** 打开弹窗时作废上一次详情请求，避免迟到响应覆盖当前指标。 */
+let detailVersion = 0
 const filters = reactive({ sourceId: '', runId: '', metricCode: '' })
 
-const columns: ColumnDef<QualityMetric, any>[] = [
+const columns: DataTableColumn<QualityMetric>[] = [
   { accessorKey: 'metricCode', header: '指标', enableSorting: false },
   { accessorKey: 'sourceId', header: '来源 ID', enableSorting: false, meta: { width: '90px' } },
   { accessorKey: 'taskId', header: '任务 ID', enableSorting: false, meta: { width: '90px' } },
@@ -35,7 +37,7 @@ const columns: ColumnDef<QualityMetric, any>[] = [
   { id: 'actions', header: '操作', enableSorting: false, meta: { width: '100px' } },
 ]
 
-const sampleColumns: ColumnDef<SampleRow, any>[] = [
+const sampleColumns: DataTableColumn<SampleRow>[] = [
   { accessorKey: 'rawRecordId', header: '原始记录 ID', enableSorting: false, meta: { width: '120px' } },
   { accessorKey: 'externalRecordId', header: '外部记录', enableSorting: false },
   { id: 'evidence', accessorFn: (row) => JSON.stringify(row.evidence), header: '证据', enableSorting: false },
@@ -68,16 +70,28 @@ function reset(): void {
 }
 
 async function showDetail(metric: QualityMetric): Promise<void> {
+  const version = ++detailVersion
   detailVisible.value = true
   detailLoading.value = true
-  errorMessage.value = ''
+  detailError.value = ''
+  detail.value = null
   try {
-    detail.value = await qualityApi.detail(metric.id)
+    const response = await qualityApi.detail(metric.id)
+    if (version !== detailVersion) return
+    detail.value = response
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    if (version === detailVersion) detailError.value = toErrorMessage(error)
   } finally {
-    detailLoading.value = false
+    if (version === detailVersion) detailLoading.value = false
   }
+}
+
+function closeDetail(): void {
+  // 弹窗关闭后作废在途详情请求并清理上一个指标的数据。
+  detailVersion++
+  detail.value = null
+  detailError.value = ''
+  detailLoading.value = false
 }
 
 function metricPercent(metric: QualityMetric): string {
@@ -95,14 +109,20 @@ onMounted(() => load())
     />
 
     <FilterBar :columns="4" :applying="loading" apply-text="查询指标" @apply="load()" @reset="reset">
-      <FilterField label="来源 ID"><Input v-model="filters.sourceId" type="number" min="1" /></FilterField>
-      <FilterField label="运行 ID"><Input v-model="filters.runId" type="number" min="1" /></FilterField>
-      <FilterField label="指标代码"><Input v-model="filters.metricCode" @keydown.enter="load()" /></FilterField>
+      <FilterField label="来源 ID">
+        <ElInputNumber :model-value="filters.sourceId ? Number(filters.sourceId) : undefined" :min="1" :max="Number.MAX_SAFE_INTEGER" :step="1" :precision="0" controls-position="right" style="width: 100%" placeholder="全部来源" @update:model-value="filters.sourceId = String($event ?? '')" />
+      </FilterField>
+      <FilterField label="运行 ID">
+        <ElInputNumber :model-value="filters.runId ? Number(filters.runId) : undefined" :min="1" :max="Number.MAX_SAFE_INTEGER" :step="1" :precision="0" controls-position="right" style="width: 100%" placeholder="全部运行" @update:model-value="filters.runId = String($event ?? '')" />
+      </FilterField>
+      <FilterField label="指标代码">
+        <ElInput v-model="filters.metricCode" placeholder="按指标代码过滤" clearable @keydown.enter="load()" />
+      </FilterField>
     </FilterBar>
 
-    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
 
-    <PanelSection title="质量度量" :subtitle="`共 ${metrics.totalElements} 条`">
+    <PanelSection title="质量度量" :subtitle="`共 ${metrics.totalElements.toLocaleString('zh-CN')} 条`">
       <template #actions><Gauge class="size-4 text-muted-foreground" aria-hidden="true" /></template>
       <DataTable
         :columns="columns"
@@ -112,19 +132,31 @@ onMounted(() => load())
         :size="metrics.size"
         :total="metrics.totalElements"
         empty-text="暂无质量指标"
+        empty-description="调整来源、运行或指标代码后重新查询。"
         :get-row-id="(row) => String(row.id)"
         @update:page="load"
       >
-        <template #cell-result="{ value }"><Badge variant="subtle">{{ value }}</Badge></template>
+        <template #cell-result="{ value }">
+          <ElTag size="small" type="info" effect="plain">{{ value }}</ElTag>
+        </template>
         <template #cell-actions="{ row }">
-          <Button variant="link" size="sm" class="h-auto p-0" @click="showDetail(row)">查看样本</Button>
+          <ElButton link type="primary" @click="showDetail(row)">查看样本</ElButton>
         </template>
       </DataTable>
     </PanelSection>
 
-    <Dialog v-model:open="detailVisible">
-      <DialogContent class="sm:max-w-3xl">
-        <DialogHeader><DialogTitle>质量指标样本</DialogTitle></DialogHeader>
+    <ElDialog
+      v-model="detailVisible"
+      title="质量指标样本"
+      width="min(880px, calc(100vw - 32px))"
+      append-to-body
+      destroy-on-close
+      class="aacv-form-dialog"
+      body-class="aacv-dialog-body"
+      @closed="closeDetail"
+    >
+      <div class="space-y-4">
+        <ElAlert v-if="detailError" type="error" :closable="false" :title="detailError" show-icon />
         <LoadingSkeleton v-if="detailLoading" variant="table" :rows="4" />
         <template v-else-if="detail">
           <div class="space-y-1 border-l-4 border-primary bg-muted/40 p-4">
@@ -146,7 +178,7 @@ onMounted(() => load())
             </template>
           </DataTable>
         </template>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ElDialog>
   </section>
 </template>

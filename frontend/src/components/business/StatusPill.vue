@@ -36,11 +36,11 @@ function resolve(status?: string | null) {
 </script>
 <template>
   <span
-    :class="cn('inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap', resolve(status).cls, props.class)"
+    :class="cn('status-pill inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-xs font-medium whitespace-nowrap', resolve(status).cls, props.class)"
     :aria-label="`${label ?? resolve(status).label}`"
   >
     <span
-      :class="cn('size-1.5 rounded-full', resolve(status).dot, pulse && 'animate-status-pulse')"
+      :class="cn('size-1.5 rounded-full', resolve(status).dot)"
       aria-hidden="true"
     />
     {{ label ?? resolve(status).label }}

@@ -1,25 +1,22 @@
 <script setup lang="ts">
-import type { ColumnDef } from '@tanstack/vue-table'
+import { ElAlert, ElButton, ElDatePicker, ElDialog, ElInput, ElInputNumber, ElMessage, ElProgress, ElTimePicker } from 'element-plus'
+import FormField from '@/components/business/FormField.vue'
+import type { DataTableColumn } from '@/components/business/types'
 import { CalendarClock, Play, Plus, Search } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import CountUpNumber from '@/components/CountUpNumber.vue'
 import { DataTable, LiveLogPanel, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import type { LogEntry } from '@/components/business/types'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
-import { FormItem, FormLabel } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Progress } from '@/components/ui/progress'
-import { toast } from '@/components/ui/sonner'
 import { toErrorMessage } from '@/services/api'
 import { crawlApi } from '@/services/business'
-import { hasPermission } from '@/services/session'
+import { useSessionStore } from '@/stores/session'
 import type { CrawlFailure, CrawlRun, CrawlSchedule, CrawlTask, CrawlTaskParameters, PageResponse } from '@/types/api'
 import { formatDateTime, splitValues } from '@/utils/format'
+import { instantRange, publicationDate, toLocalDateTime } from '@/utils/date'
+
+const session = useSessionStore()
+const { hasPermission } = session
 
 interface TaskForm {
   sourceId: string
@@ -95,7 +92,7 @@ const runProgress = computed(() => {
   return Math.min(99, Math.round(run.readCount / taskLimit * 100))
 })
 
-const taskColumns: ColumnDef<CrawlTask, any>[] = [
+const taskColumns: DataTableColumn<CrawlTask>[] = [
   { accessorKey: 'name', header: '任务名称', enableSorting: false },
   { accessorKey: 'sourceId', header: '来源 ID', enableSorting: false, meta: { width: '90px' } },
   { id: 'scope', accessorFn: (row) => row.parameters.keyword || '未限定关键词', header: '采集范围', enableSorting: false },
@@ -105,7 +102,7 @@ const taskColumns: ColumnDef<CrawlTask, any>[] = [
   { id: 'actions', header: '操作', enableSorting: false, meta: { width: '220px' } },
 ]
 
-const failureColumns: ColumnDef<CrawlFailure, any>[] = [
+const failureColumns: DataTableColumn<CrawlFailure>[] = [
   { accessorKey: 'externalRecordId', header: '外部记录', enableSorting: false },
   { accessorKey: 'failureStage', header: '阶段', enableSorting: false, meta: { width: '110px' } },
   { accessorKey: 'errorCategory', header: '分类', enableSorting: false, meta: { width: '140px' } },
@@ -123,19 +120,27 @@ function emptyTaskForm(): TaskForm {
 }
 
 function toParameters(): CrawlTaskParameters {
+  const range = instantRange(form.updatedFrom, form.updatedUntil)
+  const from = publicationDate(form.publicationDateFrom)
+  const to = publicationDate(form.publicationDateTo)
+  if (from && to && from > to) throw new RangeError('出版日期起不能晚于出版日期止')
+  if (!Number.isInteger(Number(form.maxPages)) || Number(form.maxPages) < 1 || Number(form.maxPages) > 5
+    || !Number.isInteger(Number(form.maxRecords)) || Number(form.maxRecords) < 1 || Number(form.maxRecords) > 500) {
+    throw new RangeError('最大页数须为 1–5，最大记录数须为 1–500 的整数')
+  }
   return {
-    publicationDateFrom: form.publicationDateFrom || null,
-    publicationDateTo: form.publicationDateTo || null,
+    publicationDateFrom: from,
+    publicationDateTo: to,
     keyword: form.keyword.trim() || null,
     authorIds: splitValues(form.authorIds),
     institutionIds: splitValues(form.institutionIds),
     dois: splitValues(form.dois),
     orcids: splitValues(form.orcids),
     rorIds: splitValues(form.rorIds),
-    updatedFrom: form.updatedFrom ? new Date(form.updatedFrom).toISOString() : null,
-    updatedUntil: form.updatedUntil ? new Date(form.updatedUntil).toISOString() : null,
-    maxPages: Number(form.maxPages) || 1,
-    maxRecords: Number(form.maxRecords) || 1,
+    updatedFrom: range.from ?? null,
+    updatedUntil: range.to ?? null,
+    maxPages: Number(form.maxPages),
+    maxRecords: Number(form.maxRecords),
   }
 }
 
@@ -152,6 +157,7 @@ async function load(page = 0): Promise<void> {
 }
 
 function openCreate(): void {
+  errorMessage.value = ''
   editing.value = null
   Object.assign(form, emptyTaskForm())
   taskDialog.value = true
@@ -181,8 +187,8 @@ function openEdit(task: CrawlTask): void {
     dois: task.parameters.dois.join(', '),
     orcids: task.parameters.orcids.join(', '),
     rorIds: task.parameters.rorIds.join(', '),
-    updatedFrom: task.parameters.updatedFrom?.slice(0, 16) ?? '',
-    updatedUntil: task.parameters.updatedUntil?.slice(0, 16) ?? '',
+    updatedFrom: toLocalDateTime(task.parameters.updatedFrom),
+    updatedUntil: toLocalDateTime(task.parameters.updatedUntil),
     maxPages: String(task.parameters.maxPages),
     maxRecords: String(task.parameters.maxRecords),
   })
@@ -190,8 +196,13 @@ function openEdit(task: CrawlTask): void {
 }
 
 async function saveTask(): Promise<void> {
+  if (saving.value) return
   if (!form.name.trim()) {
     errorMessage.value = '任务名称不能为空'
+    return
+  }
+  if (!Number.isSafeInteger(Number(form.sourceId)) || Number(form.sourceId) < 1) {
+    errorMessage.value = '请输入有效的数据源 ID'
     return
   }
   saving.value = true
@@ -200,13 +211,13 @@ async function saveTask(): Promise<void> {
     if (editing.value) {
       await crawlApi.updateTask(editing.value, form.name.trim(), toParameters())
     } else {
-      await crawlApi.createTask({ sourceId: Number(form.sourceId) || 1, name: form.name.trim(), parameters: toParameters() })
+      await crawlApi.createTask({ sourceId: Number(form.sourceId), name: form.name.trim(), parameters: toParameters() })
     }
     taskDialog.value = false
-    toast.success(editing.value ? '采集任务已更新' : '采集任务已创建')
+    ElMessage.success(editing.value ? '采集任务已更新' : '采集任务已创建')
     await load(tasks.value.page)
   } catch (error) {
-    errorMessage.value = toErrorMessage(error)
+    errorMessage.value = error instanceof RangeError ? error.message : toErrorMessage(error)
   } finally {
     saving.value = false
   }
@@ -222,7 +233,7 @@ async function trigger(task: CrawlTask): Promise<void> {
     runDialog.value = true
     await loadFailures()
     scheduleRunPoll()
-    toast.success('采集运行已进入队列')
+    ElMessage.success('采集运行已进入队列')
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
   }
@@ -247,7 +258,7 @@ async function saveSchedule(): Promise<void> {
     )
     scheduleVersions.set(scheduling.value.id, result.version)
     scheduleDialog.value = false
-    toast.success('每日调度已保存，下次执行：' + formatDateTime(result.nextFireAt))
+    ElMessage.success('每日调度已保存，下次执行：' + formatDateTime(result.nextFireAt))
   } catch (error) {
     errorMessage.value = toErrorMessage(error)
   } finally {
@@ -290,7 +301,7 @@ async function control(action: 'pause' | 'resume' | 'cancel' | 'retry-failures')
   try {
     currentRun.value = await crawlApi.control(currentRun.value.id, action)
     appendRunLog('info', `控制指令 ${action} 已提交，当前状态 ${currentRun.value.status}`)
-    toast.success('运行控制请求已提交')
+    ElMessage.success('运行控制请求已提交')
     await loadFailures()
     scheduleRunPoll()
   } catch (error) {
@@ -389,7 +400,10 @@ watch(runDialog, (visible) => {
   if (visible) scheduleRunPoll()
   else clearRunPoll()
 })
-onBeforeUnmount(clearRunPoll)
+onBeforeUnmount(() => {
+  runDialog.value = false
+  clearRunPoll()
+})
 </script>
 
 <template>
@@ -399,19 +413,22 @@ onBeforeUnmount(clearRunPoll)
       description="定义受控采集范围，触发或调度任务，并按运行编号检查处理计数和失败证据。"
     >
       <template #actions>
-        <Button v-if="canCreate" variant="outline" @click="openHistoricalRefresh"><CalendarClock class="size-4" />历史复查</Button>
-        <Button v-if="canCreate" @click="openCreate"><Plus class="size-4" />新建采集任务</Button>
+        <ElButton v-if="canCreate" @click="openHistoricalRefresh" plain><CalendarClock class="size-4" />历史复查</ElButton>
+        <ElButton v-if="canCreate" @click="openCreate" type="primary"><Plus class="size-4" />新建采集任务</ElButton>
       </template>
     </PageHeader>
 
-    <PanelSection title="运行追踪" subtitle="输入运行编号可查看实时状态与失败明细">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <Input v-model="runIdInput" type="number" min="1" placeholder="运行编号" aria-label="运行编号" class="sm:max-w-xs" @keydown.enter="findRun" />
-        <Button variant="outline" @click="findRun"><Search class="size-4" />查询运行</Button>
+    <section class="workflow-toolbar" aria-label="运行追踪">
+      <div><h2>运行追踪</h2><p>通过运行编号定位进度、恢复安排与失败证据</p></div>
+      <div class="workflow-toolbar__fields">
+        <ElInputNumber :model-value="runIdInput === '' ? undefined : Number(runIdInput)" @update:model-value="(value) => { runIdInput = value == null ? '' : String(value) }"  :min="1" placeholder="运行编号" aria-label="运行编号" @keydown.enter="findRun" controls-position="right" style="width: min(100%, 200px)" />
+        <ElButton @click="findRun" plain><Search class="size-4" />查询运行</ElButton>
       </div>
-    </PanelSection>
+    </section>
 
-    <Alert v-if="errorMessage" variant="destructive"><AlertTitle>{{ errorMessage }}</AlertTitle></Alert>
+    <p class="context-note">每个任务最多 5 页 / 500 条 · 每日计划重复既定范围 · 运行进度与来源覆盖率分别核对</p>
+
+    <ElAlert v-if="errorMessage && !taskDialog && !scheduleDialog && !runDialog" type="error" :closable="false" show-icon><template #title>{{ errorMessage }}</template></ElAlert>
 
     <PanelSection title="任务定义" :subtitle="`共 ${tasks.totalElements} 个`">
       <DataTable
@@ -422,9 +439,14 @@ onBeforeUnmount(clearRunPoll)
         :size="tasks.size"
         :total="tasks.totalElements"
         empty-text="暂无采集任务"
+        empty-description="创建采集任务并指定来源和研究范围，随后可在此执行或配置每日计划。"
         :get-row-id="(row) => String(row.id)"
         @update:page="load"
       >
+        <template #cell-name="{ row }">
+          <strong class="block text-sm font-medium">{{ row.name }}</strong>
+          <span class="mono-evidence text-muted-foreground">任务 #{{ row.id }}</span>
+        </template>
         <template #cell-scope="{ row }">
           <span class="text-foreground">{{ row.parameters.keyword || '未限定关键词' }}</span>
           <span class="mt-0.5 block text-xs text-muted-foreground">
@@ -436,78 +458,76 @@ onBeforeUnmount(clearRunPoll)
         </template>
         <template #cell-actions="{ row }">
           <div class="flex flex-wrap items-center gap-1">
-            <Button v-if="canUpdate" variant="link" size="sm" class="h-auto p-0" @click="openEdit(row)">编辑</Button>
-            <Button v-if="canControl" variant="link" size="sm" class="h-auto p-0" @click="trigger(row)">
+            <ElButton v-if="canUpdate" size="small" class="h-auto p-0" @click="openEdit(row)" link type="primary">编辑</ElButton>
+            <ElButton v-if="canControl" size="small" class="h-auto p-0" @click="trigger(row)" link type="primary">
               <Play class="size-3.5" />立即执行
-            </Button>
-            <Button v-if="canSchedule" variant="link" size="sm" class="h-auto p-0" @click="openSchedule(row)">
+            </ElButton>
+            <ElButton v-if="canSchedule" size="small" class="h-auto p-0" @click="openSchedule(row)" link type="primary">
               <CalendarClock class="size-3.5" />调度
-            </Button>
+            </ElButton>
           </div>
         </template>
       </DataTable>
     </PanelSection>
 
     <!-- 任务编辑 -->
-    <Dialog v-model:open="taskDialog">
-      <DialogContent class="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{{ editing ? '编辑采集任务' : '新建采集任务' }}</DialogTitle>
-          <DialogDescription>配置采集范围、标识列表与上限。多个 ID 使用逗号分隔。</DialogDescription>
-        </DialogHeader>
+    <ElDialog v-model="taskDialog" width="min(768px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+        <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
+
+          <template #header="{ titleId }"><h2 :id="titleId">{{ editing ? '编辑采集任务' : '新建采集任务' }}</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">配置采集范围、标识列表与上限。多个 ID 使用逗号分隔。</p>
+
         <form class="grid gap-4" novalidate @submit.prevent="saveTask">
           <p class="text-sm text-muted-foreground">历史复查会重新读取指定出版范围，补齐旧成果后续更新。默认提供去年同月范围，请结合作者、机构或关键词缩小范围；达到上限后需继续拆分任务。</p>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <FormItem><FormLabel for="sourceId">数据源 ID</FormLabel><Input id="sourceId" v-model="form.sourceId" type="number" min="1" :disabled="Boolean(editing)" /></FormItem>
-            <FormItem class="sm:col-span-2"><FormLabel for="taskName">任务名称</FormLabel><Input id="taskName" v-model="form.name" :maxlength="128" /></FormItem>
-            <FormItem><FormLabel for="dateFrom">出版日期起</FormLabel><Input id="dateFrom" v-model="form.publicationDateFrom" type="date" /></FormItem>
-            <FormItem><FormLabel for="dateTo">出版日期止</FormLabel><Input id="dateTo" v-model="form.publicationDateTo" type="date" /></FormItem>
-            <FormItem><FormLabel for="keyword">关键词</FormLabel><Input id="keyword" v-model="form.keyword" :maxlength="200" /></FormItem>
-            <FormItem><FormLabel for="authorIds">作者 ID（逗号分隔）</FormLabel><Input id="authorIds" v-model="form.authorIds" /></FormItem>
-            <FormItem><FormLabel for="instIds">机构 ID（逗号分隔）</FormLabel><Input id="instIds" v-model="form.institutionIds" /></FormItem>
-            <FormItem><FormLabel for="dois">DOI（逗号分隔）</FormLabel><Input id="dois" v-model="form.dois" /></FormItem>
-            <FormItem><FormLabel for="orcids">ORCID（逗号分隔）</FormLabel><Input id="orcids" v-model="form.orcids" /></FormItem>
-            <FormItem><FormLabel for="rorIds">ROR ID（逗号分隔）</FormLabel><Input id="rorIds" v-model="form.rorIds" /></FormItem>
-            <FormItem><FormLabel for="updatedFrom">外部更新时间起</FormLabel><Input id="updatedFrom" v-model="form.updatedFrom" type="datetime-local" /></FormItem>
-            <FormItem><FormLabel for="updatedUntil">外部更新时间止</FormLabel><Input id="updatedUntil" v-model="form.updatedUntil" type="datetime-local" /></FormItem>
-            <FormItem><FormLabel for="maxPages">最大页数</FormLabel><Input id="maxPages" v-model="form.maxPages" type="number" min="1" max="5" /></FormItem>
-            <FormItem><FormLabel for="maxRecords">最大记录数</FormLabel><Input id="maxRecords" v-model="form.maxRecords" type="number" min="1" max="500" /></FormItem>
+            <FormField for="sourceId" label="数据源 ID"><ElInputNumber id="sourceId" :model-value="form.sourceId === '' ? undefined : Number(form.sourceId)" @update:model-value="(value) => { form.sourceId = value == null ? '' : String(value) }"  :min="1" :disabled="Boolean(editing)"  controls-position="right" style="width: 100%" /></FormField>
+            <FormField class="sm:col-span-2" for="taskName" label="任务名称"><ElInput id="taskName" v-model="form.name" :maxlength="128"  /></FormField>
+            <FormField for="dateFrom" label="出版日期起"><ElDatePicker id="dateFrom" v-model="form.publicationDateFrom" type="date"  value-format="YYYY-MM-DD" format="YYYY-MM-DD" style="width: 100%" /></FormField>
+            <FormField for="dateTo" label="出版日期止"><ElDatePicker id="dateTo" v-model="form.publicationDateTo" type="date"  value-format="YYYY-MM-DD" format="YYYY-MM-DD" style="width: 100%" /></FormField>
+            <FormField for="keyword" label="关键词"><ElInput id="keyword" v-model="form.keyword" :maxlength="200"  /></FormField>
+            <FormField for="authorIds" label="作者 ID（逗号分隔）"><ElInput id="authorIds" v-model="form.authorIds"  /></FormField>
+            <FormField for="instIds" label="机构 ID（逗号分隔）"><ElInput id="instIds" v-model="form.institutionIds"  /></FormField>
+            <FormField for="dois" label="DOI（逗号分隔）"><ElInput id="dois" v-model="form.dois"  /></FormField>
+            <FormField for="orcids" label="ORCID（逗号分隔）"><ElInput id="orcids" v-model="form.orcids"  /></FormField>
+            <FormField for="rorIds" label="ROR ID（逗号分隔）"><ElInput id="rorIds" v-model="form.rorIds"  /></FormField>
+            <FormField for="updatedFrom" label="外部更新时间起"><ElDatePicker id="updatedFrom" v-model="form.updatedFrom" type="datetime"  value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm" style="width: 100%" /></FormField>
+            <FormField for="updatedUntil" label="外部更新时间止"><ElDatePicker id="updatedUntil" v-model="form.updatedUntil" type="datetime"  value-format="YYYY-MM-DDTHH:mm:ss" format="YYYY-MM-DD HH:mm" style="width: 100%" /></FormField>
+            <FormField for="maxPages" label="最大页数"><ElInputNumber id="maxPages" :model-value="form.maxPages === '' ? undefined : Number(form.maxPages)" @update:model-value="(value) => { form.maxPages = value == null ? '' : String(value) }"  :min="1" :max="5"  controls-position="right" style="width: 100%" /></FormField>
+            <FormField for="maxRecords" label="最大记录数"><ElInputNumber id="maxRecords" :model-value="form.maxRecords === '' ? undefined : Number(form.maxRecords)" @update:model-value="(value) => { form.maxRecords = value == null ? '' : String(value) }"  :min="1" :max="500"  controls-position="right" style="width: 100%" /></FormField>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" @click="taskDialog = false">取消</Button>
-            <Button type="submit" :loading="saving">保存</Button>
-          </DialogFooter>
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <ElButton native-type="button" @click="taskDialog = false" plain>取消</ElButton>
+            <ElButton native-type="submit" :loading="saving" type="primary">保存</ElButton>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ElDialog>
 
     <!-- 调度配置 -->
-    <Dialog v-model:open="scheduleDialog">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>配置每日调度</DialogTitle>
-          <DialogDescription>按本地时间和 IANA 时区每日重复既定查询范围，可用于历史复查。日期范围不会自动移动；任务上限也不会自动增加。</DialogDescription>
-        </DialogHeader>
+    <ElDialog v-model="scheduleDialog" width="min(448px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+        <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
+
+          <template #header="{ titleId }"><h2 :id="titleId">配置每日调度</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">按本地时间和 IANA 时区每日重复既定查询范围，可用于历史复查。日期范围不会自动移动；任务上限也不会自动增加。</p>
+
         <form class="grid gap-4" novalidate @submit.prevent="saveSchedule">
-          <FormItem><FormLabel for="localTime">本地时间</FormLabel><Input id="localTime" v-model="scheduleForm.localTime" type="time" /></FormItem>
-          <FormItem><FormLabel for="timeZone">IANA 时区</FormLabel><Input id="timeZone" v-model="scheduleForm.timeZone" placeholder="Asia/Shanghai" /></FormItem>
-          <FormItem><FormLabel for="scheduleVersion">计划版本（首次配置留空）</FormLabel><Input id="scheduleVersion" v-model="scheduleForm.version" type="number" min="0" step="1" /></FormItem>
-          <Alert variant="info"><AlertTitle>本页面后续修改会自动携带版本；刷新后修改已有计划时，请填写服务端当前版本以启用冲突校验。</AlertTitle></Alert>
-          <DialogFooter>
-            <Button type="button" variant="outline" @click="scheduleDialog = false">取消</Button>
-            <Button type="submit" :loading="saving">保存调度</Button>
-          </DialogFooter>
+          <FormField for="localTime" label="本地时间"><ElTimePicker id="localTime" v-model="scheduleForm.localTime"   value-format="HH:mm:ss" format="HH:mm" style="width: 100%" /></FormField>
+          <FormField for="timeZone" label="IANA 时区"><ElInput id="timeZone" v-model="scheduleForm.timeZone" placeholder="Asia/Shanghai"  /></FormField>
+          <FormField for="scheduleVersion" label="计划版本（首次配置留空）"><ElInputNumber id="scheduleVersion" :model-value="scheduleForm.version === '' ? undefined : Number(scheduleForm.version)" @update:model-value="(value) => { scheduleForm.version = value == null ? '' : String(value) }"  :min="0" :step="1"  controls-position="right" style="width: 100%" /></FormField>
+          <ElAlert type="info" :closable="false" show-icon><template #title>本页面后续修改会自动携带版本；刷新后修改已有计划时，请填写服务端当前版本以启用冲突校验。</template></ElAlert>
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <ElButton native-type="button" @click="scheduleDialog = false" plain>取消</ElButton>
+            <ElButton native-type="submit" :loading="saving" type="primary">保存调度</ElButton>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ElDialog>
 
     <!-- 运行详情 -->
-    <Dialog v-model:open="runDialog">
-      <DialogContent class="sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>采集运行详情</DialogTitle>
-          <DialogDescription>查看运行处理量、覆盖边界与恢复安排。</DialogDescription>
-        </DialogHeader>
+    <ElDialog v-model="runDialog" width="min(896px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
+        <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
+
+          <template #header="{ titleId }"><h2 :id="titleId">采集运行详情</h2></template>
+          <p class="mb-4 text-sm text-muted-foreground">查看运行处理量、覆盖边界与恢复安排。</p>
+
         <template v-if="currentRun">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2.5">
@@ -516,28 +536,28 @@ onBeforeUnmount(clearRunPoll)
               <span class="mono-evidence text-xs text-muted-foreground">{{ currentRun.runNumber }}</span>
             </div>
             <div v-if="canControl" class="flex flex-wrap gap-2">
-              <Button v-if="currentRun.status === 'RUNNING'" variant="outline" size="sm" :loading="controlling === 'pause'" @click="control('pause')">暂停</Button>
-              <Button v-if="currentRun.status === 'PAUSED' && !currentRun.deferredUntil" variant="outline" size="sm" :loading="controlling === 'resume'" @click="control('resume')">恢复</Button>
-              <Button v-if="currentRun.status === 'PAUSED' && currentRun.deferredUntil" variant="outline" size="sm" :loading="controlling === 'pause'" @click="control('pause')">停止自动恢复</Button>
-              <Button v-if="['RUNNING', 'PAUSED'].includes(currentRun.status)" variant="destructive" size="sm" :loading="controlling === 'cancel'" @click="control('cancel')">取消</Button>
-              <Button v-if="currentRun.failureCount > 0" variant="outline" size="sm" :loading="controlling === 'retry-failures'" @click="control('retry-failures')">重试失败项</Button>
+              <ElButton v-if="currentRun.status === 'RUNNING'" size="small" :loading="controlling === 'pause'" @click="control('pause')" plain>暂停</ElButton>
+              <ElButton v-if="currentRun.status === 'PAUSED' && !currentRun.deferredUntil" size="small" :loading="controlling === 'resume'" @click="control('resume')" plain>恢复</ElButton>
+              <ElButton v-if="currentRun.status === 'PAUSED' && currentRun.deferredUntil" size="small" :loading="controlling === 'pause'" @click="control('pause')" plain>停止自动恢复</ElButton>
+              <ElButton v-if="['RUNNING', 'PAUSED'].includes(currentRun.status)" size="small" :loading="controlling === 'cancel'" @click="control('cancel')" type="danger">取消</ElButton>
+              <ElButton v-if="currentRun.failureCount > 0" plain size="small" :loading="controlling === 'retry-failures'" @click="control('retry-failures')">重试失败项</ElButton>
             </div>
           </div>
 
-          <Alert v-if="completionMessage" variant="info">
-            <AlertTitle>运行说明</AlertTitle>
-            <AlertDescription>
+          <ElAlert v-if="completionMessage" type="info" :closable="false" show-icon>
+            <template #title>运行说明</template>
+            <div>
               <p>{{ completionMessage }}</p>
               <p v-if="currentRun.deferredUntil">预计 {{ formatDateTime(currentRun.deferredUntil) }} 后恢复 · 已安排 {{ currentRun.quotaDeferrals ?? 0 }}/3 次；停用的任务或来源不会自动恢复。</p>
-            </AlertDescription>
-          </Alert>
+            </div>
+          </ElAlert>
           <p class="text-xs text-muted-foreground">下方百分比表示本次任务执行进度，不表示来源数据覆盖率。</p>
           <div class="flex items-center gap-3">
-            <Progress :model-value="runProgress" class="flex-1" :aria-label="`采集进度 ${runProgress}%`" />
+            <ElProgress :show-text="false" :percentage="runProgress" class="flex-1" :aria-label="`采集进度 ${runProgress}%`" />
             <b class="text-sm tabular-nums text-muted-foreground">{{ runProgress }}%</b>
           </div>
 
-          <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <dl class="run-metrics">
             <div v-for="metric in [
               { label: '读取', value: currentRun.readCount },
               { label: '解析', value: currentRun.parsedCount },
@@ -546,11 +566,11 @@ onBeforeUnmount(clearRunPoll)
               { label: '重复', value: currentRun.duplicateCount },
               { label: '失败', value: currentRun.failureCount },
               { label: '请求', value: currentRun.requestCount },
-            ]" :key="metric.label" class="rounded-lg border border-border bg-muted/30 p-3">
+            ]" :key="metric.label" class="p-3">
               <dt class="text-xs text-muted-foreground">{{ metric.label }}</dt>
               <dd class="text-xl font-semibold tabular-nums"><CountUpNumber :value="metric.value" /></dd>
             </div>
-            <div class="rounded-lg border border-border bg-muted/30 p-3">
+            <div class="p-3">
               <dt class="text-xs text-muted-foreground">开始</dt>
               <dd class="text-sm">{{ formatDateTime(currentRun.startedAt) }}</dd>
             </div>
@@ -579,7 +599,6 @@ onBeforeUnmount(clearRunPoll)
             />
           </div>
         </template>
-      </DialogContent>
-    </Dialog>
+      </ElDialog>
   </section>
 </template>

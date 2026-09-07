@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-
-import { easeOutCubic, prefersReducedMotion } from '@/utils/motion'
+import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
   value: number
@@ -12,47 +10,12 @@ const props = withDefaults(defineProps<{
   suffix: '',
 })
 
-const displayedValue = ref(0)
-let animationFrame: number | undefined
-
+// 保留原组件入口，但指标始终展示接口终值，避免轮询时生成不存在的中间计数。
 const formattedValue = computed(() =>
-  `${Math.round(displayedValue.value).toLocaleString('zh-CN')}${props.suffix}`,
+  Number.isFinite(props.value) ? `${Math.round(props.value).toLocaleString('zh-CN')}${props.suffix}` : '--',
 )
-
-/** 关键指标从当前值平滑过渡，避免接口刷新造成视觉跳变。 */
-function animateTo(target: number): void {
-  if (animationFrame !== undefined) {
-    window.cancelAnimationFrame(animationFrame)
-    animationFrame = undefined
-  }
-
-  const safeTarget = Number.isFinite(target) ? target : 0
-  if (prefersReducedMotion() || props.duration <= 0) {
-    displayedValue.value = safeTarget
-    return
-  }
-
-  const startValue = displayedValue.value
-  const startedAt = window.performance.now()
-  const step = (now: number): void => {
-    const progress = Math.min(1, (now - startedAt) / props.duration)
-    displayedValue.value = startValue + (safeTarget - startValue) * easeOutCubic(progress)
-    if (progress < 1) {
-      animationFrame = window.requestAnimationFrame(step)
-    } else {
-      animationFrame = undefined
-    }
-  }
-  animationFrame = window.requestAnimationFrame(step)
-}
-
-watch(() => props.value, animateTo, { immediate: true })
-
-onBeforeUnmount(() => {
-  if (animationFrame !== undefined) window.cancelAnimationFrame(animationFrame)
-})
 </script>
 
 <template>
-  <span>{{ formattedValue }}</span>
+  <span class="tabular-nums">{{ formattedValue }}</span>
 </template>

@@ -1,5 +1,6 @@
 import {
   Activity,
+  BookOpen,
   Database,
   LayoutDashboard,
   Library,
@@ -7,7 +8,6 @@ import {
   ShieldCheck,
   TrendingUp,
   Users,
-  Waypoints,
   Workflow,
   type LucideIcon,
 } from 'lucide-vue-next'
@@ -23,6 +23,8 @@ export interface NavItem {
   permission?: Permission
   /** 用于命令面板搜索的关键词 */
   keywords?: string[]
+  /** 父模块下的子模块入口，可独立展开或收起。 */
+  children?: readonly { label: string; to: string }[]
 }
 
 export type NavGroupId = 'visualization' | 'crawler' | 'status' | 'users'
@@ -44,7 +46,14 @@ export function groupNavigation(items: readonly NavItem[]) {
 export const navItems: NavItem[] = [
   { group: 'visualization', label: '工作台', caption: 'Dashboard', to: '/', icon: LayoutDashboard, keywords: ['dashboard', 'overview', 'home'] },
   { group: 'visualization', label: '成果目录', caption: 'Catalog', to: '/catalog', icon: Library, permission: 'CATALOG_READ', keywords: ['catalog', 'achievement'] },
-  { group: 'visualization', label: '知识图谱', caption: 'Network', to: '/graph', icon: Waypoints, permission: 'GRAPH_READ', keywords: ['graph', 'neo4j', 'network'] },
+  {
+    group: 'visualization', label: '知识图谱', caption: 'Network', to: '/graph', icon: BookOpen, permission: 'GRAPH_READ', keywords: ['graph', 'neo4j', 'network'],
+    children: [
+      { label: '图谱概览', to: '/graph' },
+      { label: '实体管理', to: '/graph/entities' },
+      { label: '关系管理', to: '/graph/relations' },
+    ],
+  },
   { group: 'visualization', label: '统计分析', caption: 'Analytics', to: '/analytics', icon: TrendingUp, permission: 'ANALYTICS_READ', keywords: ['analytics', 'trend', 'chart'] },
   { group: 'crawler', label: '数据源', caption: 'Sources', to: '/sources', icon: Database, permission: 'SOURCE_READ', keywords: ['source', 'openalex', 'crossref'] },
   { group: 'crawler', label: '采集任务', caption: 'Crawler', to: '/crawl', icon: Workflow, permission: 'CRAWL_TASK_READ', keywords: ['crawl', 'task', 'run'] },

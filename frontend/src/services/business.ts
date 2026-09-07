@@ -200,12 +200,16 @@ export interface GraphSubgraphQuery {
   publicationYearFrom?: number
   publicationYearTo?: number
   achievementTypes?: string[]
+  includeCoauthors?: boolean
 }
 
 export const graphApi = {
+  /** 自动读取受限作者与作品网络，合作依据由后端随结果返回。 */
+  overview: () => api.get<GraphResponse>('/api/v1/graph/overview'),
   subgraph: (query: GraphSubgraphQuery) =>
     api.get<GraphResponse>(withQuery('/api/v1/graph/subgraph', {
       centerType: query.centerType,
+      includeCoauthors: query.includeCoauthors,
       centerId: query.centerId,
       depth: query.depth,
       nodeLimit: query.nodeLimit,

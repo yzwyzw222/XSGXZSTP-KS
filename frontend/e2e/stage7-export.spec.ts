@@ -81,9 +81,12 @@ test('研究人员按当前目录筛选创建、轮询并下载CSV导出', async
 
   await page.goto('/catalog')
   await page.locator('label:has-text("题名") input').fill('可信计算')
-  await page.locator('label:has-text("出版年份") input').fill('2026')
-  await page.locator('label:has-text("成果类型") input').fill('article')
-  await page.locator('label:has-text("来源代码") input').fill('openalex')
+  await page.getByRole('button', { name: '选择出版年份' }).click()
+  await page.getByRole('button', { name: '2026', exact: true }).click()
+  await page.locator('label:has-text("成果类型")').getByRole('combobox').click()
+  await page.getByRole('option', { name: 'article · 期刊论文' }).click()
+  await page.locator('label:has-text("来源代码")').getByRole('combobox').click()
+  await page.getByRole('option', { name: 'OpenAlex' }).click()
   await page.getByRole('button', { name: '导出 CSV' }).click()
 
   await expect(page.getByText('导出完成')).toBeVisible()

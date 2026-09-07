@@ -58,10 +58,10 @@ test('研究人员按业务节点加载受限图谱并切换无障碍表格', as
     traceId: 'trace-stage7-graph',
   })
 
-  await page.goto('/graph')
-  await expect(page.getByRole('heading', { name: '知识图谱' })).toBeVisible()
+  await page.goto('/graph/explore')
+  await expect(page.getByRole('heading', { name: '高级查询' })).toBeVisible()
   await page.locator('label:has-text("中心业务ID") input').fill('42')
-  await page.getByRole('button', { name: '加载中心子图' }).click()
+  await page.getByRole('button', { name: '加载图谱' }).click()
 
   await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
   await expect(page.getByText('结果达到上限，请增加类型或年份过滤条件。')).toBeVisible()
@@ -99,7 +99,7 @@ test('按名称选择图谱中心、保存筛选并从详情链接自动加载',
       projectionLagSeconds: 0, traceId: 'graph-lookup-test',
     }) })
   })
-  await page.goto('/graph')
+  await page.goto('/graph/explore')
   await page.getByRole('textbox', { name: '中心名称', exact: true }).fill('学术关系')
   await page.getByRole('button', { name: '查找中心' }).click()
   await page.getByRole('list', { name: '中心候选' }).getByRole('button').click()

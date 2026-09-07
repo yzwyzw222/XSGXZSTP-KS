@@ -1,36 +1,59 @@
 <script setup lang="ts">
-import { useStorage } from '@vueuse/core'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { ElDrawer, ElMessage } from 'element-plus'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 
 import AppSidebar from '@/components/business/AppSidebar.vue'
 import AppTopbar from '@/components/business/AppTopbar.vue'
 import CommandPalette from '@/components/business/CommandPalette.vue'
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
-import { toast } from '@/components/ui/sonner'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import { navItems } from '@/config/nav'
-import { logout, session } from '@/services/session'
+import { useMotion } from '@/composables/useMotion'
+import { usePreferencesStore } from '@/stores/preferences'
+import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
+const sessionStore = useSessionStore()
+const preferences = usePreferencesStore()
+
 const loggingOut = ref(false)
 const paletteOpen = ref(false)
 const mobileNavOpen = ref(false)
-const collapsed = useStorage('aacv-sidebar-collapsed', false)
+const mainContent = ref<HTMLElement | null>(null)
+const { reducedMotion, duration } = useMotion()
+let sidebarAnimation: Animation | undefined
+let layoutSequence = 0
 
+/** 一次提交新宽度后只平移内容；连续折叠从当前视觉位置接续，不积累动画。 */
+watch(() => preferences.sidebarCollapsed, async () => {
+  const element = mainContent.value
+  if (!element || window.innerWidth < 1024) return
+  const sequence = ++layoutSequence
+  const before = element.getBoundingClientRect().left
+  sidebarAnimation?.cancel()
+  await nextTick()
+  if (sequence !== layoutSequence || !mainContent.value || reducedMotion.value || !element.animate) return
+  const delta = before - element.getBoundingClientRect().left
+  sidebarAnimation = element.animate([
+    { transform: `translateX(${delta}px)` }, { transform: 'translateX(0)' },
+  ], { duration: duration('normal'), easing: 'cubic-bezier(0.16, 1, 0.3, 1)' })
+})
+watch(reducedMotion, () => sidebarAnimation?.cancel())
+onBeforeUnmount(() => { layoutSequence++; sidebarAnimation?.cancel() })
+
+/** 权限过滤后再分组，避免向无权限用户展示空模块。 */
 const menuItems = computed(() =>
-  navItems.filter(
-    (item) => !item.permission || session.user?.permissions.includes(item.permission) === true,
-  ),
+  navItems.filter((item) => sessionStore.hasPermission(item.permission)),
 )
 
 async function handleLogout(): Promise<void> {
+  // 退出只允许一条在途请求，避免重复点击造成重复提示。
+  if (loggingOut.value) return
   loggingOut.value = true
   try {
-    await logout()
+    await sessionStore.logout()
     await router.replace({ name: 'login' })
   } catch {
-    toast.warning('服务端退出请求未完成，本地会话已清除')
+    ElMessage.warning('服务端退出请求未完成，本地会话已清除')
     await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
@@ -44,7 +67,7 @@ function onKeydown(event: KeyboardEvent): void {
     paletteOpen.value = !paletteOpen.value
   } else if (mod && event.key.toLowerCase() === 'b') {
     event.preventDefault()
-    collapsed.value = !collapsed.value
+    preferences.toggleSidebar()
   }
 }
 
@@ -57,67 +80,67 @@ onBeforeUnmount(removeAfterEach)
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="200">
-    <div class="min-h-screen bg-background">
-      <a
-        href="#main-content"
-        class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-      >
-        跳到主内容
-      </a>
+  <div class="app-shell min-h-dvh bg-background">
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+    >
+      跳到主内容
+    </a>
 
-      <!-- 桌面侧栏 -->
-      <aside
-        class="fixed inset-y-0 left-0 z-40 hidden border-r border-sidebar-border transition-[width] duration-200 lg:block"
-        :style="{ width: collapsed ? 'var(--sidebar-width-collapsed)' : 'var(--sidebar-width)' }"
-      >
-        <AppSidebar :items="menuItems" :collapsed="collapsed" @toggle-collapse="collapsed = !collapsed" />
-      </aside>
+    <!-- 桌面侧栏 -->
+    <aside
+      class="app-shell__sidebar fixed inset-y-0 left-0 hidden border-r border-sidebar-border lg:block"
+      :style="{ width: preferences.sidebarCollapsed ? 'var(--sidebar-width-collapsed)' : 'var(--sidebar-width)' }"
+    >
+      <AppSidebar
+        :items="menuItems"
+        :collapsed="preferences.sidebarCollapsed"
+        @toggle-collapse="preferences.toggleSidebar()"
+      />
+    </aside>
 
-      <!-- 移动抽屉 -->
-      <Sheet v-model:open="mobileNavOpen">
-        <SheetContent side="left" class="w-64 p-0 lg:hidden">
-          <SheetTitle class="sr-only">业务导航</SheetTitle>
-          <SheetDescription class="sr-only">按模块选择可访问的业务页面。</SheetDescription>
-          <AppSidebar :items="menuItems" :collapsed="false" />
-        </SheetContent>
-      </Sheet>
+    <!-- 窄屏抽屉导航 -->
+    <ElDrawer
+      v-model="mobileNavOpen"
+      direction="ltr"
+      size="256px"
+      :with-header="false"
+      class="aacv-drawer aacv-navigation-drawer lg:hidden"
+      aria-label="业务导航抽屉"
+    >
+      <AppSidebar :items="menuItems" :collapsed="false" />
+    </ElDrawer>
 
-      <!-- 主区 -->
-      <div
-        class="flex min-h-screen flex-col transition-[padding] duration-200"
-        :class="collapsed ? 'lg:pl-16' : 'lg:pl-60'"
-      >
-        <AppTopbar
-          :logging-out="loggingOut"
-          @open-sidebar="mobileNavOpen = true"
-          @open-palette="paletteOpen = true"
-          @logout="handleLogout"
-        />
-        <main id="main-content" class="min-w-0 flex-1">
-          <RouterView v-slot="{ Component }">
-            <transition name="page" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </RouterView>
-        </main>
-      </div>
-
-      <CommandPalette v-model:open="paletteOpen" @logout="handleLogout" />
+    <!-- 主区 -->
+    <div
+      class="flex min-h-dvh flex-col"
+      :class="preferences.sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-60'"
+    >
+      <AppTopbar
+        :logging-out="loggingOut"
+        @open-sidebar="mobileNavOpen = true"
+        @open-palette="paletteOpen = true"
+        @logout="handleLogout"
+      />
+      <main id="main-content" ref="mainContent" tabindex="-1" class="min-w-0 flex-1">
+        <RouterView v-if="sessionStore.isAuthenticated" v-slot="{ Component }">
+          <transition name="page">
+            <component :is="Component" />
+          </transition>
+        </RouterView>
+      </main>
     </div>
-  </TooltipProvider>
+
+    <CommandPalette v-model:open="paletteOpen" @logout="handleLogout" />
+  </div>
 </template>
 
 <style scoped>
-.page-enter-active,
-.page-leave-active {
-  transition: opacity 160ms var(--ease-standard), transform 160ms var(--ease-standard);
-}
+/* 旧页立即卸载，新页只做短淡入，路由请求和键盘焦点不等待离场动画。 */
+.app-shell__sidebar { z-index: var(--z-sidebar); }
+.page-enter-active { transition: opacity var(--duration-fast) var(--ease-standard); }
 .page-enter-from {
-  opacity: 0;
-  transform: translateY(6px);
-}
-.page-leave-to {
   opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {

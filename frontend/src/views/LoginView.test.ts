@@ -1,6 +1,7 @@
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { createPinia } from 'pinia'
 
 import LoginView from '@/views/LoginView.vue'
 
@@ -12,7 +13,7 @@ describe('LoginView', () => {
     })
     await router.push('/login')
     await router.isReady()
-    const wrapper = mount(LoginView, { global: { plugins: [router] } })
+    const wrapper = mount(LoginView, { global: { plugins: [createPinia(), router] } })
 
     const button = wrapper.findAll('button').find((item) => item.text().includes('进入工作台'))
     await button?.trigger('click')

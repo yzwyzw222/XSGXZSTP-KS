@@ -24,3 +24,33 @@ export const savedGraphQuerySchema = z.array(z.object({
   filters: graphFilterSchema,
 })).max(10)
 export type SavedGraphQuery = z.infer<typeof savedGraphQuerySchema>[number]
+
+/**
+ * 常用查询仅保存在本机当前账号下，避免跨账号泄露检索习惯。
+ * 账号标识由调用方从会话 store 传入，本模块不直接依赖状态层。
+ */
+export function savedQueriesStorageKey(userId: number | null): string | null {
+  return userId === null ? null : `aacv-graph-queries-v1:${userId}`
+}
+
+export function readSavedQueries(userId: number | null): { queries: SavedGraphQuery[]; corrupted: boolean } {
+  const key = savedQueriesStorageKey(userId)
+  if (!key) return { queries: [], corrupted: false }
+  try {
+    const value = localStorage.getItem(key)
+    return { queries: value ? savedGraphQuerySchema.parse(JSON.parse(value)) : [], corrupted: false }
+  } catch {
+    return { queries: [], corrupted: true }
+  }
+}
+
+export function writeSavedQueries(userId: number | null, queries: SavedGraphQuery[]): boolean {
+  const key = savedQueriesStorageKey(userId)
+  if (!key) return false
+  try {
+    localStorage.setItem(key, JSON.stringify(queries))
+    return true
+  } catch {
+    return false
+  }
+}
