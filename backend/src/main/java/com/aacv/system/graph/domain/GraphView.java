@@ -13,7 +13,8 @@ public record GraphView(
         AppliedLimits appliedLimits,
         Instant syncedAt,
         Long projectionLagSeconds,
-        String traceId) {
+        String traceId,
+        List<GraphTypeDefinition> typeDefinitions) {
 
     public record Node(
             String id, String businessId, GraphNodeType type, String label, Map<String, Object> properties) {
@@ -21,7 +22,7 @@ public record GraphView(
 
     public record Edge(
             String id,
-            GraphRelationshipType type,
+            String type,
             String source,
             String target,
             Map<String, Object> properties) {

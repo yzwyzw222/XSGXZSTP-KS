@@ -25,6 +25,8 @@ import com.aacv.system.identity.application.VersionConflictException;
 import com.aacv.system.identity.domain.RoleCode;
 import com.aacv.system.identity.domain.UserAccount;
 import jakarta.servlet.http.Cookie;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -737,6 +739,73 @@ class SecurityIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
         assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_log WHERE action='LOGIN_FAILED'", Long.class));
+    }
+
+    @Test
+    void legacyExportAuditsRemainReadableAndMatchCanonicalFilters() throws Exception {
+        AuthSession admin = login(ADMIN_USERNAME, ADMIN_PASSWORD);
+        long actorId = userAccountService.findByUsername(ADMIN_USERNAME).orElseThrow().id();
+        // 使用 JDBC 时间参数，避免 SQL 时间字面量依赖测试主机时区。
+        jdbcTemplate.update("""
+                INSERT INTO audit_log (
+                    actor_user_id, action, target_type, target_id, result, trace_id, summary_json, created_at
+                ) VALUES
+                    (?, 'EXPORT_COMPLETED', 'EXPORT_TASK', 'legacy-export', 'SUCCESS',
+                     'legacy-export-completed', JSON_OBJECT('format', 'CSV'), ?),
+                    (?, 'EXPORT_SUCCEEDED', 'EXPORT_TASK', 'current-export', 'SUCCESS',
+                     'current-export-succeeded', JSON_OBJECT(), ?),
+                    (?, 'OPERATION_FAILED', 'API_OPERATION', 'failed-export', 'FAILURE',
+                     'failed-export-operation', JSON_OBJECT('operation', 'EXPORT_SUCCEEDED'), ?),
+                    (?, 'EXPORT_FAILED', 'EXPORT_TASK', 'other-export', 'FAILURE',
+                     'other-export-failed', JSON_OBJECT(), ?)
+                """, actorId, Timestamp.from(Instant.parse("2020-01-01T12:00:00Z")),
+                actorId, Timestamp.from(Instant.parse("2020-01-01T11:00:00Z")),
+                actorId, Timestamp.from(Instant.parse("2020-01-01T10:00:00Z")),
+                actorId, Timestamp.from(Instant.parse("2020-01-01T09:00:00Z")));
+
+        for (String category : new String[] {"", "OPERATION"}) {
+            mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie())
+                            .param("category", category)
+                            .param("from", "2020-01-01T00:00:00Z").param("to", "2020-01-02T00:00:00Z"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(4))
+                    .andExpect(jsonPath("$.items[0].action").value("EXPORT_SUCCEEDED"))
+                    .andExpect(jsonPath("$.items[0].category").value("OPERATION"))
+                    .andExpect(jsonPath("$.items[0].traceId").value("legacy-export-completed"))
+                    .andExpect(jsonPath("$.items[0].createdAt").value("2020-01-01T12:00:00Z"))
+                    .andExpect(jsonPath("$.items[0].summary.format").value("CSV"));
+        }
+
+        String[] expectedTraces = {"legacy-export-completed", "current-export-succeeded", "failed-export-operation"};
+        for (int page = 0; page < expectedTraces.length; page++) {
+            mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie())
+                            .param("category", "OPERATION").param("action", "EXPORT_SUCCEEDED")
+                            .param("username", ADMIN_USERNAME).param("size", "1").param("page", Integer.toString(page)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(3))
+                    .andExpect(jsonPath("$.totalPages").value(3))
+                    .andExpect(jsonPath("$.items.length()").value(1))
+                    .andExpect(jsonPath("$.items[0].traceId").value(expectedTraces[page]));
+        }
+
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie())
+                        .param("category", "OPERATION").param("action", "EXPORT_SUCCEEDED").param("result", "SUCCESS"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie())
+                        .param("action", "EXPORT_SUCCEEDED").param("from", "2020-01-01T11:00:00Z")
+                        .param("to", "2020-01-01T12:00:00Z"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].traceId").value("current-export-succeeded"));
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie())
+                        .param("category", "OPERATION").param("action", "EXPORT_SUCCEEDED").param("result", "FAILURE"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].action").value("OPERATION_FAILED"));
+        mockMvc.perform(get("/api/v1/operations/audits").cookie(admin.cookie()).param("category", "LOGIN"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].action").value("LOGIN_SUCCEEDED"));
+
+        assertEquals("EXPORT_COMPLETED", jdbcTemplate.queryForObject(
+                "SELECT action FROM audit_log WHERE trace_id = 'legacy-export-completed'", String.class));
     }
 
     @Test

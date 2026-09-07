@@ -58,7 +58,15 @@
             <if test="query.from != null">AND a.created_at &gt;= #{query.from}</if>
             <if test="query.to != null">AND a.created_at &lt; #{query.to}</if>
             <if test="query.result != null">AND a.result = #{query.result}</if>
-            <if test="query.action != null">AND (a.action = #{query.action} OR (a.action = 'OPERATION_FAILED' AND JSON_UNQUOTE(JSON_EXTRACT(a.summary_json, '$.operation')) = #{query.action}))</if>
+            <if test="query.action != null">
+                AND (
+                    a.action = #{query.action}
+                    <if test="query.action.name() == 'EXPORT_SUCCEEDED'">
+                        OR a.action = 'EXPORT_COMPLETED'
+                    </if>
+                    OR (a.action = 'OPERATION_FAILED' AND JSON_UNQUOTE(JSON_EXTRACT(a.summary_json, '$.operation')) = #{query.action})
+                )
+            </if>
         </where>
     </sql>
     <select id="countAll" resultType="long">

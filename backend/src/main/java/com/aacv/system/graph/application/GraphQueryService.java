@@ -49,6 +49,22 @@ public class GraphQueryService {
         this.operationsService = operationsService;
     }
 
+    /** 概览优先读取创作边，再补充孤立节点；查询和结果均保持有界。 */
+    @PreAuthorize("hasAuthority('GRAPH_READ')")
+    public GraphView overview(int nodeLimit) {
+        if (nodeLimit < 1 || nodeLimit > HARD_NODE_LIMIT) {
+            throw new IllegalArgumentException("概览节点上限无效");
+        }
+        String cypher = "MATCH path=(root)-[rels:AUTHORED*0..1]->(node) "
+                + "WHERE root.aacvManaged = true AND node.aacvManaged = true "
+                + "AND (root:Author OR root:Achievement) AND (node:Author OR node:Achievement) "
+                + "AND all(rel IN relationships(path) WHERE rel.aacvManaged = true) "
+                + "AND (length(path) = 0 OR (root:Author AND node:Achievement)) "
+                + "RETURN path ORDER BY length(path) DESC, node.businessId, root.businessId "
+                + "LIMIT $pathLimit";
+        return execute(cypher, Map.of("pathLimit", nodeLimit * 4 + 1), "", 1, nodeLimit, 0, true);
+    }
+
     @PreAuthorize("hasAuthority('GRAPH_READ')")
     public GraphView subgraph(
             GraphNodeType centerType,
@@ -115,6 +131,12 @@ public class GraphQueryService {
     private GraphView execute(
             String cypher, Map<String, Object> parameters, String rootNodeId,
             int depth, int nodeLimit, int maxHops) {
+        return execute(cypher, parameters, rootNodeId, depth, nodeLimit, maxHops, false);
+    }
+
+    private GraphView execute(
+            String cypher, Map<String, Object> parameters, String rootNodeId,
+            int depth, int nodeLimit, int maxHops, boolean overview) {
         if (operationsService.rebuildInProgress()) {
             throw new GraphRebuildInProgressException();
         }
@@ -125,12 +147,12 @@ public class GraphQueryService {
             List<Record> records = session.executeRead(
                     transaction -> transaction.run(cypher, parameters).list(),
                     TransactionConfig.builder().withTimeout(QUERY_TIMEOUT).build());
-            if (records.isEmpty()) {
+            if (records.isEmpty() && !overview) {
                 throw new ResourceNotFoundException("图节点或路径不存在");
             }
             LinkedHashMap<String, Node> nodes = new LinkedHashMap<>();
             LinkedHashMap<String, Edge> edges = new LinkedHashMap<>();
-            boolean truncated = false;
+            boolean truncated = overview && records.size() >= (int) parameters.get("pathLimit");
             for (Record record : records) {
                 Path path = record.get("path").asPath();
                 for (org.neo4j.driver.types.Node graphNode : path.nodes()) {
@@ -155,7 +177,7 @@ public class GraphQueryService {
             return new GraphView(
                     new ArrayList<>(nodes.values()), new ArrayList<>(edges.values()), rootNodeId,
                     truncated, truncated ? "请缩小节点类型、关系类型或年份范围" : null,
-                    new AppliedLimits(depth, nodeLimit, maxHops), syncedAt, lag, TraceContext.current());
+                    new AppliedLimits(depth, nodeLimit, maxHops), syncedAt, lag, TraceContext.current(), List.of());
         } catch (ResourceNotFoundException exception) {
             throw exception;
         } catch (Neo4jException exception) {
@@ -192,7 +214,7 @@ public class GraphQueryService {
         String achievementId = relationship.containsKey("achievementBusinessId")
                 ? relationship.get("achievementBusinessId").toString() : "none";
         String id = type.name() + ":" + source + ":" + target + ":" + achievementId;
-        return new Edge(id, type, source, target, Map.of());
+        return new Edge(id, type.name(), source, target, Map.of());
     }
 
     private Node nodeByElement(Iterable<org.neo4j.driver.types.Node> nodes, String elementId) {

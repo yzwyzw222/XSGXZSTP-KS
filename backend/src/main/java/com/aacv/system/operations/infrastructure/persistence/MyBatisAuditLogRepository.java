@@ -58,10 +58,13 @@ public class MyBatisAuditLogRepository implements AuditLogRepository {
         Map<String, String> summary = row.getSummaryJson() == null
                 ? Map.of()
                 : objectMapper.readValue(row.getSummaryJson(), SUMMARY_TYPE);
+        // 兼容早期页面样例写入的旧操作名，领域与接口仍使用标准类型。
+        AuditAction action = "EXPORT_COMPLETED".equals(row.getAction())
+                ? AuditAction.EXPORT_SUCCEEDED : AuditAction.valueOf(row.getAction());
         return new AuditLogEntry(
                 row.getId(),
                 row.getActorUserId(),
-                AuditAction.valueOf(row.getAction()),
+                action,
                 row.getTargetType(),
                 row.getTargetId(),
                 AuditResult.valueOf(row.getResult()),

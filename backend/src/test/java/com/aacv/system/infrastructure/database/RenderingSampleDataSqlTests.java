@@ -3,6 +3,7 @@ package com.aacv.system.infrastructure.database;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.aacv.system.operations.domain.AuditAction;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -31,7 +32,7 @@ class RenderingSampleDataSqlTests {
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(14, flyway.migrate().migrationsExecuted);
+        assertEquals(15, flyway.migrate().migrationsExecuted);
 
         try (Connection connection = MYSQL.createConnection("");
                 Statement statement = connection.createStatement()) {
@@ -44,6 +45,7 @@ class RenderingSampleDataSqlTests {
             executeSampleScript(connection, statement);
             Map<String, Long> firstCounts = sampleCounts(statement);
             assertExpectedCounts(firstCounts);
+            assertRegisteredAuditActions(statement);
             assertEquals(2, scalar(statement, """
                     SELECT COUNT(*)
                     FROM (
@@ -70,6 +72,7 @@ class RenderingSampleDataSqlTests {
                     """);
             executeSampleScript(connection, statement);
             assertEquals(firstCounts, sampleCounts(statement));
+            assertRegisteredAuditActions(statement);
             assertEquals(7, scalar(statement,
                     "SELECT requests_per_second FROM data_source WHERE source_code = 'OPENALEX'"));
             assertEquals(1, scalar(statement, """
@@ -78,6 +81,19 @@ class RenderingSampleDataSqlTests {
                       AND compliance_note = 'existing-source-configuration'
                     """));
         }
+    }
+
+    private void assertRegisteredAuditActions(Statement statement) throws Exception {
+        try (ResultSet resultSet = statement.executeQuery(
+                "SELECT DISTINCT action FROM audit_log WHERE trace_id LIKE 'aacv-demo-trace-%'")) {
+            while (resultSet.next()) {
+                AuditAction.valueOf(resultSet.getString("action"));
+            }
+        }
+        assertEquals(1, scalar(statement, """
+                SELECT COUNT(*) FROM audit_log
+                WHERE trace_id = 'aacv-demo-trace-export' AND action = 'EXPORT_SUCCEEDED'
+                """));
     }
 
     private void executeSampleScript(Connection connection, Statement statement) throws Exception {

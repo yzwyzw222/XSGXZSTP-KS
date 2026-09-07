@@ -30,6 +30,7 @@ $sqlPath = Join-Path $workspace 'tools\development\rendering-sample-data.sql'
 $requiredFiles = @(
     (Join-Path $workspace 'backend\pom.xml'),
     (Join-Path $workspace 'backend\src\main\resources\db\migration\V14__extend_user_profiles_and_audit_context.sql'),
+    (Join-Path $workspace 'backend\src\main\resources\db\migration\V15__create_graph_type_definitions.sql'),
     $sqlPath
 )
 foreach ($requiredFile in $requiredFiles) {
@@ -73,8 +74,8 @@ try {
     $migrationState = & $mysql.Source @connectionArguments --skip-column-names `
         --execute="SELECT CONCAT(COUNT(*), '|', COALESCE(MAX(CAST(version AS UNSIGNED)), 0)) FROM flyway_schema_history WHERE success = 1 AND version REGEXP '^[0-9]+$'" `
         $DatabaseName
-    if ($LASTEXITCODE -ne 0 -or $migrationState.Trim() -cne '14|14') {
-        throw "开发库必须完整应用且仅应用 Flyway V1 至 V14；当前状态为 $($migrationState.Trim())。"
+    if ($LASTEXITCODE -ne 0 -or @('14|14', '15|15') -cnotcontains $migrationState.Trim()) {
+        throw "开发库必须完整应用 Flyway V1 至 V14 或 V15；当前状态为 $($migrationState.Trim())。"
     }
 
     $actorId = & $mysql.Source @connectionArguments --skip-column-names `

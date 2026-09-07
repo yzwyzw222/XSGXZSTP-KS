@@ -94,8 +94,8 @@ FROM information_schema.tables WHERE table_schema = DATABASE();
         'userCount', 'auditCount', 'outboxCount', 'projectionStateCount', 'databaseBytes')) {
         if (-not $result.Contains($required)) { throw "数据库基线缺少字段：$required" }
     }
-    if (@('11', '12', '13', '14') -notcontains [string]$result.flywayVersion) {
-        throw "备份源Flyway版本必须为11、12、13或14，实际为 $($result.flywayVersion)。"
+    if (@('11', '12', '13', '14', '15') -notcontains [string]$result.flywayVersion) {
+        throw "备份源Flyway版本必须为11、12、13、14或15，实际为 $($result.flywayVersion)。"
     }
     return $result
 }

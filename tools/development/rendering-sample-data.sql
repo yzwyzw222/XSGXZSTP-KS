@@ -865,7 +865,7 @@ INSERT INTO audit_log (
     actor_user_id, action, target_type, target_id,
     result, trace_id, summary_json, created_at
 )
-SELECT @aacv_demo_actor_id, 'EXPORT_COMPLETED', 'EXPORT_TASK',
+SELECT @aacv_demo_actor_id, 'EXPORT_SUCCEEDED', 'EXPORT_TASK',
        'aacv-demo-export', 'SUCCESS', 'aacv-demo-trace-export',
        JSON_OBJECT('fixture', 'rendering', 'format', 'CSV', 'exportedCount', 12),
        UTC_TIMESTAMP(6) - INTERVAL 90 MINUTE

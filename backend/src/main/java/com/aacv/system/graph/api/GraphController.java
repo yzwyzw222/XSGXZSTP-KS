@@ -1,6 +1,7 @@
 package com.aacv.system.graph.api;
 
 import com.aacv.system.graph.application.GraphQueryService;
+import com.aacv.system.graph.application.GraphPresentationService;
 import com.aacv.system.graph.domain.GraphNodeType;
 import com.aacv.system.graph.domain.GraphRelationshipType;
 import com.aacv.system.graph.domain.GraphView;
@@ -19,9 +20,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class GraphController {
 
     private final GraphQueryService queryService;
+    private final GraphPresentationService presentationService;
 
-    public GraphController(GraphQueryService queryService) {
+    public GraphController(GraphQueryService queryService, GraphPresentationService presentationService) {
         this.queryService = queryService;
+        this.presentationService = presentationService;
+    }
+
+    @GetMapping("/overview")
+    public GraphView overview(
+            @RequestParam(defaultValue = "300") @Min(1) @Max(300) int nodeLimit) {
+        return presentationService.present(queryService.overview(nodeLimit), true);
     }
 
     @GetMapping("/subgraph")
@@ -34,10 +43,11 @@ public class GraphController {
             @RequestParam(required = false) List<GraphNodeType> nodeTypes,
             @RequestParam(required = false) @Min(1000) @Max(9999) Integer publicationYearFrom,
             @RequestParam(required = false) @Min(1000) @Max(9999) Integer publicationYearTo,
-            @RequestParam(required = false) List<String> achievementTypes) {
-        return queryService.subgraph(
+            @RequestParam(required = false) List<String> achievementTypes,
+            @RequestParam(defaultValue = "false") boolean includeCoauthors) {
+        return presentationService.present(queryService.subgraph(
                 centerType, centerId, depth, nodeLimit, relationshipTypes, nodeTypes,
-                publicationYearFrom, publicationYearTo, achievementTypes);
+                publicationYearFrom, publicationYearTo, achievementTypes), includeCoauthors);
     }
 
     @GetMapping("/path")
@@ -47,6 +57,6 @@ public class GraphController {
             @RequestParam GraphNodeType targetType,
             @RequestParam @Min(1) long targetId,
             @RequestParam(defaultValue = "6") @Min(1) @Max(6) int maxHops) {
-        return queryService.path(sourceType, sourceId, targetType, targetId, maxHops);
+        return presentationService.present(queryService.path(sourceType, sourceId, targetType, targetId, maxHops), false);
     }
 }
