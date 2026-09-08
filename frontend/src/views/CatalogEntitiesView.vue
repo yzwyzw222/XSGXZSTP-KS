@@ -2,7 +2,7 @@
 import { ElAlert, ElButton, ElDrawer, ElInput } from 'element-plus'
 import { ArrowLeft, Search } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 import { DataTable, EmptyState, LoadingSkeleton, PageHeader, PanelSection } from '@/components/business'
 import CatalogEntityEvidencePanel from '@/components/business/CatalogEntityEvidencePanel.vue'
@@ -15,7 +15,6 @@ const labels: Record<CatalogCollection, string> = {
   authors: '作者', organizations: '机构', venues: '期刊', topics: '主题',
 }
 const route = useRoute()
-const router = useRouter()
 const collection = computed(() => route.params.collection as CatalogCollection)
 const name = ref('')
 const loading = ref(false)
@@ -80,10 +79,6 @@ async function showRelated(entity: CatalogEntity): Promise<void> {
   }
 }
 
-function changeCollection(value: string): void {
-  void router.push('/catalog/' + value)
-}
-
 function actionLabel(): string {
   return collection.value === 'authors' || collection.value === 'organizations' ? '成果与证据' : '查看成果'
 }
@@ -115,18 +110,8 @@ onMounted(() => load())
       </template>
     </PageHeader>
 
-    <nav class="flex flex-wrap gap-1.5" aria-label="编目集合切换">
-      <ElButton
-        v-for="(label, key) in labels"
-        :key="key"
-        size="small"
-        :type="key === collection ? 'primary' : 'default'"
-        :plain="key !== collection"
-        :aria-current="key === collection ? 'true' : undefined"
-        @click="changeCollection(key)"
-      >
-        {{ label }}
-      </ElButton>
+    <nav class="workspace-tabs" aria-label="编目分类">
+      <RouterLink v-for="(label, kind) in labels" :key="kind" :to="`/catalog/${kind}`" :aria-current="collection === kind ? 'page' : undefined">{{ label }}编目</RouterLink>
     </nav>
 
     <div class="flex flex-col gap-2 sm:flex-row">
@@ -153,7 +138,7 @@ onMounted(() => load())
       :title="`${labels[collection]}列表`"
       :subtitle="`共 ${result.totalElements.toLocaleString('zh-CN')} 条`"
     >
-      <DataTable
+      <DataTable fill
         :columns="columns"
         :data="result.items"
         :loading="loading"

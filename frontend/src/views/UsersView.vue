@@ -19,6 +19,7 @@ import { userApi } from '@/services/users'
 import type { AuditLog, PageResponse, RoleCode, UserAccount, UserStatistics } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 
+const props = withDefaults(defineProps<{ section?: 'accounts' | 'overview' }>(), { section: 'accounts' })
 const session = useSessionStore()
 
 const allRoles: Array<{ value: RoleCode; label: string }> = [
@@ -284,36 +285,40 @@ onBeforeUnmount(() => {
 <template>
   <section class="page-stack">
     <PageHeader
-      title="用户管理"
-      description="创建内部账号、维护角色与启用状态，并在必要时重置登录凭据。"
+      :title="props.section === 'overview' ? '账号概况' : '用户管理'"
+      :description="props.section === 'overview' ? '查看账号角色分布与最近登录记录。' : '创建内部账号、维护角色与启用状态，并在必要时重置登录凭据。'"
     >
       <template #actions>
         <ElButton @click="openCreate" type="primary"><Plus class="size-4" />新增用户</ElButton>
       </template>
     </PageHeader>
+    <nav class="workspace-tabs" aria-label="账号管理内容">
+      <RouterLink to="/users" :aria-current="props.section === 'accounts' ? 'page' : undefined">系统账号</RouterLink>
+      <RouterLink to="/users/overview" :aria-current="props.section === 'overview' ? 'page' : undefined">账号概况</RouterLink>
+    </nav>
 
     <ElAlert v-if="errorMessage" type="error" :closable="false" show-icon><template #title>{{ errorMessage }}</template></ElAlert>
 
-    <div class="grid gap-4 xl:grid-cols-3">
-      <PanelSection title="用户类型分布" class="xl:col-span-1">
+    <div v-if="props.section === 'overview'" class="users-overview workspace-grid grid gap-4 xl:grid-cols-3">
+      <PanelSection title="用户类型分布" class="workspace-panel xl:col-span-1">
         <template #actions><ElButton size="small" :disabled="statisticsLoading" @click="loadStatistics" text>刷新</ElButton></template>
         <ErrorState v-if="statisticsError" :message="statisticsError" retryable @retry="loadStatistics" />
         <ElSkeleton animated v-else-if="statisticsLoading && !statistics" class="h-80 w-full" />
         <div v-else-if="statistics" :aria-busy="statisticsLoading" :class="statisticsLoading ? 'opacity-60' : ''"><UserRoleChart :statistics="statistics" /></div>
       </PanelSection>
-      <PanelSection title="最近登录日志" subtitle="最近 10 条登录、失败及退出记录" class="min-w-0 xl:col-span-2">
+      <PanelSection title="最近登录日志" subtitle="最近 10 条登录、失败及退出记录" class="workspace-panel min-w-0 xl:col-span-2">
         <template #actions>
           <ElButton size="small" :disabled="logsLoading" @click="loadLogs" text>刷新</ElButton>
           <ElButton as-child size="small" plain><RouterLink to="/logs?category=LOGIN">查看全部</RouterLink></ElButton>
         </template>
         <ErrorState v-if="logsError" :message="logsError" retryable @retry="loadLogs" />
-        <AuditLogTable v-else :items="recentLogs" :loading="logsLoading" compact />
+        <AuditLogTable v-else :items="recentLogs" :loading="logsLoading" compact fill />
       </PanelSection>
     </div>
 
-    <PanelSection title="系统账号" :subtitle="`共 ${users.totalElements} 个`">
+    <PanelSection v-if="props.section === 'accounts'" title="系统账号" :subtitle="`共 ${users.totalElements} 个`" class="workspace-panel" body-class="flex min-h-0 flex-col">
       <template #actions><UserCog class="size-4 text-muted-foreground" aria-hidden="true" /></template>
-      <DataTable class="[&_table]:min-w-[1120px] [&_td]:whitespace-nowrap"
+      <DataTable fill class="[&_table]:min-w-[1120px] [&_td]:whitespace-nowrap"
         :columns="columns" :data="users.items" :loading="loading"
         :page="users.page" :size="users.size" :total="users.totalElements"
         empty-text="暂无用户" :get-row-id="(row) => String(row.id)" @update:page="load"
@@ -448,3 +453,15 @@ onBeforeUnmount(() => {
     />
   </section>
 </template>
+
+<style scoped>
+.users-overview {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 1279px) {
+  .users-overview {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+</style>

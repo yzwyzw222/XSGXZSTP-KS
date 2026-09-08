@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ElAlert, ElButton, ElOption, ElSelect } from 'element-plus'
 import type { EChartsCoreOption } from 'echarts/core'
+import { RouterLink } from 'vue-router'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 import { DataTable, FilterBar, FilterField, LoadingSkeleton, PageHeader, PanelSection, StatCard } from '@/components/business'
@@ -20,6 +21,20 @@ import { achievementTypeOptions } from '@/utils/filter-options'
 import { formatDateTime } from '@/utils/format'
 
 type CollaborationItem = AnalyticsCollaborationResponse['authors'][number]
+
+const props = withDefaults(defineProps<{
+  section?: 'overview' | 'coverage' | 'distributions' | 'research' | 'collaboration'
+}>(), { section: 'overview' })
+const sectionTitle = computed(() => ({
+  overview: '统计分析', coverage: '字段覆盖率', distributions: '成果分布', research: '机构与主题', collaboration: '合作排行',
+})[props.section])
+const showingTables = reactive<Record<string, boolean>>({})
+const distributionFocus = reactive({ distributions: 'type', research: 'org' })
+const selectedDistribution = computed({
+  get: () => distributionFocus[props.section === 'research' ? 'research' : 'distributions'],
+  set: (value: string) => { distributionFocus[props.section === 'research' ? 'research' : 'distributions'] = value },
+})
+const collaborationFocus = ref<'authors' | 'organizations'>('authors')
 
 const loading = ref(false)
 const isFiltering = ref(false)
@@ -142,6 +157,16 @@ const typeOption = computed(() => distributionOption(distributions.value?.achiev
 const sourceOption = computed(() => distributionOption(distributions.value?.sources ?? [], palette.value.series[1]!))
 const orgOption = computed(() => distributionOption(distributions.value?.organizations ?? [], palette.value.series[2]!))
 const topicOption = computed(() => distributionOption(distributions.value?.topics ?? [], palette.value.series[3]!))
+const distributionPanels = computed(() => {
+  if (!distributions.value) return []
+  return props.section === 'research' ? [
+    { key: 'org', title: '机构分布', option: orgOption.value, label: '机构成果分布条形图', items: distributions.value.organizations, summary: '查看机构表格' },
+    { key: 'topic', title: '主题分布', option: topicOption.value, label: '主题成果分布条形图', items: distributions.value.topics, summary: '查看主题表格' },
+  ] : [
+    { key: 'type', title: '成果类型', option: typeOption.value, label: '成果类型分布条形图', items: distributions.value.achievementTypes, summary: '查看类型表格' },
+    { key: 'source', title: '数据来源', option: sourceOption.value, label: '数据来源分布条形图', items: distributions.value.sources, summary: '查看来源表格' },
+  ]
+})
 
 async function loadAnalytics(): Promise<void> {
   const sequence = ++querySequence
@@ -203,15 +228,22 @@ onMounted(loadAnalytics)
 </script>
 
 <template>
-  <section class="page-stack">
+  <section class="page-stack analytics-page">
     <PageHeader
-      title="统计分析"
+      :title="sectionTitle"
       description="从规范成果中读取趋势、分布与合作关系，按实际范围核对统计口径。"
     >
       <template #actions>
+        <nav v-if="section === 'overview' || section === 'coverage'" class="workspace-tabs" aria-label="趋势与覆盖">
+          <RouterLink to="/analytics" :aria-current="section === 'overview' ? 'page' : undefined">发表趋势</RouterLink>
+          <RouterLink to="/analytics/coverage" :aria-current="section === 'coverage' ? 'page' : undefined">字段覆盖</RouterLink>
+        </nav>
+        <nav v-else-if="section === 'distributions' || section === 'research'" class="workspace-tabs" aria-label="成果分布分类">
+          <RouterLink to="/analytics/distributions" :aria-current="section === 'distributions' ? 'page' : undefined">类型与来源</RouterLink>
+          <RouterLink to="/analytics/research" :aria-current="section === 'research' ? 'page' : undefined">机构与主题</RouterLink>
+        </nav>
         <div v-if="overview" class="flex flex-wrap items-center gap-3">
           <span class="text-xs text-muted-foreground">数据更新时间 {{ formatDateTime(overview.updatedAt) }}</span>
-          <span class="text-xs text-muted-foreground">权威来源 · {{ overview.scope.source }}</span>
         </div>
       </template>
     </PageHeader>
@@ -254,49 +286,40 @@ onMounted(loadAnalytics)
     <LoadingSkeleton v-if="loading && !overview && !trends && !distributions && !collaboration" variant="metrics" />
 
     <template v-if="overview || trends || distributions || collaboration">
-      <div class="metric-strip" :aria-busy="loading">
+      <div v-if="section === 'overview'" class="metric-strip" :aria-busy="loading">
         <StatCard v-for="metric in metricCards" :key="metric.label" :label="metric.label" :value="metric.value" :note="metric.note" :tone="metric.tone" />
       </div>
       <p class="context-note">计数口径：规范成果去重；机构、主题和来源按完整计数，一项成果可贡献多个分类，各分类数量不能相加作为成果总量。合作数表示共同署名的规范成果数，不表示合作强度或质量。</p>
 
-      <div :class="isFiltering ? 'opacity-50 transition-opacity' : 'transition-opacity'" :aria-busy="loading" class="grid gap-4">
-        <div class="analytics-main">
-        <!-- 趋势与覆盖率相邻，先读结果再核对证据范围。 -->
-        <PanelSection v-if="trends" title="年度成果趋势">
-          <ChartFrame :option="trendOption" label="年度成果趋势折线图" height="300px" />
-          <details class="mt-3 border-t border-border pt-2">
-            <summary class="cursor-pointer text-sm font-medium text-primary">查看趋势表格</summary>
-            <div class="mt-2">
-              <DataTable :columns="trendColumns" :data="trends.items" :get-row-id="(row) => String(row.publicationYear)" empty-text="暂无趋势数据" dense />
-            </div>
-          </details>
+      <div :class="isFiltering ? 'opacity-50 transition-opacity' : 'transition-opacity'" :aria-busy="loading" class="analytics-content workspace-fill">
+        <PanelSection v-if="section === 'overview' && trends" title="年度成果趋势" class="workspace-panel analytics-chart-panel">
+          <template #actions><ElButton text size="small" :aria-pressed="Boolean(showingTables.trend)" @click="showingTables.trend = !showingTables.trend">{{ showingTables.trend ? '返回趋势图' : '查看趋势表格' }}</ElButton></template>
+          <ChartFrame v-if="!showingTables.trend" :option="trendOption" label="年度成果趋势折线图" height="100%" />
+          <DataTable v-else :columns="trendColumns" :data="trends.items" :get-row-id="(row) => String(row.publicationYear)" empty-text="暂无趋势数据" dense fill />
         </PanelSection>
-        <PanelSection v-if="overview?.coverage" title="本地字段覆盖率" subtitle="仅当前范围，非全球采集覆盖率">
+        <PanelSection v-if="section === 'coverage' && overview?.coverage" title="本地字段覆盖率" subtitle="仅当前范围，非全球采集覆盖率" class="workspace-panel analytics-coverage">
           <AnalyticsCoveragePanel :coverage="overview.coverage" :total="overview.achievementCount" />
         </PanelSection>
-        </div>
 
-        <!-- 分布图网格 -->
-        <div v-if="distributions" class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <PanelSection v-for="panel in [
-            { key: 'type', title: '成果类型', option: typeOption, label: '成果类型分布条形图', items: distributions.achievementTypes, summary: '查看类型表格', name: '类型' },
-            { key: 'source', title: '数据来源', option: sourceOption, label: '数据来源分布条形图', items: distributions.sources, summary: '查看来源表格', name: '来源' },
-            { key: 'org', title: '机构分布', option: orgOption, label: '机构成果分布条形图', items: distributions.organizations, summary: '查看机构表格', name: '机构' },
-            { key: 'topic', title: '主题分布', option: topicOption, label: '主题成果分布条形图', items: distributions.topics, summary: '查看主题表格', name: '主题' },
-          ]" :key="panel.key" :title="panel.title">
-            <ChartFrame :option="panel.option" :label="panel.label" :height="`${Math.max(160, Math.min(10, panel.items.length) * 30)}px`" />
-            <details class="mt-3 border-t border-border pt-2">
-              <summary class="cursor-pointer text-sm font-medium text-primary">{{ panel.summary }}</summary>
-              <div class="mt-2">
-                <DataTable :columns="distributionColumns" :data="panel.items" :get-row-id="(row) => String(row.key)" dense />
-              </div>
-            </details>
-          </PanelSection>
-        </div>
+        <template v-if="(section === 'distributions' || section === 'research') && distributions">
+          <div class="analytics-mobile-switch" role="group" aria-label="分布内容">
+            <ElButton v-for="panel in distributionPanels" :key="panel.key" :type="selectedDistribution === panel.key ? 'primary' : 'default'" :aria-pressed="selectedDistribution === panel.key" @click="selectedDistribution = panel.key">{{ panel.title }}</ElButton>
+          </div>
+          <div class="analytics-pair workspace-fill">
+            <PanelSection v-for="panel in distributionPanels" :key="panel.key" :title="panel.title" class="workspace-panel analytics-chart-panel" :class="selectedDistribution !== panel.key ? 'is-mobile-inactive' : ''">
+              <template #actions><ElButton text size="small" :aria-pressed="Boolean(showingTables[panel.key])" @click="showingTables[panel.key] = !showingTables[panel.key]">{{ showingTables[panel.key] ? '返回分布图' : panel.summary }}</ElButton></template>
+              <ChartFrame v-if="!showingTables[panel.key]" :option="panel.option" :label="panel.label" height="100%" />
+              <DataTable v-else :columns="distributionColumns" :data="panel.items" :get-row-id="(row) => String(row.key)" dense fill />
+            </PanelSection>
+          </div>
+        </template>
 
-        <!-- 合作 -->
-        <div v-if="collaboration" class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <PanelSection title="作者合作前 20" subtitle="按共同署名的规范成果数排序">
+        <template v-if="section === 'collaboration' && collaboration">
+          <div class="analytics-mobile-switch" role="group" aria-label="合作内容">
+            <ElButton v-for="item in ([['authors', '作者合作'], ['organizations', '机构合作']] as const)" :key="item[0]" :type="collaborationFocus === item[0] ? 'primary' : 'default'" :aria-pressed="collaborationFocus === item[0]" @click="collaborationFocus = item[0]">{{ item[1] }}</ElButton>
+          </div>
+          <div class="analytics-pair workspace-fill">
+          <PanelSection title="作者合作前 20" subtitle="按共同署名的规范成果数排序" class="workspace-panel" :class="collaborationFocus !== 'authors' ? 'is-mobile-inactive' : ''">
             <template #actions>
               <div class="flex items-center gap-1 rounded-md border border-border p-0.5" role="group" aria-label="合作排行排序">
                 <ElButton
@@ -318,24 +341,54 @@ onMounted(loadAnalytics)
               :get-row-id="(row) => `author-${row.leftId}-${row.rightId}`"
               empty-text="当前范围没有作者合作关系"
               dense
+              fill
             />
           </PanelSection>
-          <PanelSection title="机构合作前 20" subtitle="按共同署名的规范成果数排序">
+          <PanelSection title="机构合作前 20" subtitle="按共同署名的规范成果数排序" class="workspace-panel" :class="collaborationFocus !== 'organizations' ? 'is-mobile-inactive' : ''">
             <DataTable
               :columns="collaborationColumns"
               :data="sortedOrganizationCollaborations"
               :get-row-id="(row) => `org-${row.leftId}-${row.rightId}`"
               empty-text="当前范围没有机构合作关系"
               dense
+              fill
             />
           </PanelSection>
-        </div>
+          </div>
+        </template>
       </div>
     </template>
   </section>
 </template>
 
 <style scoped>
-.analytics-main { display: grid; align-items: start; gap: var(--space-4); }
-@media (min-width: 1280px) { .analytics-main { grid-template-columns: minmax(0, 1.8fr) minmax(320px, 1fr); } }
+.analytics-page > .metric-strip { flex-shrink: 0; }
+.analytics-page .workspace-tabs { padding-bottom: 0; border-bottom: 0; }
+.analytics-content { display: flex; flex-direction: column; gap: var(--space-3); }
+.analytics-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.analytics-chart-panel :deep(.panel-section__body) { display: flex; flex-direction: column; overflow: hidden; }
+.analytics-coverage :deep(.panel-section__body > div) { max-width: 900px; }
+.analytics-mobile-switch { display: none; flex-shrink: 0; gap: var(--space-2); }
+.analytics-mobile-switch .el-button + .el-button { margin-left: 0; }
+@media (max-width: 1023px) {
+  .analytics-pair { grid-template-columns: minmax(0, 1fr); }
+  .analytics-mobile-switch { display: flex; }
+  .analytics-pair > .is-mobile-inactive { display: none; }
+}
+@media (max-width: 767px) {
+  .analytics-page { gap: var(--space-2); }
+  .analytics-page > .metric-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .analytics-page :deep(.metric-strip .stat-card) { padding: var(--space-2); }
+  .analytics-page :deep(.stat-card__value) { font-size: var(--font-size-xl); }
+}
+@media (min-width: 768px) and (max-height: 800px) {
+  .analytics-page { gap: var(--space-2); padding-block: var(--space-3); }
+  .analytics-page :deep(.filter-bar), .analytics-page :deep(.stat-card) { padding: var(--space-3); }
+  .analytics-page :deep(.metric-strip .stat-card) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); }
+  .analytics-page :deep(.stat-card__note) { grid-column: 1 / -1; margin-top: var(--space-1); }
+  .analytics-page :deep(.filter-bar__footer) { margin-top: var(--space-2); padding-block: 0; }
+  .analytics-page :deep(.stat-card__value) { font-size: 28px; margin-top: 0; }
+  .analytics-page :deep(.panel-section__header) { min-height: 48px; padding: var(--space-3); }
+  .analytics-page :deep(.panel-section__body) { padding: var(--space-3); }
+}
 </style>

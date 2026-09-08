@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ElButton, ElDatePicker, ElInput, ElOption, ElSelect, ElTabPane, ElTabs } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 
 import { PageHeader, PanelSection } from '@/components/business'
@@ -15,6 +16,8 @@ import { instantRange } from '@/utils/date'
 const route = useRoute()
 const router = useRouter()
 const category = ref<AuditCategory>('OPERATION')
+const narrow = useMediaQuery('(max-width: 767px)')
+const filtersExpanded = ref(false)
 /**
  * 时间控件以本地时间字符串编辑（YYYY-MM-DDTHH:mm:ss），
  * 提交前显式转换为后端要求的 ISO-8601 UTC；
@@ -109,7 +112,8 @@ onBeforeUnmount(() => request?.abort())
       :title="category === 'LOGIN' ? '登录日志' : '操作日志'"
       subtitle="时间范围采用本地时间，结束时间不包含在结果中。"
     >
-      <form class="mb-5 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4" @submit.prevent="search">
+      <template #actions><ElButton v-if="narrow" text :aria-expanded="filtersExpanded" @click="filtersExpanded = !filtersExpanded">{{ filtersExpanded ? '收起筛选' : '展开筛选' }}</ElButton></template>
+      <form v-show="!narrow || filtersExpanded" class="logs-filters mb-3 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4" @submit.prevent="search">
         <div class="grid gap-1.5 text-sm">
           <label class="font-medium text-muted-foreground" for="logs-username">账号</label>
           <ElInput
@@ -173,7 +177,7 @@ onBeforeUnmount(() => request?.abort())
       </form>
 
       <ErrorState v-if="error" :message="error" retryable @retry="search" />
-      <AuditLogTable
+      <AuditLogTable fill
         v-else
         :items="logs.items"
         :page="logs.page"
@@ -185,3 +189,7 @@ onBeforeUnmount(() => request?.abort())
     </PanelSection>
   </section>
 </template>
+
+<style scoped>
+.logs-filters { max-height: 34dvh; overflow: auto; }
+</style>

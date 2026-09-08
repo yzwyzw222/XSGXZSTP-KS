@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ElAlert, ElButton, ElDialog, ElInput, ElMessage, ElOption, ElSelect, ElTabPane, ElTabs, ElTag } from 'element-plus'
+import { ElAlert, ElButton, ElDialog, ElInput, ElMessage, ElOption, ElSelect, ElTag } from 'element-plus'
 import FormField from '@/components/business/FormField.vue'
 import type { DataTableColumn } from '@/components/business/types'
 import { AlertOctagon, RefreshCw } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { DataTable, PageHeader, StatCard, StatusPill } from '@/components/business'
+import { DataTable, PageHeader, PanelSection, StatCard, StatusPill } from '@/components/business'
 import ErrorState from '@/components/business/ErrorState.vue'
 import { toErrorMessage } from '@/services/api'
 import { graphApi, operationsApi } from '@/services/business'
@@ -19,6 +19,16 @@ import type {
   GraphOutboxStatus, GraphSyncStatus, OperationsOverview, PageResponse,
 } from '@/types/api'
 import { formatDateTime, formatNumber } from '@/utils/format'
+
+type OperationsSection = 'overview' | 'alerts' | 'events' | 'maintenance' | 'audits'
+const props = withDefaults(defineProps<{ section?: OperationsSection }>(), { section: 'overview' })
+const sectionTitles: Record<OperationsSection, string> = {
+  overview: '运行概况',
+  alerts: '系统告警',
+  events: '图同步事件',
+  maintenance: '维护运行',
+  audits: '审计记录',
+}
 
 const session = useSessionStore()
 const { hasPermission } = session
@@ -35,7 +45,6 @@ const actionLoading = ref('')
 const partialError = ref('')
 const sectionErrors = reactive<Record<string, string>>({})
 let disposed = false
-const activeTab = ref('alerts')
 const overview = ref<OperationsOverview | null>(null)
 const syncStatus = ref<GraphSyncStatus | null>(null)
 const alerts = ref<PageResponse<AlertEvent>>(emptyPage())
@@ -314,7 +323,7 @@ onBeforeUnmount(() => { disposed = true })
 <template>
   <section class="page-stack">
     <PageHeader
-      title="运行监控"
+      :title="sectionTitles[props.section]"
       description="从健康端点、MySQL 运行状态和受控运维记录定位问题。Neo4j 降级不会遮蔽目录、统计与其他权威数据能力。"
       divided
     >
@@ -330,8 +339,9 @@ onBeforeUnmount(() => { disposed = true })
 
     <ElAlert v-if="partialError" type="warning" :closable="false" show-icon><template #title>{{ partialError }}</template></ElAlert>
 
+    <div v-if="props.section === 'overview'" class="operations-overview workspace-fill">
     <!-- 依赖健康 -->
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="依赖健康状态">
+    <div class="operations-health grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="依赖健康状态">
       <article
         v-for="item in healthCards"
         :key="item.key"
@@ -352,27 +362,24 @@ onBeforeUnmount(() => { disposed = true })
     </div>
 
     <!-- 运行计数 -->
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-label="运行计数">
+    <div class="operations-metrics grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" aria-label="运行计数">
       <StatCard v-for="metric in metricCards" :key="metric.label" :label="metric.label" :value="metric.value" :note="metric.note" :tone="metric.tone" />
     </div>
 
     <!-- 上下文提示 -->
-    <div class="flex flex-col gap-3 rounded-lg border-l-4 border-l-warning bg-warning/8 p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="shrink-0 flex flex-col gap-3 rounded-lg border border-warning/35 bg-warning/8 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div class="space-y-1">
         <strong class="text-sm font-semibold">采集失败定位</strong>
         <p class="text-xs text-muted-foreground">总览显示近 24 小时的运行计数；进入采集任务可查看失败阶段、摘要和重试入口。</p>
       </div>
       <RouterLink to="/crawl" class="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline">进入采集任务 →</RouterLink>
     </div>
+    </div>
 
-    <!-- 仅挂载可见表格，避免隐藏面板反复触发尺寸观察；筛选和分页状态保留在页面。 -->
-    <ElTabs v-model="activeTab">
-
-
+    <!-- 仅挂载当前子模块表格；筛选和分页状态保留在同一个页面实例中。 -->
       <!-- 告警 -->
-      <ElTabPane name="alerts" :label="'系统内告警 ' + (alerts.totalElements )">
-        <template v-if="activeTab === 'alerts'">
-          <div class="mb-3 flex flex-wrap items-center gap-2">
+      <PanelSection v-if="props.section === 'alerts'" title="系统内告警" :subtitle="`共 ${alerts.totalElements} 条`" class="workspace-panel" body-class="flex min-h-0 flex-col">
+          <div class="operations-toolbar mb-3 flex flex-wrap items-center gap-2">
             <ElSelect v-model="alertFilters.status" class="w-40" placeholder="全部状态" aria-label="告警状态"  filterable>
                 <ElOption value="ALL" :label="'全部状态'" />
                 <ElOption value="OPEN" :label="'未确认'" />
@@ -386,7 +393,7 @@ onBeforeUnmount(() => { disposed = true })
             <span class="ml-auto text-xs text-muted-foreground">只展示有限安全证据</span>
           </div>
           <ErrorState v-if="sectionErrors['系统内告警']" retryable :message="sectionErrors['系统内告警']" @retry="refreshAll" />
-          <DataTable v-else :columns="alertColumns" :data="alerts.items" :loading="loading"
+          <DataTable v-else fill :columns="alertColumns" :data="alerts.items" :loading="loading"
             :page="alerts.page" :size="alerts.size" :total="alerts.totalElements"
             empty-text="暂无系统内告警" :get-row-id="(row) => String(row.id)" @update:page="loadAlerts"
           >
@@ -405,13 +412,11 @@ onBeforeUnmount(() => { disposed = true })
                link type="primary">确认告警</ElButton>
             </template>
           </DataTable>
-        </template>
-      </ElTabPane>
+      </PanelSection>
 
       <!-- 图同步事件 -->
-      <ElTabPane name="events" :label="'图同步事件 ' + (graphEvents.totalElements )">
-        <template v-if="activeTab === 'events'">
-          <div class="mb-3 flex flex-wrap items-center gap-2">
+      <PanelSection v-if="props.section === 'events'" title="图同步事件" :subtitle="`共 ${graphEvents.totalElements} 条`" class="workspace-panel" body-class="flex min-h-0 flex-col">
+          <div class="operations-toolbar mb-3 flex flex-wrap items-center gap-2">
             <ElSelect v-model="graphEventStatus" class="w-44" placeholder="全部状态" aria-label="图事件状态"  filterable>
                 <ElOption value="ALL" :label="'全部状态'" />
                 <ElOption v-for="status in graphStatuses" :key="status" :value="status" :label="(status)" />
@@ -422,7 +427,7 @@ onBeforeUnmount(() => { disposed = true })
             </span>
           </div>
           <ErrorState v-if="sectionErrors['图同步事件']" retryable :message="sectionErrors['图同步事件']" @retry="refreshAll" />
-          <DataTable v-else :columns="eventColumns" :data="graphEvents.items" :loading="loading"
+          <DataTable v-else fill :columns="eventColumns" :data="graphEvents.items" :loading="loading"
             :page="graphEvents.page" :size="graphEvents.size" :total="graphEvents.totalElements"
             empty-text="暂无图同步事件" :get-row-id="(row) => row.eventId" @update:page="loadGraphEvents"
           >
@@ -438,13 +443,11 @@ onBeforeUnmount(() => { disposed = true })
                link type="primary">重放</ElButton>
             </template>
           </DataTable>
-        </template>
-      </ElTabPane>
+      </PanelSection>
 
       <!-- 维护运行 -->
-      <ElTabPane name="maintenance" :label="'维护运行 ' + (maintenanceRuns.totalElements )">
-        <template v-if="activeTab === 'maintenance'">
-          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <PanelSection v-if="props.section === 'maintenance'" title="维护运行" :subtitle="`共 ${maintenanceRuns.totalElements} 条`" class="workspace-panel" body-class="flex min-h-0 flex-col">
+          <div class="operations-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
             <strong class="text-sm font-medium">MySQL 驱动的受控图维护</strong>
             <div v-if="hasPermission('GRAPH_SYNC_MANAGE')" class="flex flex-wrap gap-2">
               <ElButton size="small" :loading="actionLoading === 'backfill'" @click="startMaintenance('backfill')" plain>启动回填</ElButton>
@@ -453,24 +456,22 @@ onBeforeUnmount(() => { disposed = true })
             </div>
           </div>
           <ErrorState v-if="sectionErrors['维护运行']" retryable :message="sectionErrors['维护运行']" @retry="refreshAll" />
-          <DataTable v-else :columns="maintenanceColumns" :data="maintenanceRuns.items" :loading="loading"
+          <DataTable v-else fill :columns="maintenanceColumns" :data="maintenanceRuns.items" :loading="loading"
             :page="maintenanceRuns.page" :size="maintenanceRuns.size" :total="maintenanceRuns.totalElements"
             empty-text="暂无维护运行" :get-row-id="(row) => String(row.id)" @update:page="loadMaintenanceRuns"
           >
             <template #cell-status="{ row }"><StatusPill :status="row.status" /></template>
           </DataTable>
-        </template>
-      </ElTabPane>
+      </PanelSection>
 
       <!-- 审计记录 -->
-      <ElTabPane name="audits" :label="'审计记录 ' + (audits.totalElements )">
-        <template v-if="activeTab === 'audits'">
-          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <PanelSection v-if="props.section === 'audits'" title="审计记录" :subtitle="`共 ${audits.totalElements} 条`" class="workspace-panel" body-class="flex min-h-0 flex-col">
+          <div class="operations-toolbar mb-3 flex flex-wrap items-center justify-between gap-2">
             <strong class="text-sm font-medium">关键操作安全摘要</strong>
             <span class="text-xs text-muted-foreground">不展示凭据、路径、SQL 或 Cypher</span>
           </div>
           <ErrorState v-if="sectionErrors['审计记录']" retryable :message="sectionErrors['审计记录']" @retry="refreshAll" />
-          <DataTable v-else :columns="auditColumns" :data="audits.items" :loading="loading"
+          <DataTable v-else fill :columns="auditColumns" :data="audits.items" :loading="loading"
             :page="audits.page" :size="audits.size" :total="audits.totalElements"
             empty-text="暂无审计记录" :get-row-id="(row) => String(row.id)" @update:page="loadAudits"
           >
@@ -479,9 +480,7 @@ onBeforeUnmount(() => { disposed = true })
             </template>
             <template #cell-traceId="{ row }"><span class="mono-evidence text-xs">{{ row.traceId }}</span></template>
           </DataTable>
-        </template>
-      </ElTabPane>
-    </ElTabs>
+      </PanelSection>
 
     <!-- 确认告警 -->
     <ElDialog v-model="acknowledgeVisible" width="min(448px, calc(100vw - 32px))" append-to-body destroy-on-close class="aacv-form-dialog" body-class="aacv-dialog-body">
@@ -519,3 +518,29 @@ onBeforeUnmount(() => { disposed = true })
       </ElDialog>
   </section>
 </template>
+
+<style scoped>
+.operations-overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.operations-health,
+.operations-metrics {
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
+}
+
+.operations-toolbar {
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .operations-health,
+  .operations-metrics {
+    flex: 1 1 0;
+  }
+}
+</style>

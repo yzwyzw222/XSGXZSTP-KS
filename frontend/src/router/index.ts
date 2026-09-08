@@ -14,6 +14,8 @@ declare module 'vue-router' {
     public?: boolean
     permission?: Permission
     title?: string
+    /** 同模块子页复用组件和筛选状态，切换时不取消该模块的读取。 */
+    workspace?: string
   }
 }
 
@@ -44,7 +46,15 @@ export const routes: RouteRecordRaw[] = [
         path: '',
         name: 'overview',
         component: () => import('@/views/OverviewView.vue'),
-        meta: { title: '工作台' },
+        meta: { title: '成果总览', workspace: 'overview' },
+      },
+      {
+        path: 'overview',
+        meta: { title: '工作台', workspace: 'overview' },
+        children: [
+          { path: 'research', name: 'overview-research', redirect: '/analytics/collaboration', meta: { title: '研究关系' } },
+          { path: 'activity', name: 'overview-activity', redirect: '/logs', meta: { title: '活动与采集' } },
+        ],
       },
       {
         path: 'catalog',
@@ -134,15 +144,22 @@ export const routes: RouteRecordRaw[] = [
       },
       {
         path: 'analytics',
-        name: 'analytics',
-        component: () => import('@/views/AnalyticsView.vue'),
-        meta: { permission: 'ANALYTICS_READ', title: '统计分析' },
+        meta: { permission: 'ANALYTICS_READ', title: '统计分析', workspace: 'analytics' },
+        children: [
+          { path: '', name: 'analytics', component: () => import('@/views/AnalyticsView.vue'), props: { section: 'overview' }, meta: { title: '趋势总览' } },
+          { path: 'coverage', name: 'analytics-coverage', component: () => import('@/views/AnalyticsView.vue'), props: { section: 'coverage' }, meta: { title: '字段覆盖' } },
+          { path: 'distributions', name: 'analytics-distributions', component: () => import('@/views/AnalyticsView.vue'), props: { section: 'distributions' }, meta: { title: '类型与来源' } },
+          { path: 'research', name: 'analytics-research', component: () => import('@/views/AnalyticsView.vue'), props: { section: 'research' }, meta: { title: '机构与主题' } },
+          { path: 'collaboration', name: 'analytics-collaboration', component: () => import('@/views/AnalyticsView.vue'), props: { section: 'collaboration' }, meta: { title: '合作分析' } },
+        ],
       },
       {
         path: 'users',
-        name: 'users',
-        component: () => import('@/views/UsersView.vue'),
-        meta: { permission: 'USER_LIST', title: '用户管理' },
+        meta: { permission: 'USER_LIST', title: '账号管理', workspace: 'users' },
+        children: [
+          { path: '', name: 'users', component: () => import('@/views/UsersView.vue'), props: { section: 'accounts' }, meta: { title: '系统账号' } },
+          { path: 'overview', name: 'users-overview', component: () => import('@/views/UsersView.vue'), props: { section: 'overview' }, meta: { title: '账号概况' } },
+        ],
       },
       {
         path: 'logs',
@@ -151,10 +168,9 @@ export const routes: RouteRecordRaw[] = [
         meta: { permission: 'AUDIT_READ', title: '日志管理' },
       },
       {
-        path: 'operations',
+        path: 'operations/:section(overview|alerts|events|maintenance|audits)?',
         name: 'operations',
-        component: () => import('@/views/OperationsView.vue'),
-        meta: { permission: 'OPERATIONS_READ', title: '运行监控' },
+        redirect: '/logs',
       },
     ],
   },
@@ -172,9 +188,9 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     routes,
   })
 
-  // 成功导航提交后、目标页面挂载前，取消上个页面的业务读取与轮询请求。
-  router.afterEach((_to, _from, failure) => {
-    if (!failure) cancelSessionRequests()
+  // 跨模块导航取消旧读取与轮询；同模块子页复用实例，保留其在途请求。
+  router.afterEach((to, from, failure) => {
+    if (!failure && (!to.meta.workspace || to.meta.workspace !== from.meta.workspace)) cancelSessionRequests()
   })
 
   router.beforeEach(async (to) => {

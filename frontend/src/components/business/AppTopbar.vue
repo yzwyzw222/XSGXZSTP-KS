@@ -1,30 +1,18 @@
 <script setup lang="ts">
-import { ElButton, ElTooltip } from 'element-plus'
-import { Bell, Menu, Search } from 'lucide-vue-next'
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ElButton } from 'element-plus'
+import { Menu, Search } from 'lucide-vue-next'
 
 import Breadcrumb from '@/components/business/Breadcrumb.vue'
 import ThemeToggle from '@/components/business/ThemeToggle.vue'
 import UserMenu from '@/components/business/UserMenu.vue'
-import { useSessionStore } from '@/stores/session'
 
-const props = defineProps<{ loggingOut?: boolean; alertCount?: number }>()
+defineProps<{ loggingOut?: boolean }>()
 const emit = defineEmits<{
   (e: 'open-sidebar'): void
   (e: 'open-palette'): void
   (e: 'logout'): void
 }>()
 
-const router = useRouter()
-const sessionStore = useSessionStore()
-
-/** 无 OPERATIONS_READ 权限时不渲染通知入口，避免出现没有有效行为的装饰按钮。 */
-const canViewOperations = computed(() => sessionStore.hasPermission('OPERATIONS_READ'))
-
-function openOperations(): void {
-  void router.push('/operations')
-}
 </script>
 
 <template>
@@ -68,26 +56,6 @@ function openOperations(): void {
       >
         <Search class="size-5" aria-hidden="true" />
       </ElButton>
-
-      <ElTooltip v-if="canViewOperations" content="查看运行监控与告警" placement="bottom" :show-after="200">
-        <ElButton
-          text
-          circle
-          class="relative"
-          :aria-label="props.alertCount && props.alertCount > 0
-            ? `系统通知，${props.alertCount} 条未确认告警`
-            : '系统通知'"
-          style="--el-button-text-color: hsl(var(--foreground))"
-          @click="openOperations"
-        >
-          <Bell class="size-5" aria-hidden="true" />
-          <span
-            v-if="props.alertCount && props.alertCount > 0"
-            class="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive ring-2 ring-background"
-            aria-hidden="true"
-          />
-        </ElButton>
-      </ElTooltip>
 
       <ThemeToggle />
 

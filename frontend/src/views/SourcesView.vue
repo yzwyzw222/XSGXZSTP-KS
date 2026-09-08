@@ -198,7 +198,7 @@ onMounted(() => load())
 
     <PanelSection title="来源配置" :subtitle="`共 ${result.totalElements} 个`">
       <template #actions><Database class="size-4 text-muted-foreground" aria-hidden="true" /></template>
-      <DataTable
+      <DataTable fill
         :columns="columns"
         :data="result.items"
         :loading="loading"

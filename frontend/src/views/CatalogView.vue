@@ -58,13 +58,6 @@ const sourceCodeModel = computed<string>({
   set: (value) => { filters.sourceCode = value === 'ALL' ? '' : value },
 })
 
-const entityEntries = [
-  { to: '/catalog/authors', label: '作者' },
-  { to: '/catalog/organizations', label: '机构' },
-  { to: '/catalog/venues', label: '期刊' },
-  { to: '/catalog/topics', label: '主题' },
-]
-
 const columns: DataTableColumn<AchievementSummary>[] = [
   { accessorKey: 'title', header: '题名', enableSorting: false, meta: { minWidth: 320 } },
   { id: 'authors', accessorFn: (row) => row.authors.join('；'), header: '作者', enableSorting: false },
@@ -197,11 +190,6 @@ useSessionCleanup(disposeExport)
     />
 
     <section class="catalog-workspace" aria-label="成果检索工作区">
-    <nav class="catalog-navigation" aria-label="编目实体入口">
-      <span aria-current="page">全部成果</span>
-      <RouterLink v-for="link in entityEntries" :key="link.to" :to="link.to">{{ link.label }}</RouterLink>
-    </nav>
-
     <FilterBar :columns="4" :applying="loading" apply-text="查询成果" @apply="load()" @reset="reset">
       <FilterField label="题名">
         <ElInput v-model="filters.title" placeholder="按题名关键词模糊检索" clearable @keydown.enter="load()" />
@@ -276,7 +264,7 @@ useSessionCleanup(disposeExport)
     <section
       v-if="exportTask"
       aria-live="polite"
-      class="grid gap-4 border-b border-border bg-muted/40 p-5 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.6fr)_auto] lg:items-center"
+      class="catalog-export grid gap-4 border-b border-border bg-muted/40 p-5 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.6fr)_auto] lg:items-center"
     >
       <div class="space-y-1">
         <span class="text-xs text-muted-foreground">导出任务 · {{ exportTask.format }}</span>
@@ -319,7 +307,7 @@ useSessionCleanup(disposeExport)
 
     <PanelSection title="检索结果" :subtitle="loading && !result.items.length ? '正在读取…' : `共 ${result.totalElements.toLocaleString('zh-CN')} 条`">
       <template #actions><span class="text-xs text-muted-foreground">题名进入详情 · DOI 保留原始标识</span></template>
-      <DataTable
+      <DataTable fill
         :columns="columns"
         :data="result.items"
         :loading="loading"

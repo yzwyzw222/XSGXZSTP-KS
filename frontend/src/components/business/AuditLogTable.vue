@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
   size?: number
   total?: number
   compact?: boolean
+  fill?: boolean
 }>(), { page: 0, size: 20, total: 0 })
 
 defineEmits<{ 'update:page': [page: number] }>()
@@ -48,6 +49,7 @@ function summaryLines(log: AuditLog): string {
 
 <template>
   <DataTable
+    :fill="fill"
     :columns="columns"
     :data="items"
     :loading="loading"

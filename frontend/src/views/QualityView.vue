@@ -124,7 +124,7 @@ onMounted(() => load())
 
     <PanelSection title="质量度量" :subtitle="`共 ${metrics.totalElements.toLocaleString('zh-CN')} 条`">
       <template #actions><Gauge class="size-4 text-muted-foreground" aria-hidden="true" /></template>
-      <DataTable
+      <DataTable fill
         :columns="columns"
         :data="metrics.items"
         :loading="loading"

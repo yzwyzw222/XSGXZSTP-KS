@@ -24,6 +24,8 @@ const props = withDefaults(defineProps<{
   /** 初始服务端排序状态。 */
   initialSorting?: DataTableSort[]
   dense?: boolean
+  /** 在固定高度面板内仅滚动表体，分页保持可见。 */
+  fill?: boolean
   class?: string
   onRowClick?: (row: T) => void
 }>(), {
@@ -98,7 +100,7 @@ function handleSortChange(payload: { prop: string | null; order: 'ascending' | '
 </script>
 
 <template>
-  <div :class="cn('data-table', props.class)" :aria-busy="loading">
+  <div :class="cn('data-table', fill && 'data-table--fill', props.class)" :aria-busy="loading">
     <span class="sr-only" role="status">{{ loading ? '正在加载数据' : '' }}</span>
     <!-- 首次加载：骨架行，避免整表闪烁 -->
     <ElSkeleton v-if="loading && data.length === 0" animated class="space-y-2">
@@ -121,6 +123,7 @@ function handleSortChange(payload: { prop: string | null; order: 'ascending' | '
       :element-loading-text="loading ? '正在加载' : undefined"
     >
       <ElTable
+        :height="fill ? '100%' : undefined"
         :data="data"
         :row-key="rowKey"
         :size="dense ? 'small' : 'default'"

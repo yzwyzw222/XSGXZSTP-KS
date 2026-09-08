@@ -241,7 +241,7 @@ onMounted(() => load())
 
     <PanelSection title="重复候选" :subtitle="`共 ${candidates.totalElements} 条`">
       <template #actions><GitCompareArrows class="size-4 text-muted-foreground" aria-hidden="true" /></template>
-      <DataTable
+      <DataTable fill
         :columns="columns"
         :data="candidates.items"
         :loading="loading"

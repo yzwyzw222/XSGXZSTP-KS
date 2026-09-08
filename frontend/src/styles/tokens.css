@@ -6,7 +6,20 @@
 
 /* ---------- Primitive 层：原始调色板与尺度 ---------- */
 :root {
-  /* 蓝色系（品牌主色，学术理性） */
+  /* 靛蓝品牌色，沿用参考 HTML 的主色与选中衬底。 */
+  --color-indigo-50: 225.882 100.000% 96.667%;
+  --color-indigo-100: 226.452 100.000% 93.922%;
+  --color-indigo-200: 228.000 96.491% 88.824%;
+  --color-indigo-300: 229.655 93.548% 81.765%;
+  --color-indigo-400: 234.454 89.474% 73.922%;
+  --color-indigo-500: 238.732 83.529% 66.667%;
+  --color-indigo-600: 243.396 75.355% 58.627%;
+  --color-indigo-700: 244.521 57.937% 50.588%;
+  --color-indigo-800: 243.652 54.502% 41.373%;
+  --color-indigo-900: 242.169 47.429% 34.314%;
+  --color-indigo-950: 243.750 47.059% 20.000%;
+
+  /* 蓝色系（兼容既有图形分类） */
   --color-blue-50: 214 65% 96%;
   --color-blue-100: 206 96% 90%;
   --color-blue-200: 207 92% 80%;
@@ -51,17 +64,17 @@
 
   /* 石板灰（中性色基底） */
   --color-slate-0: 0 0% 100%;
-  --color-slate-50: 216 25% 97%;
-  --color-slate-100: 216 22% 94%;
-  --color-slate-200: 215 22% 88%;
-  --color-slate-300: 215 19% 80%;
+  --color-slate-50: 220.000 23.077% 97.451%;
+  --color-slate-100: 220.000 14.286% 95.882%;
+  --color-slate-200: 220.000 13.043% 90.980%;
+  --color-slate-300: 218.824 17.895% 81.373%;
   --color-slate-400: 215 20% 65%;
-  --color-slate-500: 215 16% 42%;
-  --color-slate-600: 215 19% 35%;
+  --color-slate-500: 220.000 8.936% 46.078%;
+  --color-slate-600: 215.000 13.793% 34.118%;
   --color-slate-700: 215 22% 27%;
   --color-slate-800: 217 28% 20%;
   --color-slate-850: 218 23% 17%;
-  --color-slate-900: 218 25% 13%;
+  --color-slate-900: 215.000 27.907% 16.863%;
   --color-slate-925: 218 26% 11%;
   --color-slate-950: 220 27% 9%;
 
@@ -152,6 +165,20 @@
 
 /* ---------- Semantic 层：浅色主题 ---------- */
 [data-theme='light'] {
+  /* 指标分类的衬底与前景色。 */
+  --metric-blue-bg: 225.882 100.000% 96.667%;
+  --metric-blue-fg: 243.396 75.355% 58.627%;
+  --metric-green-bg: 159.000 50.000% 92.157%;
+  --metric-green-fg: 164.842 76.000% 24.510%;
+  --metric-amber-bg: 37.500 76.190% 91.765%;
+  --metric-amber-fg: 33.443 84.722% 28.235%;
+  --metric-rose-bg: 338.824 68.000% 95.098%;
+  --metric-rose-fg: 340.200 48.544% 40.392%;
+  --metric-cyan-bg: 188.571 51.220% 91.961%;
+  --metric-cyan-fg: 190.851 67.143% 27.451%;
+  --metric-violet-bg: 263.333 75.000% 95.294%;
+  --metric-violet-fg: 268.235 43.966% 45.490%;
+
   color-scheme: light;
 
   --background: var(--color-slate-50);
@@ -163,10 +190,10 @@
   --popover: var(--color-slate-0);
   --popover-foreground: var(--color-slate-900);
 
-  --primary: var(--color-blue-600);
+  --primary: var(--color-indigo-600);
   --primary-foreground: var(--color-slate-0);
-  --primary-hover: var(--color-blue-700);
-  --primary-active: var(--color-blue-800);
+  --primary-hover: var(--color-indigo-700);
+  --primary-active: var(--color-indigo-800);
 
   --secondary: var(--color-slate-100);
   --secondary-foreground: var(--color-slate-700);
@@ -174,8 +201,8 @@
   --muted: var(--color-slate-100);
   --muted-foreground: var(--color-slate-500);
 
-  --accent: var(--color-blue-50);
-  --accent-foreground: var(--color-blue-700);
+  --accent: var(--color-indigo-50);
+  --accent-foreground: var(--color-indigo-700);
 
   --destructive: 354 67% 43%;
   --destructive-foreground: var(--color-slate-0);
@@ -195,24 +222,24 @@
   --border-strong: var(--color-slate-300);
   --input: var(--color-slate-200);
   --input-background: var(--color-slate-0);
-  --ring: var(--color-blue-400);
+  --ring: var(--primary);
 
-  --sidebar: 216 24% 95%;
+  --sidebar: 0 0% 98%;
   --sidebar-foreground: var(--color-slate-600);
-  --sidebar-accent: var(--color-blue-50);
-  --sidebar-accent-foreground: var(--color-blue-700);
+  --sidebar-accent: var(--color-indigo-50);
+  --sidebar-accent-foreground: var(--color-indigo-700);
   --sidebar-border: var(--color-slate-200);
-  --sidebar-active: var(--color-blue-600);
+  --sidebar-active: var(--color-indigo-600);
 
   --overlay: 219 36% 11% / 0.45;
 
   /* 图表色板 */
-  --chart-1: var(--color-blue-500);
-  --chart-2: var(--color-emerald-400);
-  --chart-3: var(--color-amber-400);
-  --chart-4: var(--color-violet-400);
-  --chart-5: var(--color-cyan-400);
-  --chart-6: var(--color-rose-400);
+  --chart-1: var(--color-indigo-600);
+  --chart-2: var(--color-emerald-600);
+  --chart-3: var(--color-amber-600);
+  --chart-4: var(--color-rose-600);
+  --chart-5: var(--color-violet-400);
+  --chart-6: var(--color-cyan-600);
   --chart-grid: var(--color-slate-200);
   --chart-axis: var(--color-slate-400);
   --chart-tooltip-bg: var(--color-slate-0);
@@ -220,7 +247,7 @@
   --chart-tooltip-fg: var(--color-slate-900);
 
   /* 知识图谱节点色 */
-  --graph-achievement: var(--color-blue-500);
+  --graph-achievement: var(--color-indigo-500);
   --graph-author: var(--color-cyan-500);
   --graph-institution: var(--color-amber-500);
   --graph-venue: var(--color-violet-500);
@@ -231,7 +258,7 @@
   /* 表格 */
   --table-header-bg: var(--color-slate-100);
   --table-header-fg: var(--color-slate-500);
-  --table-row-hover: var(--color-blue-50);
+  --table-row-hover: var(--color-indigo-50);
   --table-border: var(--color-slate-200);
 
   /* 状态点 */
@@ -243,6 +270,20 @@
 
 /* ---------- Semantic 层：深色主题 ---------- */
 [data-theme='dark'] {
+  /* 指标分类的衬底与前景色。 */
+  --metric-blue-bg: 244.615 30.233% 25.294%;
+  --metric-blue-fg: 229.655 93.548% 81.765%;
+  --metric-green-bg: 169.412 40.476% 16.471%;
+  --metric-green-fg: 160.571 56.150% 63.333%;
+  --metric-amber-bg: 33.750 31.373% 20.000%;
+  --metric-amber-fg: 36.585 83.673% 71.176%;
+  --metric-rose-bg: 320.769 23.636% 21.569%;
+  --metric-rose-fg: 337.500 68.966% 77.255%;
+  --metric-cyan-bg: 198.000 40.816% 19.216%;
+  --metric-cyan-fg: 190.851 58.750% 68.627%;
+  --metric-violet-bg: 259.286 24.138% 22.745%;
+  --metric-violet-fg: 263.636 71.739% 81.961%;
+
   color-scheme: dark;
 
   --background: var(--color-slate-950);
@@ -254,10 +295,10 @@
   --popover: var(--color-slate-900);
   --popover-foreground: 210 40% 96%;
 
-  --primary: var(--color-blue-400);
+  --primary: var(--color-indigo-300);
   --primary-foreground: var(--color-slate-950);
-  --primary-hover: var(--color-blue-300);
-  --primary-active: var(--color-blue-500);
+  --primary-hover: var(--color-indigo-200);
+  --primary-active: var(--color-indigo-400);
 
   --secondary: var(--color-slate-800);
   --secondary-foreground: var(--color-slate-200);
@@ -265,8 +306,8 @@
   --muted: var(--color-slate-850);
   --muted-foreground: var(--color-slate-400);
 
-  --accent: 213 60% 22%;
-  --accent-foreground: var(--color-blue-200);
+  --accent: 243 35% 24%;
+  --accent-foreground: var(--color-indigo-200);
 
   --destructive: var(--color-rose-400);
   --destructive-foreground: var(--color-slate-950);
@@ -286,24 +327,24 @@
   --border-strong: 215 25% 33%;
   --input: 217 30% 26%;
   --input-background: var(--color-slate-925);
-  --ring: var(--color-blue-400);
+  --ring: var(--primary);
 
   --sidebar: var(--color-slate-925);
   --sidebar-foreground: var(--color-slate-400);
-  --sidebar-accent: 213 55% 20%;
-  --sidebar-accent-foreground: var(--color-blue-200);
+  --sidebar-accent: 243 35% 24%;
+  --sidebar-accent-foreground: var(--color-indigo-200);
   --sidebar-border: 217 30% 20%;
-  --sidebar-active: var(--color-blue-400);
+  --sidebar-active: var(--color-indigo-400);
 
   --overlay: 222 47% 3% / 0.65;
 
   /* 图表色板（深色下提高亮度） */
-  --chart-1: var(--color-blue-300);
+  --chart-1: var(--color-indigo-300);
   --chart-2: var(--color-emerald-300);
   --chart-3: var(--color-amber-300);
-  --chart-4: var(--color-violet-300);
-  --chart-5: var(--color-cyan-300);
-  --chart-6: var(--color-rose-300);
+  --chart-4: var(--color-rose-300);
+  --chart-5: var(--color-violet-300);
+  --chart-6: var(--color-cyan-300);
   --chart-grid: 217 28% 20%;
   --chart-axis: var(--color-slate-500);
   --chart-tooltip-bg: var(--color-slate-900);
@@ -311,7 +352,7 @@
   --chart-tooltip-fg: 210 40% 96%;
 
   /* 知识图谱节点色 */
-  --graph-achievement: var(--color-blue-300);
+  --graph-achievement: var(--color-indigo-300);
   --graph-author: var(--color-cyan-300);
   --graph-institution: var(--color-amber-300);
   --graph-venue: var(--color-violet-300);
@@ -322,7 +363,7 @@
   /* 表格 */
   --table-header-bg: var(--color-slate-925);
   --table-header-fg: var(--color-slate-400);
-  --table-row-hover: 213 50% 18%;
+  --table-row-hover: 243 35% 20%;
   --table-border: 217 30% 22%;
 
   /* 状态点 */
@@ -382,6 +423,6 @@
 
   /* 侧栏 */
   --nav-item-radius: var(--radius-md);
-  --nav-item-height: 2.5rem;
-  --nav-item-padding: var(--space-2) var(--space-3);
+  --nav-item-height: 1.875rem;
+  --nav-item-padding: var(--space-1) var(--space-3);
 }

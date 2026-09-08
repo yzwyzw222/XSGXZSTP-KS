@@ -76,7 +76,7 @@ const completionMessages: Record<string, string> = {
   QUOTA_RETRY_LIMIT: '已用完三次额度自动恢复机会。请检查来源额度后重新安排采集。',
   USER_PAUSED: '已由用户暂停，等待手动恢复。',
   USER_CANCELLED: '已由用户取消，已提交数据保留。',
-  BATCH_FAILED: '批次执行失败，请结合失败明细与运行监控排查。',
+  BATCH_FAILED: '批次执行失败，请结合失败明细与操作日志排查。',
 }
 const completionMessage = computed(() => {
   const reason = currentRun.value?.completionReason
@@ -431,7 +431,7 @@ onBeforeUnmount(() => {
     <ElAlert v-if="errorMessage && !taskDialog && !scheduleDialog && !runDialog" type="error" :closable="false" show-icon><template #title>{{ errorMessage }}</template></ElAlert>
 
     <PanelSection title="任务定义" :subtitle="`共 ${tasks.totalElements} 个`">
-      <DataTable
+      <DataTable fill
         :columns="taskColumns"
         :data="tasks.items"
         :loading="loading"

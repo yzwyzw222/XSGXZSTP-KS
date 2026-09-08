@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElAlert, ElTag } from 'element-plus'
+import { ElAlert, ElTag, ElTabs, ElTabPane } from 'element-plus'
 import { ArrowLeft, FileText } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -19,6 +19,7 @@ const { hasPermission } = sessionStore
 const loading = ref(false)
 const errorMessage = ref('')
 const detail = ref<AchievementDetail | null>(null)
+const section = ref('record')
 const achievementId = computed(() => Number(route.params.id))
 let requestSequence = 0
 
@@ -96,9 +97,15 @@ onBeforeUnmount(() => { ++requestSequence })
 
     <LoadingSkeleton v-if="loading && !detail" variant="text" :rows="6" />
 
-    <div v-if="detail" class="achievement-layout">
+    <ElTabs v-if="detail" v-model="section" aria-label="成果详情内容">
+      <ElTabPane name="record" label="规范记录" />
+      <ElTabPane name="authors" label="署名与引用" />
+      <ElTabPane name="sources" label="来源指标" />
+      <ElTabPane name="provenance" label="来源与字段" />
+    </ElTabs>
+    <div v-if="detail" class="achievement-layout workspace-fill">
       <!-- 规范记录 -->
-      <PanelSection title="规范记录" class="achievement-record">
+      <PanelSection v-if="section === 'record'" title="规范记录" class="achievement-record workspace-panel">
         <template #actions><FileText class="size-4 text-muted-foreground" aria-hidden="true" /></template>
         <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           <div class="space-y-1"><dt class="text-xs text-muted-foreground">DOI</dt><dd class="mono-evidence text-sm">{{ detail.summary.doi || '—' }}</dd></div>
@@ -124,12 +131,12 @@ onBeforeUnmount(() => { ++requestSequence })
         </dl>
       </PanelSection>
 
-      <PanelSection title="来源学术指标与版本" subtitle="逐来源核对观测值与版本关系" class="achievement-sources">
+      <PanelSection v-if="section === 'sources'" title="来源学术指标与版本" subtitle="逐来源核对观测值与版本关系" class="achievement-sources workspace-panel">
         <ScholarlySourcePanel :sources="detail.sources" />
       </PanelSection>
 
       <!-- 引用标识 -->
-      <PanelSection title="引用标识" class="achievement-references">
+      <PanelSection v-if="section === 'authors'" title="引用标识" class="achievement-references workspace-panel">
         <div v-if="detail.referencedWorkIds.length" class="flex flex-wrap gap-1.5">
           <ElTag v-for="workId in detail.referencedWorkIds" :key="workId" size="small" type="info" effect="plain" class="mono-evidence">{{ workId }}</ElTag>
         </div>
@@ -137,8 +144,8 @@ onBeforeUnmount(() => { ++requestSequence })
       </PanelSection>
 
       <!-- 作者署名 -->
-      <PanelSection title="作者署名" class="achievement-authors">
-        <DataTable
+      <PanelSection v-if="section === 'authors'" title="作者署名" class="achievement-authors workspace-panel">
+        <DataTable fill
           :columns="authorColumns"
           :data="detail.authorships"
           :get-row-id="(row) => `${row.authorId}-${row.position}`"
@@ -148,9 +155,9 @@ onBeforeUnmount(() => { ++requestSequence })
       </PanelSection>
 
       <!-- 来源轨迹 + 字段状态 -->
-      <div class="achievement-provenance grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <PanelSection title="来源轨迹">
-          <DataTable
+      <div v-if="section === 'provenance'" class="achievement-provenance workspace-grid grid-cols-1 xl:grid-cols-2">
+        <PanelSection title="来源轨迹" class="workspace-panel">
+          <DataTable fill
             :columns="sourceColumns"
             :data="detail.sources"
             :get-row-id="(row) => String(row.sourceRecordId)"
@@ -158,8 +165,8 @@ onBeforeUnmount(() => { ++requestSequence })
             dense
           />
         </PanelSection>
-        <PanelSection title="字段状态">
-          <DataTable
+        <PanelSection title="字段状态" class="workspace-panel">
+          <DataTable fill
             :columns="fieldColumns"
             :data="detail.fields"
             :get-row-id="(row) => row.fieldName"
@@ -179,14 +186,9 @@ onBeforeUnmount(() => { ++requestSequence })
 </template>
 
 <style scoped>
-.achievement-layout { display: grid; gap: var(--space-5); align-items: start; }
+.achievement-layout { display: flex; flex-direction: column; gap: var(--space-3); }
 .achievement-abstract { max-width: 65ch; font-size: var(--font-size-md); line-height: 1.85; padding-top: var(--space-1); }
 @media (min-width: 1280px) {
-  .achievement-layout { grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr); }
-  .achievement-record { grid-column: 1; grid-row: 1; }
-  .achievement-sources { grid-column: 2; grid-row: 1 / 4; }
-  .achievement-authors { grid-column: 1; grid-row: 2; }
-  .achievement-references { grid-column: 1; grid-row: 3; }
-  .achievement-provenance { grid-column: 1 / -1; }
+  .achievement-layout { flex-direction: row; }
 }
 </style>

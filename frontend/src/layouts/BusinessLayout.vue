@@ -80,7 +80,7 @@ onBeforeUnmount(removeAfterEach)
 </script>
 
 <template>
-  <div class="app-shell min-h-dvh bg-background">
+  <div class="app-shell h-dvh overflow-hidden bg-background">
     <a
       href="#main-content"
       class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
@@ -114,7 +114,7 @@ onBeforeUnmount(removeAfterEach)
 
     <!-- 主区 -->
     <div
-      class="flex min-h-dvh flex-col"
+      class="flex h-full min-h-0 flex-col overflow-hidden"
       :class="preferences.sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-60'"
     >
       <AppTopbar
@@ -123,7 +123,7 @@ onBeforeUnmount(removeAfterEach)
         @open-palette="paletteOpen = true"
         @logout="handleLogout"
       />
-      <main id="main-content" ref="mainContent" tabindex="-1" class="min-w-0 flex-1">
+      <main id="main-content" ref="mainContent" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-hidden">
         <RouterView v-if="sessionStore.isAuthenticated" v-slot="{ Component }">
           <transition name="page">
             <component :is="Component" />
