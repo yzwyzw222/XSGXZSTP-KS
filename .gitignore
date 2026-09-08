@@ -42,8 +42,9 @@ handoff-output/
 /SHA256SUMS.txt
 /new-computer-handoff-prompt.md
 
-# 远端仅保留源码与必要工程资源，说明文档和验收数据仅留在本地。
+# 远端保留源码、项目入口说明与必要工程资源，其余说明和验收资料仅留在本地。
 *.md
+!/README.md
 /docs/*
 !/docs/openapi.yaml
 /images/
