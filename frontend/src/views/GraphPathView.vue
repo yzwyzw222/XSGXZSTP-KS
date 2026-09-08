@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ElAlert } from 'element-plus'
-import { onBeforeUnmount } from 'vue'
+import { ElAlert, ElButton } from 'element-plus'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 import { PageHeader, PanelSection } from '@/components/business'
 import GraphPathForm from '@/components/business/GraphPathForm.vue'
@@ -16,6 +16,8 @@ const graphStore = useGraphStore()
 graphStore.reset()
 const { loading, errorMessage, graph, addedNodeIds, focus } = storeToRefs(graphStore)
 const loadGraph = graphStore.load
+const queryOpen = ref(false)
+watch(graph, value => { if (value) queryOpen.value = false })
 
 async function loadPath(query: GraphPathQuery): Promise<void> {
   const sourceId = Number(query.sourceId)
@@ -55,9 +57,9 @@ onBeforeUnmount(graphStore.reset)
     <PageHeader
       title="路径分析"
       description="指定起点与终点节点，查询图投影中的最短路径；hop 上限为6，结果可继续展开探索。"
-    />
+    ><template #actions><ElButton v-if="graph" plain @click="queryOpen = !queryOpen">{{ queryOpen ? '返回图谱' : '路径配置' }}</ElButton></template></PageHeader>
 
-    <PanelSection title="路径配置" subtitle="起点与终点均可按名称检索或直接填写业务ID。">
+    <PanelSection v-show="queryOpen || !graph" title="路径配置" subtitle="起点与终点均可按名称检索或直接填写业务ID。">
       <GraphPathForm @submit="loadPath" />
     </PanelSection>
 
@@ -72,6 +74,7 @@ onBeforeUnmount(graphStore.reset)
 
     <GraphWorkspace
       v-if="graph"
+      v-show="!queryOpen"
       :graph="graph"
       :loading="loading"
       :added-node-ids="addedNodeIds"

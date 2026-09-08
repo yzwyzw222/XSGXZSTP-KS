@@ -9,6 +9,9 @@ import type { GraphNodeType } from '@/types/api'
 
 const emit = defineEmits<{ (e: 'submit', query: GraphPathQuery): void }>()
 
+// 配置隐藏时触发器宽度归零；固定枚举浮层宽度，避免其尺寸监听反复更新布局。
+const selectPopperStyle = { width: '160px' }
+
 const nodeTypes: Array<{ value: GraphNodeType; label: string }> = [
   { value: 'ACHIEVEMENT', label: '成果' },
   { value: 'AUTHOR', label: '作者' },
@@ -33,7 +36,7 @@ const form = reactive<GraphPathQuery>({
         <h2 class="text-sm font-medium">起点节点</h2>
         <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] sm:items-start">
           <FilterField label="起点类型">
-            <ElSelect v-model="form.sourceType" placeholder="起点类型">
+            <ElSelect v-model="form.sourceType" :popper-style="selectPopperStyle" placeholder="起点类型">
               <ElOption
                 v-for="item in nodeTypes"
                 :key="item.value"
@@ -49,7 +52,7 @@ const form = reactive<GraphPathQuery>({
         <h2 class="text-sm font-medium">终点节点</h2>
         <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] sm:items-start">
           <FilterField label="终点类型">
-            <ElSelect v-model="form.targetType" placeholder="终点类型">
+            <ElSelect v-model="form.targetType" :popper-style="selectPopperStyle" placeholder="终点类型">
               <ElOption
                 v-for="item in nodeTypes"
                 :key="item.value"
@@ -65,7 +68,7 @@ const form = reactive<GraphPathQuery>({
     <div class="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-4">
       <FilterField label="最大跳数" class="w-40">
         <!-- 后端硬限制：最短路径最多 6 跳 -->
-        <ElSelect v-model="form.maxHops" placeholder="选择跳数">
+        <ElSelect v-model="form.maxHops" :popper-style="selectPopperStyle" placeholder="选择跳数">
           <ElOption v-for="hops in 6" :key="hops" :value="String(hops)" :label="`${hops} 跳`" />
         </ElSelect>
       </FilterField>

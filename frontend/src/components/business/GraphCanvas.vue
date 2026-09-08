@@ -13,6 +13,7 @@ const props = withDefaults(defineProps<{
   selectedEdgeId?: string
   label: string
   height?: string
+  fill?: boolean
   loading?: boolean
   addedNodeIds?: string[]
   layout?: 'concentric' | 'network' | 'cooperation'
@@ -241,7 +242,7 @@ defineExpose({
     ref="container"
     class="graph-canvas w-full"
     :class="{ 'opacity-60': loading }"
-    :style="{ height: props.height, minHeight: '360px', background: 'hsl(var(--graph-canvas))' }"
+    :style="{ height: fill ? '100%' : props.height, minHeight: fill ? '0' : '360px', background: 'hsl(var(--graph-canvas))' }"
     role="img"
     :aria-label="label"
     :aria-busy="loading"

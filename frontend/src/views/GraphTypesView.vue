@@ -123,7 +123,7 @@ async function save(): Promise<void> {
       <footer class="types-footer"><span>共 {{ rows.length }} 类</span><span>类型审核用于展示配置，修改后重新加载图谱生效。</span></footer>
     </div>
     <ElDialog :model-value="Boolean(details)" title="类型详情" width="min(520px, calc(100vw - 32px))" @update:model-value="value => { if (!value) details = null }">
-      <dl v-if="details" class="grid gap-3 text-sm"><div>名称：{{ details.displayName }}</div><div>标识：{{ details.code }}</div><div>颜色：<span class="type-color" :style="{ backgroundColor: details.color }" /> {{ details.color }}</div><div>{{ kind === 'NODE' ? '节点直径' : '关系线宽' }}：{{ details.size }} px</div><div>类型审核：{{ reviewStatusLabel(details.reviewStatus) }}</div><div v-if="details.code === 'COAUTHORED'">由 Neo4j 创作关系中的共同作品推导合作，详情证据仅覆盖当前返回的图谱。</div><div v-else-if="details.code === 'AUTHORED'">方向：作者 → 作品，读取 Neo4j 中实际的创作关系。</div></dl>
+      <dl v-if="details" class="grid gap-3 text-sm"><div>名称：{{ details.displayName }}</div><div>标识：{{ details.code }}</div><div>颜色：<span class="type-color" :style="{ backgroundColor: details.color }" /> {{ details.color }}</div><div>{{ kind === 'NODE' ? '节点直径' : '关系线宽' }}：{{ details.size }} px</div><div>类型审核：{{ reviewStatusLabel(details.reviewStatus) }}</div><div v-if="details.code === 'COAUTHORED'">由作者共同作品推导合作，详情证据仅覆盖当前返回的图谱。</div><div v-else-if="details.code === 'AUTHORED'">方向：作者 → 作品，展示作品中记录的署名关系。</div></dl>
     </ElDialog>
     <ElDialog :model-value="Boolean(editor)" title="编辑类型配置" width="min(520px, calc(100vw - 32px))" :close-on-click-modal="false" :close-on-press-escape="!saving" :show-close="!saving" @update:model-value="value => { if (!value && !saving) editor = null }">
       <form v-if="editor" class="grid gap-4" @submit.prevent="save">
@@ -140,11 +140,11 @@ async function save(): Promise<void> {
 </template>
 
 <style scoped>
-.graph-types-page { margin: 12px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); min-height: calc(100dvh - 100px); }
+.graph-types-page { display: flex; flex-direction: column; height: calc(100% - 24px); min-height: 0; margin: 12px; overflow: hidden; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); }
 .types-heading { padding: 16px; border-bottom: 1px solid hsl(var(--border)); }
 .types-heading h1 { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
 .types-heading svg { color: hsl(var(--primary)); stroke-width: 3; }
-.types-content { padding: 12px 16px; }
+.types-content { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; }
 .types-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
 .types-search { max-width: 290px; }
 .types-actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
@@ -154,5 +154,5 @@ async function save(): Promise<void> {
 .relation-direction { display: block; margin-top: 4px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .types-table :deep(.el-table__cell) { padding: 14px 0; }
 .types-footer { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 18px 0; font-size: 12px; color: hsl(var(--muted-foreground)); }
-@media (max-width: 767px) { .graph-types-page { margin: 8px; } .types-actions { margin-left: 0; } .types-search { max-width: none; } }
+@media (max-width: 767px) { .graph-types-page { height: calc(100% - 16px); margin: 8px; } .types-actions { margin-left: 0; } .types-search { max-width: none; } }
 </style>

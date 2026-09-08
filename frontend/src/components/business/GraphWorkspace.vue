@@ -120,8 +120,8 @@ function clearSelection(): void {
 </script>
 
 <template>
-  <div class="graph-workspace grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)]">
-    <PanelSection :padded="false" class="overflow-hidden">
+  <div class="graph-workspace workspace-grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)]">
+    <PanelSection :padded="false" class="workspace-panel">
       <template #title>
         <div class="min-w-0">
           <h2 class="truncate text-sm font-semibold">{{ visibleGraph?.nodes.length ?? 0 }} 个节点 · {{ visibleGraph?.edges.length ?? 0 }} 条关系</h2>
@@ -159,7 +159,7 @@ function clearSelection(): void {
         </li>
       </ul>
 
-      <div v-show="viewMode === 'graph'">
+      <div v-show="viewMode === 'graph'" class="graph-workspace__canvas">
         <div class="graph-tools flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
           <ElButton text size="small" @click="canvas?.fit()">重置视图</ElButton>
           <ElButton text size="small" :disabled="!selectedNode && !selectedEdge" @click="canvas?.focus()">聚焦所选</ElButton>
@@ -167,6 +167,7 @@ function clearSelection(): void {
           <span class="ml-auto text-xs text-muted-foreground">拖动节点 · 滚轮缩放</span>
         </div>
         <GraphCanvas
+          fill
           ref="canvas"
           :elements="graphElements"
           :root-node-id="visibleGraph?.rootNodeId ?? ''"
@@ -181,8 +182,8 @@ function clearSelection(): void {
         />
       </div>
 
-      <div v-if="viewMode === 'nodes'" class="p-4">
-        <DataTable
+      <div v-if="viewMode === 'nodes'" class="graph-workspace__table p-4">
+        <DataTable fill
           :columns="nodeColumns"
           :data="visibleGraph?.nodes ?? []"
           :get-row-id="(row) => row.id"
@@ -194,8 +195,8 @@ function clearSelection(): void {
           </template>
         </DataTable>
       </div>
-      <div v-if="viewMode === 'edges'" class="p-4">
-        <DataTable
+      <div v-if="viewMode === 'edges'" class="graph-workspace__table p-4">
+        <DataTable fill
           :columns="edgeColumns"
           :data="visibleGraph?.edges ?? []"
           :get-row-id="(row) => row.id"
@@ -213,7 +214,7 @@ function clearSelection(): void {
     <component
       :is="narrow ? ElDrawer : PanelSection"
       v-bind="narrow ? { modelValue: inspectorOpen, title: '图谱详情', size: 'min(420px, 100vw)', appendToBody: true, destroyOnClose: true } : {}"
-      :class="narrow ? 'aacv-drawer' : 'xl:sticky xl:top-20'"
+      :class="narrow ? 'aacv-drawer' : 'workspace-panel'"
       aria-live="polite"
       @update:model-value="(value: boolean) => { inspectorOpen = value }"
     >
@@ -237,7 +238,7 @@ function clearSelection(): void {
         <div v-if="selectedEdge.type === 'COAUTHORED'" class="mt-4 text-sm">
           <p>派生合作 · 当前子图共同作品 {{ sharedWorks.length }} 部</p>
           <ul class="mt-2 list-inside list-disc"><li v-for="work in sharedWorks" :key="work.id">{{ work.label }}</li></ul>
-          <p class="mt-2 text-xs text-muted-foreground">依据 Neo4j 创作关系计算，不代表全库合作次数。</p>
+          <p class="mt-2 text-xs text-muted-foreground">依据作者共同作品计算，不代表全库合作次数。</p>
         </div>
       </template>
       <template v-else>
@@ -259,3 +260,9 @@ function clearSelection(): void {
     </component>
   </div>
 </template>
+
+<style scoped>
+.graph-workspace__canvas, .graph-workspace__table { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
+.graph-workspace__canvas .graph-tools { flex-shrink: 0; }
+.graph-workspace__canvas :deep(.graph-canvas) { flex: 1; }
+</style>

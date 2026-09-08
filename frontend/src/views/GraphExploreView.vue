@@ -4,7 +4,7 @@ import { ChevronDown, FileText, Waypoints } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import { FilterField, LoadingSkeleton, PageHeader, PanelSection, StatusPill } from '@/components/business'
+import { FilterField, LoadingSkeleton, PageHeader, PanelSection } from '@/components/business'
 import GraphEntityPicker from '@/components/business/GraphEntityPicker.vue'
 import GraphPathForm from '@/components/business/GraphPathForm.vue'
 import GraphSavedQueries from '@/components/business/GraphSavedQueries.vue'
@@ -16,10 +16,10 @@ import { useGraphStore } from '@/stores/graph'
 import { graphApi } from '@/services/business'
 import { useSessionStore } from '@/stores/session'
 import type {
-  GraphNode, GraphNodeType, GraphRelationshipType, GraphSyncStatus,
+  GraphNode, GraphNodeType, GraphRelationshipType,
 } from '@/types/api'
 import { achievementTypeOptions } from '@/utils/filter-options'
-import { formatDateTime, splitValues } from '@/utils/format'
+import { splitValues } from '@/utils/format'
 import { GRAPH_NODE_LIMIT } from '@/utils/graph'
 import { readSavedQueries, type GraphFilters, type SavedGraphQuery } from '@/utils/graph-query'
 
@@ -30,6 +30,7 @@ const nodeTypes: Array<{ value: GraphNodeType; label: string }> = [
   { value: 'VENUE', label: '期刊/载体' },
   { value: 'TOPIC', label: '主题' },
 ]
+const queryOpen = ref(false)
 const relationshipTypes: Array<{ value: GraphRelationshipType; label: string }> = [
   { value: 'AUTHORED', label: '创作' },
   { value: 'AFFILIATED_WITH', label: '隶属' },
@@ -49,16 +50,15 @@ const nodeLimitOptions = [
 ]
 
 const sessionStore = useSessionStore()
-const { hasPermission } = sessionStore
 const currentUserId = computed(() => sessionStore.currentUserId)
 
 const graphStore = useGraphStore()
 graphStore.reset()
 const { loading, errorMessage, graph, addedNodeIds, focus } = storeToRefs(graphStore)
+watch(graph, value => { if (value) queryOpen.value = false })
 const loadGraph = graphStore.load
 const route = useRoute()
 /** 图请求序号：新查询、组件卸载都会使在途响应作废。 */
-const syncStatus = ref<GraphSyncStatus | null>(null)
 const activeTab = ref<'basic' | 'filters' | 'advanced'>('basic')
 const scopeOpen = ref(false)
 const savedTemplates = ref<SavedGraphQuery[]>([])
@@ -85,15 +85,6 @@ const yearToModel = computed<number | undefined>({
   set: (value) => { filters.publicationYearTo = value === undefined ? '' : String(value) },
 })
 const selectedAchievementTypes = computed<string[]>(() => splitValues(filters.achievementTypes))
-
-const syncWarning = computed(() =>
-  Boolean(syncStatus.value && (!syncStatus.value.neo4jAvailable || syncStatus.value.lagThresholdExceeded || syncStatus.value.rebuildInProgress)))
-const syncLabel = computed(() => {
-  if (syncStatus.value?.rebuildInProgress) return '图投影正在重建'
-  if (syncStatus.value && !syncStatus.value.neo4jAvailable) return 'Neo4j 暂不可用'
-  if (syncStatus.value?.lagThresholdExceeded) return '图同步存在积压'
-  return graph.value?.syncedAt ? `投影于 ${formatDateTime(graph.value.syncedAt)}` : '等待加载图数据'
-})
 
 function numOrUndef(value: string): number | undefined {
   const trimmed = value.trim()
@@ -156,16 +147,6 @@ async function expandSelected(node: GraphNode): Promise<void> {
 }
 
 
-async function loadSyncStatus(): Promise<void> {
-  if (!hasPermission('GRAPH_SYNC_READ')) return
-  try {
-    syncStatus.value = await graphApi.syncStatus()
-  } catch {
-    // 同步状态不可用时降级为不显示，不阻断图谱查询本身。
-    syncStatus.value = null
-  }
-}
-
 function toggleNodeType(type: GraphNodeType): void {
   const index = filters.nodeTypes.indexOf(type)
   if (index >= 0) filters.nodeTypes.splice(index, 1)
@@ -222,7 +203,6 @@ async function loadRouteCenter(): Promise<void> {
 
 watch(() => [route.query.centerType, route.query.centerId], loadRouteCenter)
 onMounted(async () => {
-  void loadSyncStatus()
   refreshSavedTemplates()
   const pending = graphStore.takeQuery()
   if (pending) {
@@ -243,19 +223,12 @@ onBeforeUnmount(graphStore.reset)
       description="从作者和作品出发，探索创作关系与有共同作品依据的作者合作。"
     >
       <template #actions>
-        <div class="flex flex-wrap items-center gap-2">
-          <StatusPill :status="syncWarning ? 'DEGRADED' : 'UP'" />
-          <span class="text-sm font-medium">{{ syncLabel }}</span>
-          <span v-if="syncStatus" class="text-xs tabular-nums text-muted-foreground">
-            待处理 {{ syncStatus.pendingCount }} · 死信 {{ syncStatus.deadCount }}
-          </span>
-        </div>
+        <ElButton v-if="graph" plain @click="queryOpen = !queryOpen">{{ queryOpen ? '返回图谱' : '查询条件' }}</ElButton>
       </template>
     </PageHeader>
 
+    <div v-show="queryOpen || !graph" class="graph-query-controls" :class="graph ? 'graph-query-controls--full' : ''">
     <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
-      <span>Neo4j：读取实际节点和关系</span>
-      <span>MySQL：读取类型名称、颜色、尺寸、审核状态</span>
       <RouterLink class="text-primary hover:underline" to="/graph/path">路径分析</RouterLink>
       <RouterLink class="text-primary hover:underline" to="/graph/queries">常用查询</RouterLink>
     </div>
@@ -291,7 +264,7 @@ onBeforeUnmount(graphStore.reset)
               <ChevronDown class="mr-1 size-4 transition-transform" :class="scopeOpen ? '' : '-rotate-90'" aria-hidden="true" />
               查询预置（展开/折叠选项）
             </ElButton>
-            <span class="ml-2 text-xs text-muted-foreground">深度 ≤ 2 · 最多 300 个节点 · 成果统计以 MySQL 目录为准</span>
+            <span class="ml-2 text-xs text-muted-foreground">深度 ≤ 2 · 最多 300 个节点 · 成果统计以成果目录为准</span>
             <Transition name="content-switch">
             <div v-show="scopeOpen" class="mt-3 grid grid-cols-2 gap-4 lg:grid-cols-4">
               <FilterField label="查询深度">
@@ -395,13 +368,14 @@ onBeforeUnmount(graphStore.reset)
 
       <ElTabPane label="高级查询" name="advanced">
         <p class="text-sm leading-relaxed text-muted-foreground">
-          指定起点与终点节点，查询图投影中的最短路径；结果同样进入下方工作区。
+          指定起点与终点节点，查询图投影中的最短路径；结果以图形和表格呈现。
         </p>
         <PanelSection title="两点间最短路径" subtitle="最大跳数6；路径查询不会绕过服务端的 hop 上限。" class="mt-3">
           <GraphPathForm @submit="loadPath" />
         </PanelSection>
       </ElTabPane>
     </ElTabs>
+    </div>
 
     <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
     <ElAlert
@@ -415,6 +389,7 @@ onBeforeUnmount(graphStore.reset)
     <!-- 图工作区保留视图实例；窄屏通过抽屉查看元素详情。 -->
     <GraphWorkspace
       v-if="graph"
+      v-show="!queryOpen"
       :graph="graph"
       :loading="loading"
       :added-node-ids="addedNodeIds"
@@ -454,3 +429,8 @@ onBeforeUnmount(graphStore.reset)
     </PanelSection>
   </section>
 </template>
+
+<style scoped>
+.graph-query-controls { display: grid; gap: var(--space-3); min-height: 0; max-height: 60%; overflow: auto; flex-shrink: 1; }
+.graph-query-controls--full { flex: 1; max-height: none; }
+</style>

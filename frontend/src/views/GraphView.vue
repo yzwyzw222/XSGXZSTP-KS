@@ -111,8 +111,12 @@ async function refresh(): Promise<void> { context.value = null; await store.refr
 /** 限制菜单在画布可见范围内，焦点落到可执行操作，支持 Escape 退出。 */
 async function openContext(value: NonNullable<typeof context.value>): Promise<void> {
   store.select(value.kind, value.id)
-  context.value = { ...value, x: Math.max(0, Math.min(value.x, (stage.value?.clientWidth ?? 360) - 190)),
-    y: Math.max(0, Math.min(value.y, (stage.value?.clientHeight ?? 520) - 200)) }
+  const stageBounds = stage.value?.getBoundingClientRect()
+  const canvasBounds = stage.value?.querySelector('.graph-canvas')?.getBoundingClientRect()
+  const offsetX = stageBounds && canvasBounds ? canvasBounds.x - stageBounds.x : 0
+  const offsetY = stageBounds && canvasBounds ? canvasBounds.y - stageBounds.y : 0
+  context.value = { ...value, x: Math.max(0, Math.min(value.x + offsetX, (stage.value?.clientWidth ?? 360) - 190)),
+    y: Math.max(0, Math.min(value.y + offsetY, (stage.value?.clientHeight ?? 360) - 200)) }
   await nextTick()
   menu.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
 }
@@ -147,14 +151,6 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
       <ElSelect v-model="relationship" aria-label="关系类型" placeholder="全部关系类型" clearable><ElOption v-for="type in edgeDefinitions" :key="type.code" :label="type.displayName" :value="type.code" /></ElSelect>
       <div class="overview-actions"><ElButton type="primary" :loading="loading" @click="refresh"><RefreshCw v-if="!loading" :size="15" class="mr-1.5" />刷新图谱</ElButton><ElButton @click="router.push('/graph/entities')">实体管理</ElButton><ElButton @click="router.push('/graph/relations')">关系管理</ElButton></div>
     </div>
-    <nav class="overview-navigation" aria-label="图谱浏览历史">
-      <ElButton text :disabled="!history.length || loading" @click="navigate(history.length - 2)"><ArrowLeft :size="15" class="mr-1" />返回上一级</ElButton>
-      <ElButton text :aria-current="!history.length ? 'page' : undefined" :disabled="loading" @click="navigate(-1)">全部</ElButton>
-      <template v-for="(item, index) in history" :key="item.id"><span aria-hidden="true">/</span><ElButton text :title="item.name" :aria-current="index === history.length - 1 ? 'page' : undefined" :disabled="loading" @click="navigate(index)">{{ item.name }}</ElButton></template>
-      <span class="scope-description">{{ history.length ? '当前中心 · 双向两跳' : '受限概览' }} · 最多300个节点</span>
-    </nav>
-    <p class="overview-scope">筛选仅作用于当前读取范围。双击节点可查看两跳子图；右键查看操作。全局统计暂未提供。</p>
-    <div class="overview-write-actions"><ElButton size="small" disabled title="当前未提供节点新增接口">新增节点</ElButton><ElButton size="small" disabled title="当前未提供关系新增接口">拖动建立关系</ElButton><span>节点和关系的增删改暂不可用，当前仅支持浏览。</span></div>
     <p v-if="loading || filtering" role="status" class="overview-scope">{{ filtering ? '正在等待筛选…' : graph ? '正在更新图谱，当前显示上次成功结果…' : '正在读取图谱…' }}</p>
     <ElAlert v-if="errorMessage" class="overview-notice" type="error" :closable="false" :title="graph ? errorMessage + '；保留上次成功结果' : errorMessage" show-icon />
     <ElAlert v-if="graph?.truncated" class="overview-notice" type="warning" :closable="false" title="当前显示受限网络，可通过高级查询进一步定位作者或作品。" show-icon />
@@ -167,7 +163,10 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
         <button v-if="context.kind === 'node'" role="menuitem" disabled title="当前未提供节点编辑接口">编辑节点（暂不可用）</button>
         <button role="menuitem" disabled title="当前未提供删除接口">{{ context.kind === 'node' ? '删除节点' : '删除关系' }}（暂不可用）</button>
       </div>
-      <div class="canvas-controls"><ElButton text size="small" :disabled="!visibleCooperations.length" @click="drawer = 'cooperations'">合作作品</ElButton><span aria-hidden="true">|</span><ElButton text size="small" :disabled="!counts.nodes" @click="canvas?.fit()"><Maximize :size="15" class="mr-1" />适应画布</ElButton><span aria-hidden="true">|</span><ElButton text size="small" @click="drawer = 'nodes'"><Table2 :size="15" class="mr-1" />节点表</ElButton><ElButton text size="small" @click="drawer = 'edges'">关系表</ElButton></div>
+      <div class="canvas-controls">
+        <nav v-if="history.length" class="canvas-history" aria-label="图谱浏览历史"><ElButton text size="small" :disabled="loading" @click="navigate(history.length - 2)"><ArrowLeft :size="15" class="mr-1" />返回上一级</ElButton><ElButton text size="small" :disabled="loading" @click="navigate(-1)">全部</ElButton><span aria-hidden="true">|</span></nav>
+        <ElButton text size="small" :disabled="!visibleCooperations.length" @click="drawer = 'cooperations'">合作作品</ElButton><span aria-hidden="true">|</span><ElButton text size="small" :disabled="!counts.nodes" @click="canvas?.fit()"><Maximize :size="15" class="mr-1" />适应画布</ElButton><span aria-hidden="true">|</span><ElButton text size="small" @click="drawer = 'nodes'"><Table2 :size="15" class="mr-1" />节点表</ElButton><ElButton text size="small" @click="drawer = 'edges'">关系表</ElButton>
+      </div>
       <dl v-if="graph && !focusedCooperation" class="canvas-statistics" aria-label="当前图谱统计"><div class="statistics-heading">当前视图</div><div><dt>图谱节点数：</dt><dd>{{ counts.nodes }}</dd></div><div><dt>节点类型数：</dt><dd>{{ counts.nodeTypes }}</dd></div><div><dt>关系类型数：</dt><dd>{{ counts.edgeTypes }}</dd></div><div><dt>关系数量：</dt><dd>{{ counts.edges }}</dd></div></dl>
       <section v-if="focusedCooperation" class="cooperation-panel" aria-label="合作作品详情">
         <div class="flex items-center justify-between gap-2"><h2 class="text-sm font-semibold">共同创作</h2><ElButton link type="primary" @click="leaveCooperation">返回完整图谱</ElButton></div>
@@ -205,20 +204,14 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
 </template>
 
 <style scoped>
-.overview-navigation { display: flex; align-items: center; gap: 4px; padding: 0 12px 8px; flex-wrap: wrap; }
-.overview-navigation :deep(.el-button) { max-width: 240px; margin-left: 0; }
-.overview-navigation :deep(.el-button > span) { overflow: hidden; text-overflow: ellipsis; }
-.overview-navigation :deep([aria-current="page"]) { color: hsl(var(--primary)); font-weight: 600; }
-.scope-description { color: hsl(var(--muted-foreground)); font-size: 12px; margin-left: auto; }
 .overview-scope { padding: 0 16px 8px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.overview-write-actions { padding: 0 16px 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.overview-write-actions :deep(.el-button + .el-button) { margin-left: 0; }
 .statistics-heading { font-weight: 600; padding-bottom: 4px; }
 .graph-context-menu { position: absolute; z-index: 3; width: 188px; padding: 4px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover)); box-shadow: var(--shadow-md); display: grid; }
 .graph-context-menu button { text-align: left; padding: 8px 10px; font-size: 13px; border-radius: 4px; }
 .graph-context-menu button:focus-visible, .graph-context-menu button:hover:not(:disabled) { outline: none; background: hsl(var(--accent)); }
 .graph-context-menu button:disabled { color: hsl(var(--muted-foreground)); cursor: not-allowed; }
-.graph-overview { margin: 12px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); min-width: 0; }
+.graph-overview { margin: 12px; height: calc(100% - 24px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); min-width: 0; }
+.graph-overview > :not(.overview-stage) { flex-shrink: 0; }
 .graph-heading { min-height: 52px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid hsl(var(--border)); }
 .graph-heading h1 { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
 .graph-heading h1 svg { color: hsl(var(--primary)); stroke-width: 3; }
@@ -229,7 +222,7 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
 .overview-toolbar :deep(.el-select) { width: 160px; }
 .overview-actions { display: flex; gap: 8px; margin-left: auto; }
 .overview-actions :deep(.el-button + .el-button) { margin-left: 0; }
-.overview-stage { position: relative; height: max(520px, calc(100dvh - 236px)); overflow: hidden; }
+.overview-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; }
 .overview-stage.has-cooperation :deep(.graph-canvas) { width: calc(100% - 350px); }
 .cooperation-panel { position: absolute; right: 12px; top: 16px; width: 326px; max-height: calc(100% - 32px); overflow: auto; padding: 16px; display: grid; gap: 14px; border: 1px solid hsl(var(--border)); background: hsl(var(--card)); border-radius: 6px; }
 .cooperation-authors { font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
@@ -237,9 +230,10 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
 .cooperation-works { display: grid; gap: 14px; font-size: 14px; overflow-wrap: anywhere; }
 .cooperation-works a { color: hsl(var(--primary)); }
 .cooperation-works span { display: block; font-size: 12px; color: hsl(var(--muted-foreground)); margin-top: 5px; }
-.overview-stage :deep(.graph-canvas) { background: hsl(var(--card)) !important; }
+.overview-stage :deep(.graph-canvas) { min-height: 0; background: hsl(var(--card)) !important; }
 .canvas-controls, .canvas-statistics, .canvas-legend { position: absolute; z-index: 1; background: hsl(var(--card) / .96); }
 .canvas-controls { top: 16px; left: 12px; display: flex; align-items: center; padding: 4px; border: 1px solid hsl(var(--border)); border-radius: 4px; color: hsl(var(--muted-foreground)); }
+.canvas-history { display: flex; align-items: center; }
 .canvas-controls :deep(.el-button + .el-button) { margin-left: 0; }
 .canvas-statistics { top: 16px; right: 12px; padding: 14px 18px; border: 1px solid hsl(var(--border)); font-size: 13px; line-height: 1.9; }
 .canvas-statistics div { display: flex; justify-content: space-between; gap: 10px; }
@@ -250,20 +244,31 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
 .legend-note { color: hsl(var(--muted-foreground)); }
 .overview-footer { border-top: 1px solid hsl(var(--border)); padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 11px; color: hsl(var(--muted-foreground)); }
 .overview-notice { margin: 0 12px 8px; width: auto; }
-.overview-empty { position: absolute; inset: 180px 24px 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; pointer-events: none; font-size: 14px; }
+.overview-empty { position: absolute; inset: 64px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; pointer-events: none; font-size: 14px; }
 .overview-empty span { font-size: 12px; color: hsl(var(--muted-foreground)); }
+@media (min-width: 768px) {
+  .overview-stage.has-cooperation .canvas-controls { right: 350px; flex-wrap: wrap; }
+}
 @media (max-width: 767px) {
-  .graph-overview { margin: 8px; }
-  .graph-heading { flex-wrap: wrap; }
+  .graph-overview { margin: 8px; height: calc(100% - 16px); }
+  .graph-heading { flex-wrap: wrap; padding: 8px 12px; gap: 8px; }
+  .graph-links { gap: 12px; }
+  .overview-toolbar { padding: 8px; gap: 8px; }
   .overview-toolbar .overview-search { width: 100%; }
-  .overview-toolbar :deep(.el-select) { width: calc(50% - 5px); }
+  .overview-toolbar :deep(.el-select) { width: calc(50% - 4px); }
   .overview-actions { width: 100%; margin-left: 0; }
-  .overview-stage.has-cooperation { height: auto; }
-  .overview-stage.has-cooperation :deep(.graph-canvas) { width: 100%; height: 450px !important; }
-  .cooperation-panel { position: static; width: auto; max-height: none; margin: 12px; }
-  .has-cooperation .canvas-legend { position: static; margin: 12px; }
-  .canvas-controls { right: 12px; flex-wrap: wrap; }
-  .canvas-statistics { top: 100px; font-size: 12px; padding: 8px 12px; }
-  .canvas-legend { right: 12px; gap: 8px 16px; }
+  .overview-stage { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .overview-stage :deep(.graph-canvas) { grid-column: 1; grid-row: 3; }
+  .overview-stage.has-cooperation { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .overview-stage.has-cooperation :deep(.graph-canvas) { grid-row: 2; width: 100%; }
+  .cooperation-panel { position: static; grid-column: 1; grid-row: 3; width: auto; min-height: 0; max-height: 100%; margin: 0 8px; padding: 12px; gap: 8px; }
+  .canvas-controls { position: static; grid-column: 1; grid-row: 1; flex-wrap: wrap; margin: 0 8px 8px; }
+  .canvas-statistics { position: static; grid-column: 1; grid-row: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); font-size: 11px; line-height: 1.5; padding: 8px; margin: 0 8px; }
+  .canvas-statistics .statistics-heading { grid-column: 1 / -1; }
+  .canvas-statistics > div:not(.statistics-heading) { flex-direction: column; gap: 0; }
+  .canvas-statistics dd { font-size: 14px; font-weight: 600; }
+  .canvas-legend { position: static; grid-column: 1; grid-row: 4; gap: 4px 12px; padding: 8px; }
+  .overview-empty { inset: 144px 16px 56px; }
+  .overview-footer { padding: 8px 12px; gap: 4px 12px; }
 }
 </style>
