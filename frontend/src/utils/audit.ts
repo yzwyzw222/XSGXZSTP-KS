@@ -10,7 +10,20 @@ export const auditActions: Record<string, string> = {
   DUPLICATE_CANDIDATE_ACCEPTED: '接受合并', DUPLICATE_CANDIDATE_REJECTED: '拒绝合并', MERGE_DECISION_REVERTED: '撤销合并',
   ACHIEVEMENT_FIELD_OVERRIDDEN: '修正成果字段', ACHIEVEMENT_FIELD_OVERRIDE_REVERTED: '撤销字段修正',
   GRAPH_EVENT_REPLAYED: '图事件重放已提交', GRAPH_BACKFILL_STARTED: '图回填已提交', GRAPH_RECONCILIATION_STARTED: '图对账已提交', GRAPH_REBUILD_STARTED: '图重建已提交',
+  GRAPH_TYPE_UPDATED: '更新图谱类型',
   EXPORT_CREATED: '导出请求已受理', EXPORT_SUCCEEDED: '导出完成', EXPORT_FAILED: '导出失败', EXPORT_DOWNLOADED: '下载导出文件', ALERT_ACKNOWLEDGED: '确认告警',
+}
+
+const auditTargetTypes: Record<string, string> = {
+  USER_ACCOUNT: '用户账号', API_OPERATION: '接口操作', DATA_SOURCE: '数据源',
+  CRAWL_TASK: '采集任务', CRAWL_RUN: '采集运行', CRAWL_SCHEDULE: '采集计划',
+  DUPLICATE_CANDIDATE: '重复候选', MERGE_DECISION: '合并决策', ACHIEVEMENT: '成果',
+  GRAPH_OUTBOX_EVENT: '图谱事件', GRAPH_MAINTENANCE_RUN: '图谱维护任务', GRAPH_TYPE: '图谱类型',
+  EXPORT_TASK: '导出任务', ALERT_EVENT: '告警事件',
+}
+
+export function auditTargetLabel(targetType?: string | null): string {
+  return targetType ? auditTargetTypes[targetType] ?? targetType : '--'
 }
 
 export function auditActionLabel(log: AuditLog): string {
