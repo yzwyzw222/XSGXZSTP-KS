@@ -43,7 +43,7 @@ node scripts/Test-PortalBrowser.mjs C:/Users/likecandy/.cache/codex-runtimes/cod
 
 ## 新克隆复现
 
-候选实现提交：`44674f4043f0aa992d61076550c5812a7ef6b1f5`。已在主仓库之外的独立 Git 工作树 `.local/reproduction` 复验；该目录只是位于本仓库忽略目录内，不使用主仓库的 node_modules、缓存、PID 或构建产物。
+候选实现提交：`44674f4043f0aa992d61076550c5812a7ef6b1f5`。已在拥有独立 `.git` 的本地克隆 `.local/reproduction` 复验；该目录位于本仓库忽略目录内，不使用主仓库的 node_modules、缓存、PID 或构建产物。
 
 实际克隆命令：
 
@@ -67,6 +67,8 @@ npm.cmd --prefix portal run check:source
 第一阶段 P01 来源完整性、P02 独立构建启动、P03 全维护页面、P04 API 隔离、P05 配置及总入口、P06 本地候选新克隆复现均已通过。P06 中将来的远端 main 合入后复验尚未执行，因为本轮没有远端交付授权；不能把本地候选验收表述为 main 已合入。
 
 最终文档补充只记录上述已发生结果；候选提交中的可执行代码、门户锁文件及三套来源树保持不变。
+
+最终审阅还完成 `git diff --cached --check`、`git diff --check`、暂存文件范围及 UTF-8 无 BOM 校验，确认新增 33 个集成变更文件中没有构建产物、运行数据或本机凭据。文档相对链接检查最初因临时检查命令对根 README 使用空目录参数报错，改用绝对父目录并启用终止错误后重跑通过；这是检查命令的问题，仓库文档链接无需修复。
 
 ## 已遇到的环境失败
 
