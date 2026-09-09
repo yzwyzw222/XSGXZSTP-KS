@@ -11,10 +11,10 @@ for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
     await page.addInitScript((value) => localStorage.setItem('aacv-theme', value), theme)
     await fixture(page)
-    for (const [path, name, title] of [['/', 'overview', '工作台'], ['/catalog', 'catalog', '成果目录'], ['/graph?centerType=ACHIEVEMENT&centerId=42', 'graph', '图谱概览']]) {
+    for (const [path, name, title] of [['/', 'overview', '科研成果分析中枢'], ['/catalog', 'catalog', '成果目录'], ['/graph?centerType=ACHIEVEMENT&centerId=42', 'graph', '高级查询']]) {
       await page.goto(path!)
       await expect(page.getByRole('heading', { name: title!, exact: true })).toBeVisible()
-      await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
       if (name === 'overview') await expect(page.getByText('1,286', { exact: true }).first()).toBeVisible()
       if (name === 'catalog') await expect(page.getByRole('cell', { name: achievement.title })).toBeVisible()
       if (name === 'graph') await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
@@ -27,16 +27,16 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 const routeCases = [
-  ['/', 'overview', '工作台'], ['/catalog', 'catalog', '成果目录'],
+  ['/', 'overview', '科研成果分析中枢'], ['/catalog', 'catalog', '成果目录'],
   ['/catalog/achievements/42', 'detail', achievement.title],
   ['/catalog/authors', 'authors', '作者编目'], ['/catalog/organizations', 'organizations', '机构编目'],
   ['/catalog/venues', 'venues', '期刊编目'], ['/catalog/topics', 'topics', '主题编目'],
   ['/sources', 'sources', '数据源'], ['/crawl', 'crawl', '采集任务'],
   ['/governance', 'governance', '数据治理'], ['/quality', 'quality', '质量指标'],
-  ['/graph?centerType=ACHIEVEMENT&centerId=42', 'graph', '图谱概览'],
+  ['/graph?centerType=ACHIEVEMENT&centerId=42', 'graph', '高级查询'],
   ['/graph/path', 'path', '路径分析'], ['/graph/queries', 'queries', '常用查询'],
   ['/analytics', 'analytics', '统计分析'], ['/users', 'users', '用户管理'],
-  ['/logs', 'logs', '日志管理'], ['/operations', 'operations', '运行监控'],
+  ['/logs', 'logs', '日志管理'], ['/operations', 'operations', '日志管理'],
   ['/session-expired', 'expired', '登录会话已过期'], ['/forbidden', 'forbidden', '当前账号无权访问'],
   ['/missing-page', 'not-found', '页面不存在'],
 ] as const
@@ -59,7 +59,7 @@ for (const width of [1440, 1920, 390]) {
         await expect(page.locator('.el-skeleton')).toHaveCount(0)
         if (name === 'graph') await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
         if (name === 'detail') await expect(page.getByText(achievement.title, { exact: true }).first()).toBeVisible()
-        await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+        await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
         await page.screenshot({ path: `../.local/migration-visual/all/${name}-${theme}-${width}.png`, fullPage: true, animations: 'disabled' })
         const overflow = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: innerWidth }))
         expect(overflow.document, `${path} 横向溢出`).toBeLessThanOrEqual(overflow.viewport + 1)
@@ -82,12 +82,12 @@ for (const width of [1440, 1920, 390]) {
   }
 }
 
-test('系统主题跟随与图谱窄屏抽屉的键盘焦点、层级和滚动', async ({ page }) => {
+test('固定主题与图谱窄屏抽屉的键盘焦点、层级和滚动', async ({ page }) => {
   await fixture(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' })
   await page.goto('/graph?centerType=ACHIEVEMENT&centerId=42')
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await page.emulateMedia({ colorScheme: 'dark' })
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   const trigger = page.getByRole('button', { name: '查看图谱详情' })
@@ -102,11 +102,10 @@ test('系统主题跟随与图谱窄屏抽屉的键盘焦点、层级和滚动',
   await page.keyboard.press('Escape')
   await expect(drawer).not.toBeVisible()
   await expect(trigger).toBeFocused()
-  await page.getByRole('button', { name: '切换主题' }).click()
-  await page.getByRole('menuitem', { name: '浅色', exact: true }).click()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.getByRole('button', { name: '切换主题' })).toHaveCount(0)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await page.reload()
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 })
 
 test('统计和运维单区域失败保留其他数据并明确错误', async ({ page }) => {
@@ -114,14 +113,17 @@ test('统计和运维单区域失败保留其他数据并明确错误', async ({
   await page.route('**/api/v1/analytics/trends*', route => route.fulfill({ status: 503, contentType: 'application/problem+json', json: { detail: '趋势服务暂不可用', traceId: 'synthetic-partial' } }))
   await page.goto('/analytics')
   await expect(page.getByRole('alert')).toContainText('年度趋势：趋势服务暂不可用')
-  await expect(page.getByRole('img', { name: '成果类型分布条形图' })).toBeVisible()
   await expect(page.getByRole('img', { name: '年度成果趋势折线图' })).toHaveCount(0)
   await expect(page.getByText('1,286', { exact: true }).first()).toBeVisible()
+  await page.getByRole('navigation', { name: '模块页面' }).locator('a[href="/analytics/distributions"]').click()
+  await expect(page.getByRole('img', { name: '成果类型分布条形图' })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('年度趋势：趋势服务暂不可用')
   await page.route('**/api/v1/operations/overview', route => route.fulfill({ status: 503, contentType: 'application/problem+json', json: { detail: '运维总览暂不可用' } }))
   await page.goto('/operations')
-  await expect(page.getByText('部分区域暂不可用：运维总览')).toBeVisible()
-  await expect(page.getByLabel('数据暂不可用')).toHaveCount(6)
-  await expect(page.getByText('应用存活 · 正常', { exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/\/logs$/)
+  await expect(page.getByRole('heading', { name: '日志管理', exact: true })).toBeVisible()
+  await expect(page.getByText('部分区域暂不可用：运维总览')).toHaveCount(0)
+  await expect(page.getByText('应用存活 · 正常', { exact: true })).toHaveCount(0)
 })
 
 for (const width of [1440, 390]) {
@@ -191,6 +193,7 @@ test('质量指标样本弹窗显示来源证据且关闭后恢复焦点', async
   const dialog = page.getByRole('dialog', { name: '质量指标样本' })
   await expect(dialog.getByText('synthetic-record')).toBeVisible()
   await expect(dialog.getByText('来源证据示例', { exact: false })).toBeVisible()
+  await page.screenshot({ path: '../.local/research-redesign/quality-samples.png', animations: 'disabled' })
   await page.keyboard.press('Escape')
   await expect(dialog).not.toBeVisible()
   await expect(trigger).toBeFocused()

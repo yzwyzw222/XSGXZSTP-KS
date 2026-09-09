@@ -61,31 +61,18 @@ async function setup(page: Page, options: { readonly?: boolean; conflict?: boole
   return { updates }
 }
 
-test('知识图谱菜单可独立折叠、键盘展开，三个子项与参考图对齐', async ({ page }) => {
+test('图谱模块页签支持键盘访问并保持当前页高亮', async ({ page }) => {
   await setup(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/graph')
-  const nav = page.getByRole('navigation', { name: '业务导航' })
-  const toggle = nav.getByRole('button', { name: '知识图谱', exact: true })
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  const links = nav.locator('.graph-submenu-link')
-  await expect(links).toHaveText(['图谱概览', '实体管理', '关系管理'])
-  const bounds = await links.evaluateAll(elements => elements.map(element => ({ left: element.getBoundingClientRect().left, height: element.getBoundingClientRect().height })))
-  expect(new Set(bounds.map(value => value.left)).size).toBe(1)
-  expect(bounds.every(value => value.height === 52)).toBe(true)
-  await expect(toggle).toHaveCSS('font-size', '14px')
-  for (const link of await links.all()) await expect(link).toHaveCSS('font-size', '14px')
-  await toggle.click()
-  await expect(links).toHaveCount(0)
-  await expect(page).toHaveURL(/\/graph$/)
-  await toggle.focus()
+  const nav = page.getByRole('navigation', { name: '模块页面' })
+  await expect(nav.getByRole('link')).toHaveText(['图谱概览', '实体管理', '关系管理', '高级查询', '路径分析', '保存的查询'])
+  await expect(nav.getByRole('link', { name: '图谱概览', exact: true })).toHaveAttribute('aria-current', 'page')
+  const entities = nav.getByRole('link', { name: '实体管理' })
+  await entities.focus()
   await page.keyboard.press('Enter')
-  await nav.getByRole('link', { name: '实体管理' }).click()
-  await expect(page.getByRole('heading', { name: '实体管理' })).toBeVisible()
-  await expect(nav.getByRole('link', { name: '实体管理' })).toHaveAttribute('aria-current', 'page')
-  await nav.getByRole('link', { name: '关系管理' }).click()
-  await expect(page.getByText('合作', { exact: true })).toBeVisible()
-  await nav.screenshot({ path: 'test-results/graph-menu-reference.png' })
+  await expect(page).toHaveURL(/\/graph\/entities$/)
+  await expect(entities).toHaveAttribute('aria-current', 'page')
 })
 
 test('保存 MySQL 类型配置后 Canvas、图例和审核展示一致，合作关系可核对作品依据', async ({ page }) => {
@@ -128,6 +115,7 @@ test('保存 MySQL 类型配置后 Canvas、图例和审核展示一致，合作
   await page.getByRole('button', { name: '全部关系' }).click()
   await page.screenshot({ path: 'test-results/graph-overview-canvas.png', fullPage: true })
   await page.getByRole('button', { name: '作者—作者', exact: true }).click()
+  await page.getByRole('button', { name: '查询条件', exact: true }).click()
   await page.getByRole('button', { name: '加载图谱', exact: true }).click()
   await expect(page.getByRole('button', { name: '全部关系', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByText('类型审核：已通过 · 52 px')).toBeVisible()
@@ -207,7 +195,7 @@ test('实体与关系仅展示两类配置，支持详情及带版本的批量�
   await expect(page.getByText('已更新 2 / 2 项类型状态。', { exact: true })).toBeVisible()
   expect(updates).toHaveLength(2)
   expect(updates.every(item => item.reviewStatus === 'APPROVED' && item.version === 1)).toBe(true)
-  await page.getByRole('navigation', { name: '业务导航' }).getByRole('link', { name: '关系管理' }).click()
+  await page.getByRole('navigation', { name: '模块页面' }).getByRole('link', { name: '关系管理' }).click()
   await expect(page.locator('.types-table tbody tr')).toHaveCount(2)
   await expect(page.getByText('作者 → 作品', { exact: true })).toBeVisible()
   await expect(page.getByText('作者 ↔ 作者 · 共同作品', { exact: true })).toBeVisible()
@@ -217,7 +205,7 @@ test('实体与关系仅展示两类配置，支持详情及带版本的批量�
   await page.mouse.move(1000, 10)
   await page.screenshot({ path: 'test-results/graph-relations-reference.png', fullPage: true, animations: 'disabled' })
   await page.getByRole('row').filter({ hasText: 'COAUTHORED' }).getByRole('button', { name: '详情' }).click()
-  await expect(page.getByRole('dialog')).toContainText('由 Neo4j 创作关系中的共同作品推导合作')
+  await expect(page.getByRole('dialog')).toContainText('由作者共同作品推导合作')
 })
 
 test('窄屏深色概览自动加载并允许通过表格打开详情', async ({ page }) => {

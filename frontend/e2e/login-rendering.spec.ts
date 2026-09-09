@@ -19,7 +19,7 @@ for (const theme of ['light', 'dark'] as const) {
         json: { title: '未登录', status: 401 },
       }))
       await page.goto('/login')
-      await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
       await expect(page.getByRole('heading', { name: '登录 AACV System' })).toBeVisible()
       const username = page.getByRole('textbox', { name: '用户名' })
       const password = page.getByLabel('密码', { exact: true })
@@ -29,7 +29,7 @@ for (const theme of ['light', 'dark'] as const) {
       expect(panel).not.toBeNull()
       expect(panel!.width).toBeGreaterThanOrEqual(desktop ? 1200 : viewport.width - 34)
       if (desktop) expect(panel!.height).toBeGreaterThanOrEqual(640)
-      await expect(page.locator('.login-page__constellation')).toBeVisible({ visible: desktop })
+      await expect(page.locator('.login-core')).toBeVisible({ visible: desktop })
       await expect(page.locator('.login-panel__intro')).toBeVisible({ visible: desktop })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 

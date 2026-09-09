@@ -66,11 +66,12 @@ test('成果学术信息分来源呈现，保留未知并提供明确版本链�
     ],
   } }))
   await page.goto('/catalog/achievements/1')
+  await page.getByRole('tab', { name: '来源指标', exact: true }).click()
   await expect(page.getByText('来源标记已撤稿')).toBeVisible()
   await expect(page.getByText('尚未采集', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: '10.1000/published' })).toHaveAttribute('href', 'https://doi.org/10.1000%2Fpublished')
   await expect(page.getByText('正式发表版本：')).toBeVisible()
-  await page.getByRole('heading', { name: '来源学术指标与版本' }).scrollIntoViewIfNeeded()
+  await expect(page.getByRole('heading', { name: '来源学术指标与版本' })).toBeInViewport()
   await page.screenshot({ path: 'test-results/catalog-scholarly-evidence.png', animations: 'disabled' })
   expect(errors).toEqual([])
 })

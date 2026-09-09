@@ -8,7 +8,7 @@ for (const { width, height, theme } of [
   { width: 1440, height: 900, theme: 'dark' },
   { width: 390, height: 844, theme: 'light' },
 ] as const) {
-  test(`工作台主区不受右栏长列表撑高 ${theme} ${width}`, async ({ page }, testInfo) => {
+  test(`工作台保持单屏且重复入口跳转到统一模块 ${theme} ${width}`, async ({ page }, testInfo) => {
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.setViewportSize({ width, height })
@@ -31,40 +31,46 @@ for (const { width, height, theme } of [
       page: 0, size: 8, totalElements: 1, totalPages: 1,
     } }))
     await page.goto('/')
-    await expect(page.getByText('按当前范围汇总', { exact: true })).toBeVisible()
-    await expect(page.locator('.overview-ranking li')).toHaveCount(7)
-    await expect(page.getByText('布局验证采集任务 6', { exact: true })).toBeVisible()
+    await expect(page.locator('.dashboard-kpis')).toContainText('1,286')
 
     const checkLayout = async () => {
-      const names = ['trend', 'network', 'topics', 'activity', 'ranking', 'crawl'] as const
-      const [trend, network, topics, activity, ranking, crawl] = await Promise.all(names.map(async name => {
-        const panel = page.locator(`.overview-${name}`)
-        await expect(panel).toBeVisible()
-        return panel.evaluate(element => {
-          const rect = element.getBoundingClientRect()
-          return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }
-        })
+      const viewport = await page.evaluate(() => ({
+        width: innerWidth, height: innerHeight,
+        documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight,
+        mainHeight: document.querySelector('main')!.clientHeight, mainScrollHeight: document.querySelector('main')!.scrollHeight,
       }))
-      expect(network!.top - trend!.bottom).toBeCloseTo(16, 0)
-      if (width >= 1280) {
-        expect(topics!.top).toBeCloseTo(network!.top, 0)
-        expect(activity!.top - Math.max(network!.bottom, topics!.bottom)).toBeCloseTo(16, 0)
-        expect(ranking!.top).toBeCloseTo(trend!.top, 0)
-        expect(ranking!.left).toBeGreaterThan(trend!.right)
-        expect(crawl!.top - ranking!.bottom).toBeCloseTo(16, 0)
-      } else {
-        expect(topics!.top - network!.bottom).toBeCloseTo(16, 0)
-        expect(activity!.top - topics!.bottom).toBeCloseTo(16, 0)
-        expect(ranking!.top - activity!.bottom).toBeCloseTo(16, 0)
+      expect(viewport.documentWidth).toBeLessThanOrEqual(viewport.width + 1)
+      expect(viewport.documentHeight).toBeLessThanOrEqual(viewport.height + 1)
+      expect(viewport.mainScrollHeight).toBeLessThanOrEqual(viewport.mainHeight + 1)
+      for (const panel of await page.locator('.dashboard-column > .dashboard-panel:visible').all()) {
+        await panel.scrollIntoViewIfNeeded()
+        const rect = await panel.evaluate(element => {
+          const rect = element.getBoundingClientRect()
+          return { top: rect.top, bottom: rect.bottom, height: rect.height }
+        })
+        expect(rect.top).toBeGreaterThanOrEqual(60)
+        expect(rect.bottom).toBeLessThanOrEqual(height + 1)
+        expect(rect.height).toBeGreaterThan(120)
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     }
-
+    await expect(page.locator('.dashboard-trend')).toBeVisible()
+    await expect(page.locator('.dashboard-network')).toBeVisible()
+    await expect(page.locator('.dashboard-panel')).toHaveCount(9)
     await checkLayout()
     await page.screenshot({ path: testInfo.outputPath('overview-compact.png'), fullPage: true, animations: 'disabled' })
     await page.getByText('查看趋势数据', { exact: true }).click()
     await expect(page.getByText('2026 年：374 项成果', { exact: true })).toBeVisible()
+    await expect(page.getByRole('img', { name: '工作台成果发表趋势折线图' })).toHaveCount(0)
     await checkLayout()
+
+    await page.goto('/overview/research')
+    await expect(page).toHaveURL(/\/analytics\/collaboration$/)
+    await expect(page.getByRole('heading', { name: '合作排行', exact: true })).toBeVisible()
+    await page.goto('/overview/activity')
+    await expect(page).toHaveURL(/\/logs$/)
+    await expect(page.getByRole('heading', { name: '日志管理', exact: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: '操作日志' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: '登录日志' })).toBeVisible()
     expect(errors).toEqual([])
   })
 }
@@ -113,23 +119,24 @@ test('图谱展开保留位置，键盘选择与画布同步，减少动画和�
   await expect(page.getByRole('heading', { name: '选择图中元素' })).toBeVisible()
   await page.screenshot({ path: '../.local/frontend-redesign/states/graph-expanded.png', fullPage: true, animations: 'disabled' })
   await canvas.evaluate(el => { (window as typeof window & { inspectedGraph: Core }).inspectedGraph = (el as GraphElement)._cyreg.cy })
-  await page.getByRole('link', { name: '成果目录', exact: true }).first().click()
+  await page.getByRole('navigation', { name: '模块导航', exact: true }).getByRole('link', { name: '成果目录', exact: true }).click()
   await expect(page.getByRole('heading', { name: '成果目录', exact: true })).toBeVisible()
   expect(await page.evaluate(() => (window as typeof window & { inspectedGraph: Core }).inspectedGraph.destroyed())).toBe(true)
 })
 
-test('连续折叠与键盘导航不中断操作，减少动画清理平移动画', async ({ page }) => {
+test('连续开关导航与命令面板保持键盘操作，减少动画及时生效', async ({ page }) => {
   await fixture(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   await page.goto('/catalog')
   await expect(page.getByRole('cell', { name: achievement.title })).toBeVisible()
   for (let index = 0; index < 4; index++) await page.keyboard.press('Control+b')
-  await expect(page.getByRole('button', { name: '折叠侧栏', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog')).not.toBeVisible()
   await page.keyboard.press('Control+b')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect.poll(() => page.locator('#main-content').evaluate(el => el.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
+  await page.keyboard.press('Escape')
   await page.keyboard.press('Control+k')
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
@@ -144,9 +151,10 @@ test('深浅主题的主操作与说明文字满足对比度，窄屏按钮达�
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/catalog')
+  await page.getByRole('button', { name: '展开筛选', exact: true }).click()
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme })
-    await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     const values = await page.getByRole('button', { name: '查询成果' }).evaluate(el => {
       const luminance = (color: string) => {
         const rgb = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
@@ -188,6 +196,7 @@ test('目录加载、空结果和错误状态可辨识，迟到响应不覆盖�
   await expect(page.getByText('尝试减少筛选条件，或在采集任务中补充当前研究范围。')).toBeVisible()
   await page.screenshot({ path: '../.local/frontend-redesign/states/catalog-empty-dark-390.png', fullPage: true, animations: 'disabled' })
   await page.route('**/api/v1/catalog/achievements?*', route => route.fulfill({ status: 503, contentType: 'application/problem+json', json: { detail: '目录暂不可用，请稍后重试' } }))
+  await page.getByRole('button', { name: '展开筛选', exact: true }).click()
   const title = page.getByPlaceholder('按题名关键词模糊检索')
   await title.press('Enter')
   await expect(page.getByRole('alert')).toContainText('目录暂不可用，请稍后重试')
@@ -230,6 +239,7 @@ test('窄屏下拉框和多页导航尺寸可用，筛选与任意页跳转保�
   })
   await page.goto('/catalog')
   await expect(page.getByText('显示 1–20，共 240 条')).toBeVisible()
+  await page.getByRole('button', { name: '展开筛选', exact: true }).click()
   const checkSelects = async () => {
     for (const select of await page.locator('.el-select__wrapper:visible').all()) {
       expect(await select.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44)

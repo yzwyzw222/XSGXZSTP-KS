@@ -14,7 +14,7 @@ const sample: GraphResponse = {
   syncedAt: null, projectionLagSeconds: 0, traceId: 'vis-e2e',
 }
 
-async function setup(page: Page) {
+async function setup(page: Page, graphSample: GraphResponse = sample) {
   const requests: URL[] = []
   const writes: string[] = []
   const errors: string[] = []
@@ -31,7 +31,7 @@ async function setup(page: Page) {
         expect(url.searchParams.get('depth')).toBe('2')
         expect(url.searchParams.get('nodeLimit')).toBe('300')
       }
-      return route.fulfill({ json: { ...sample, rootNodeId: url.pathname.endsWith('subgraph') ? `${url.searchParams.get('centerType')}:${url.searchParams.get('centerId')}` : '' } })
+      return route.fulfill({ json: { ...graphSample, rootNodeId: url.pathname.endsWith('subgraph') ? `${url.searchParams.get('centerType')}:${url.searchParams.get('centerId')}` : '' } })
     }
     return route.fulfill({ json: { items: [], totalElements: 0 } })
   })
@@ -64,21 +64,26 @@ test('真实画布双击、历史截断、返回及刷新使用正确后端中�
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/graph')
   await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
+  const history = page.getByRole('navigation', { name: '图谱浏览历史' })
+  await expect(history).toHaveCount(0)
   const original = await page.locator('.graph-canvas canvas').elementHandle()
   const author = await nodePoint(page, [37, 140, 163])
   await page.mouse.dblclick(author.x, author.y)
-  const history = page.getByRole('navigation', { name: '图谱浏览历史' })
-  await expect(history.getByRole('button', { name: '林研究员', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(history).toBeVisible()
+  await expect.poll(() => state.requests.at(-1)?.searchParams.get('centerId')).toBe('1')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const work = await nodePoint(page, [35, 99, 184])
   await page.mouse.dblclick(work.x, work.y)
-  await expect(history.getByRole('button', { name: fullName, exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect.poll(() => state.requests.at(-1)?.searchParams.get('centerId')).toBe('2')
   await page.getByRole('button', { name: '刷新图谱' }).click()
   await expect.poll(() => state.requests.at(-1)?.searchParams.get('centerId')).toBe('2')
-  await history.getByRole('button', { name: '林研究员', exact: true }).click()
-  await expect(history.getByRole('button', { name: fullName, exact: true })).toHaveCount(0)
   await history.getByRole('button', { name: '返回上一级' }).click()
-  await expect(history.getByRole('button', { name: '全部', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect.poll(() => state.requests.at(-1)?.searchParams.get('centerId')).toBe('1')
+  await page.getByRole('button', { name: '刷新图谱' }).click()
+  await expect.poll(() => state.requests.at(-1)?.searchParams.get('centerId')).toBe('1')
+  await history.getByRole('button', { name: '全部', exact: true }).click()
+  await expect(history).toHaveCount(0)
+  await expect.poll(() => state.requests.at(-1)?.pathname).toBe('/api/v1/graph/overview')
   expect(await original!.evaluate(element => element.isConnected)).toBe(true)
   expect(state.errors).toEqual([])
   expect(state.writes).toEqual([])
@@ -131,8 +136,42 @@ test('节点和关系右键菜单、完整名称、扩展字段与只读入口�
   await expect(menu.getByRole('menuitem', { name: '删除关系（暂不可用）' })).toBeDisabled()
   await page.keyboard.press('Escape')
   await expect(menu).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '新增节点', exact: true })).toBeDisabled()
-  await expect(page.getByRole('button', { name: '拖动建立关系', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '新增节点', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '拖动建立关系', exact: true })).toHaveCount(0)
+  expect(state.writes).toEqual([])
+  expect(state.errors).toEqual([])
+})
+
+test('1024px 子图历史与合作详情同时显示时操作栏不重叠', async ({ page }) => {
+  const state = await setup(page, {
+    ...sample,
+    nodes: [...sample.nodes, { id: 'AUTHOR:3', businessId: '3', type: 'AUTHOR', label: '张研究员', properties: {} }],
+    edges: [...sample.edges,
+      { id: 'authored-3', source: 'AUTHOR:3', target: 'ACHIEVEMENT:2', type: 'AUTHORED', properties: {} },
+      { id: 'coauthored-1-3', source: 'AUTHOR:1', target: 'AUTHOR:3', type: 'COAUTHORED',
+        properties: { derived: true, sharedWorkIds: ['ACHIEVEMENT:2'], sharedWorkCount: 1 } },
+    ],
+  })
+  await page.setViewportSize({ width: 1024, height: 900 })
+  await page.goto('/graph')
+  const work = await nodePoint(page, [35, 99, 184])
+  await page.mouse.dblclick(work.x, work.y)
+  const history = page.getByRole('navigation', { name: '图谱浏览历史' })
+  await expect(history).toBeVisible()
+  await expect.poll(() => state.requests.at(-1)?.searchParams.get('centerId')).toBe('2')
+  await page.getByRole('button', { name: '合作作品', exact: true }).click()
+  const drawer = page.getByRole('dialog', { name: '合作作品', exact: true })
+  await drawer.getByRole('button', { name: '在图中查看', exact: true }).click()
+  const panel = page.getByRole('region', { name: '合作作品详情' })
+  await expect(panel).toContainText('共同作品依据（1）')
+  await expect(history.getByRole('button', { name: '返回上一级' })).toBeInViewport({ ratio: 1 })
+  const controlsBounds = await page.locator('.canvas-controls').boundingBox()
+  const panelBounds = await panel.boundingBox()
+  expect(controlsBounds!.x + controlsBounds!.width).toBeLessThanOrEqual(panelBounds!.x)
+  await expect(panel.getByRole('button', { name: '返回完整图谱' })).toBeInViewport({ ratio: 1 })
+  await panel.getByRole('button', { name: '返回完整图谱' }).click()
+  await expect(panel).toHaveCount(0)
+  await expect(history).toBeVisible()
   expect(state.writes).toEqual([])
   expect(state.errors).toEqual([])
 })
@@ -167,10 +206,42 @@ test('空态、非法响应、快速筛选和容器缩放后视图保持一致',
     await page.getByRole('link', { name: '高级查询', exact: true }).click()
     await expect(page).toHaveURL(/\/graph\/explore$/)
     await page.getByRole('button', { name: '打开导航菜单' }).click()
-    await page.getByRole('navigation', { name: '业务导航' }).getByRole('link', { name: '图谱概览', exact: true }).click()
+    await page.getByRole('dialog').getByRole('navigation', { name: '业务导航' }).getByRole('link', { name: '图谱概览', exact: true }).click()
     await expect(page).toHaveURL(/\/graph$/)
     await expect(page.locator('.graph-canvas canvas')).toHaveCount(1)
     await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toHaveAttribute('aria-busy', 'false')
+  }
+  expect(state.errors).toEqual([])
+})
+
+test('图谱概览在桌面和窄屏均保持单屏，统计靠上且不遮挡画布操作', async ({ page }) => {
+  const state = await setup(page)
+  await page.goto('/graph')
+  await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
+  await expect(page.locator('.overview-navigation, .scope-description, .overview-write-actions')).toHaveCount(0)
+  await expect(page.getByText('筛选仅作用于当前读取范围。双击节点可查看两跳子图；右键查看操作。全局统计暂未提供。')).toHaveCount(0)
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport)
+    await expect.poll(() => page.evaluate(() => {
+      const main = document.querySelector('main')!
+      return document.documentElement.scrollHeight <= innerHeight + 1
+        && main.scrollHeight <= main.clientHeight + 1
+        && document.documentElement.scrollWidth <= innerWidth + 1
+    })).toBe(true)
+    const stage = await page.locator('.overview-stage').boundingBox()
+    const statistics = await page.getByLabel('当前图谱统计').boundingBox()
+    const controls = await page.locator('.canvas-controls').boundingBox()
+    const graph = await page.locator('.graph-canvas').boundingBox()
+    expect(stage).not.toBeNull()
+    expect(statistics).not.toBeNull()
+    expect(controls).not.toBeNull()
+    expect(graph!.height).toBeGreaterThan(100)
+    expect(statistics!.y - stage!.y).toBeLessThan(viewport.width < 768 ? controls!.height + 16 : 20)
+    expect(statistics!.x >= controls!.x + controls!.width || statistics!.y >= controls!.y + controls!.height).toBe(true)
+    const legend = await page.getByRole('list', { name: '节点类型图例' }).boundingBox()
+    expect(legend!.y + legend!.height).toBeLessThanOrEqual(viewport.height)
+    await expect(page.getByRole('button', { name: '节点表', exact: true })).toBeInViewport()
+    await expect(page.getByRole('button', { name: '关系表', exact: true })).toBeInViewport()
   }
   expect(state.errors).toEqual([])
 })
