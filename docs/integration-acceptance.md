@@ -1,5 +1,7 @@
 # 第一阶段本地整合验收
 
+> 本文件保留第一阶段历史记录。2026-09-09 后续本地运行整合已接入四套系统；当前状态以 [集成基线](integration-baseline.md)、[开发说明](development.md) 和 [本地运行验收](local-runtime-acceptance.md) 为准。
+
 执行日期：2026-09-09。范围：本地源码及门户整合；没有推送、PR、main 合入、部署、业务库迁移或外部真实采集。
 
 当前状态：relation、extraction、crawler 均为维护中，已启用系统为 0。门户与三套业务系统的验收分开记录。

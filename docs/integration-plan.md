@@ -1,5 +1,7 @@
 # 第一阶段本地整合实施边界
 
+> 本文件保留第一阶段历史记录。2026-09-09 后续本地运行整合已接入四套系统；当前状态以 [集成基线](integration-baseline.md)、[开发说明](development.md) 和 [本地运行验收](local-runtime-acceptance.md) 为准。
+
 ## 决策来源
 
 已完整读取原工作区 `F:\Program\Java\AACV_System\docs\three-systems-integration-plan.md`（2026-09-09 修订版）。该文件仅作为既定方案来源，没有复制原工作区的业务文件、凭据或运行数据，也没有修改原工作区。

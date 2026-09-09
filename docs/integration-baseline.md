@@ -1,51 +1,48 @@
 # 集成基线与已验证项目状态
 
-核对日期：2026-09-09。此文件与 `development.md` 共同承担方案指定的集成项目记忆，只记录已核实的目录、状态和约定；具体测试证据见 `integration-acceptance.md`。
+核对日期：2026-09-09。本文件与 `development.md` 是仓库指定的集成项目记忆，测试证据见 `local-runtime-acceptance.md`；第一阶段历史仍保存在 `integration-acceptance.md`。
 
-## 来源冻结点
+## 当前来源与状态
 
-仓库：`https://github.com/yzwyzw222/XSGXZSTP-KS.git`。
+仓库：`https://github.com/yzwyzw222/XSGXZSTP-KS.git`。main 基线 `13683199046793b1f16c02d2d58f899e02b2dcc1`；当前本地分支为 `dev`，跟踪 `origin/dev`。按用户授权，从原集成分支的 `350ab2b` 整理现有工作区，系统导入、统一认证与运行接入、门户界面已分主题提交并快进推送。原 `codex/integrate-systems` 分支保留，未改写历史、合入 main 或创建 PR。
 
-main 基线：`13683199046793b1f16c02d2d58f899e02b2dcc1`，初始仅跟踪 `README.md` 和 `11`。集成分支：`codex/integrate-systems`。
-
-| 系统目录 | 最后同步来源 | 核定 SHA | 原始跟踪文件数 | 当前状态 |
+| 系统 | 核定来源 | 完整 SHA | 原始文件数 | 当前接入 |
 | --- | --- | --- | --- | --- |
-| `systems/relation` | `feature/Ye` | `184f651b223efe9a07ea6d352146e5df34a537da` | 153 | 维护中 |
-| `systems/extraction` | `feature/Du` | `4833b228b5d8756a35433add01dce5072635cdb7` | 105 | 维护中 |
-| `systems/crawler` | `feature/Luo` | `3a0127019052c182962d6630981e0acec2d66d53` | 678 | 维护中 |
+| relation | 已导入的 feature/Ye 完整版 | `184f651b223efe9a07ea6d352146e5df34a537da` | 153 | 已启用 |
+| extraction | feature/Du | `4833b228b5d8756a35433add01dce5072635cdb7` | 105 | 已启用 |
+| crawler | feature/Luo | `3a0127019052c182962d6630981e0acec2d66d53` | 678 | 已启用 |
+| scholar | Li | `f11b0b8d99f37e8e971aa86661d0ba59a21fbd9d` | 136 | 已启用 |
 
-共 936 个文件完整导入，无子系统适配修改。各次导入提交与树对象保存在 [`import-records.json`](import-records.json)；来源根树等于导入子树，并且来源提交是导入提交及当前 HEAD 的祖先。没有 squash、普通根布局 merge、历史改写、推送或远端资源修改。
+本次执行 `git fetch --no-tags origin`，Du、Luo 未变；发现 Li 完整系统并导入。`feature/Li`、`feature/Ma` 仍是仅有历史文件 `11` 的占位分支，没有可运行的第五或第六套系统。
 
-门户与总入口的实现提交为 `44674f4043f0aa992d61076550c5812a7ef6b1f5`。该提交已独立克隆并通过门户依赖恢复、构建、8 项测试、来源复验和两种模式的启停检查。具体操作保存在验收记录中，运行缓存与 PID 不作为项目记忆内容。
+四个来源共 1072 个原始文件。前三套保留原 subtree 导入提交与来源祖先关系；Li 通过 archive 在新目录导入，保留全部原始文件及已记录适配，随后纳入本地提交 `4f47a3e`。archive 导入没有建立 Li 来源提交的祖先关系，不将其表述为 subtree 合并。原始证据记录在 `import-records.json`，必要适配记录在 `source-adaptations.json`，来源检查覆盖原始文件、新增文件和适配差异。
 
-## 实施期间的远端变化
+## Ye 远端回退
 
-首次 `git ls-remote`、独立克隆结果及 GitHub compare API 均指向上述 Ye `184f651…`，因此采用该提交导入。旧方案中的 `bf2494f77b96622489ed3b3ca5ee8b206c6c513b` 只有启动骨架；本轮核定提交包含 96 个后端 Java 源文件及 10 个后端测试类。
+第一阶段开始时核定并导入 `184f651…`；同日 16:18 已观察到远端回退。本次 fetch 再次明确显示强制更新：`184f651… -> bf2494f…`。完整回退目标为 `bf2494f77b96622489ed3b3ca5ee8b206c6c513b`，它是已导入版本的祖先。
 
-2026-09-09 16:18:04（UTC+8）再次执行 `git ls-remote --heads`，并用 `gh api repos/yzwyzw222/XSGXZSTP-KS/branches/feature%2FYe` 交叉验证：远端 Ye 已回到 `bf2494f…`。`git merge-base --is-ancestor bf2494f… 184f651…` 返回 0，确认是向已导入历史的祖先回退，原因未知。本轮不自动删除已核定源码或重写导入历史。
+本轮保留已核定的完整本地源码并完成运行适配，没有以骨架覆盖现有功能。不能将 relation 表述为当前远端 Ye 最新树。后续同步需先核对来源历史，远端回退本身没有被本地修改或撤销。
 
-**后续同步 Ye 前先核对分支负责人确认的来源历史。** 当前冻结 SHA 不再等于远端 Ye 的末次观察值；不能直接声称这是交付时远端 Ye 最新树，也不能使用普通 subtree 增量命令假装这一回退没有发生。Du、Luo、main 的末次观察值仍与冻结点一致。
+## 已确认的运行架构
 
-## 已核对源码与限制
+- 门户 Vue/Vite 独立管理，统一登录地址 127.0.0.1:18000/login。四系统保留独立子路径、JVM 和数据库；统一认证沿用 crawler 账号，网关提供根路径 HttpOnly `PORTAL_SESSION`，其余三个后端在 integration profile 下逐请求确认统一身份。原子系统登录入口已退出集成流程。没有统一父 POM、npm workspace 或跨系统数据流水线。
+- relation：Java 17 编译目标 / Spring Boot 3.5.16；extraction、crawler：Java 21 / Spring Boot 4.1.1；scholar 实际应用在 `web/backend`，Java 21 / Spring Boot 3.4.4。整合运行使用 JDK 21。
+- 四个独立 MySQL 8.0.42 容器和三个独立 Neo4j 5.26 容器属于 `course-integration`。scholar 的图谱通过 SQL/JPA 数据组装，未配置无实际用途的 Neo4j 实例。
+- 所有端口仅绑定本机，实际端口与隔离目录见 `development.md`。新库未导入历史学术数据，界面空状态是真实结果；门户装饰统计保留演示标识。
+- 明文随机运行凭据仅在忽略目录 `.local/integration-runtime`，目录 ACL 限制当前 Windows 用户。启动参数和版本化文档不包含凭据，未读取原工作区环境文件。
 
-| 系统 | 当前源码证据 | 保持维护的原因 |
-| --- | --- | --- |
-| relation | 后端接口、服务、安全配置与测试已增加；Java 17 / Spring Boot 3.5.16，Vue 3.5.42 / Vite 8.2.2；路由仍为 `createWebHistory()`，开发端口仍为 5173 | 未完成子路径、Session/CSRF、存储隔离及真实业务验收；另有远端回退差异 |
-| extraction | 根目录 Maven 工程、53 个后端 Java 源文件、1 个上下文测试；Java 21 / Spring Boot 4.1.1；前端 Vite 6，清单没有 test/lint 脚本 | 仍使用原始根路径与开发端口、示例账号配置；未建立独立接入环境 |
-| crawler | backend/frontend/deploy/tools 布局、368 个后端 Java 源文件；Java 21 / Spring Boot 4.1.1，Vite 8.2.2；保留 Vitest/Playwright 与后端测试、`docs/openapi.yaml` | 新目录下真实账号、隔离库、图数据库及路径/认证适配尚未验收 |
+## 本轮适配与修复
 
-本轮未读取任何原 `.env`，未连接原业务库，未运行子系统启动、数据库初始化或迁移。来源中可识别的示例配置原样保留；这些默认值不构成集成环境凭据，不得以其直接启用系统。没有把原本地被忽略的交接/截图/运行目录搬入仓库。
+前端 Router/API base、返回门户、关系与抽取会话恢复；四系统上下文/Cookie 隔离、真实就绪探针和可独立恢复的启动流程；Li 新入口与原布局适配。extraction 补齐当前 Boot 版本的 Flyway Starter，保留原迁移和 schema validation；恢复错误 API 的 400/404 语义。scholar 修复退出空实现，注册既有 fcose 并处理空图。
 
-## 仓库规则
+用户原有门户视觉改动在实施前已记录差异与文件哈希；本轮仅在其基础上扩展第四张卡片和两列布局，原图片、图标、组件和主题内容保留。未操作 `AACV_System`，未迁移旧数据库。
 
-所有已导入来源树与 main 中均未发现额外 AGENTS.md 或 `.github/workflows`。适用工程约束来自本任务提供的 AGENTS.md 指令。main README 的旧分支命名及根布局普通 merge 示例已在集成 README 改为当前映射及 subtree 流程。
+## 记忆一致性
 
-GitHub 分支 API 返回 main `protected: true`，`required_status_checks.checks` 和 `contexts` 为空；规则查询返回空列表，仓库允许 merge commit。完整 `/branches/main/protection` 接口返回 HTTP 404，无法核定全部管理配置，不能解读为 main 没有保护。没有关闭、弱化或绕过任何检查。后续真正创建 PR 前仍需重新核对可见检查与保护。
+提交整理时通过 `git status`、`git ls-remote` 与实际推送结果核对分支状态，将本文、开发说明和 README 中的“尚未提交、未推送”更新为 `dev` 的分主题提交与推送状态；历史运行验收保留当时记录，并注明后续提交状态。来源与适配校验再次通过，原始业务代码和已有锁文件内容保持不变。
 
-## 项目记忆同步
+统一登录改造前，本文和开发说明记录的“各系统独立认证、退出互不影响”与当时源码一致。2026-09-09 本次根据用户确认改用 crawler 统一账号后，已同步入口、会话作用域、权限映射、账号管理位置与认证服务依赖；原接入验收保留为历史证据，当前认证契约以 [统一登录说明](unified-login.md) 为准。
 
-实施前读取原方案、原 `docs/development-handoff.md`、`docs/known-limitations.md`、`docs/system-design.md` 相关章节，以及 main README、Ye 最新设计与实际源码。原工作区现状记忆保持原样。
+实施前读取本基线、开发说明、第一阶段方案/验收与导入记录，结合 Git 状态和实际源码核对。旧记录的“三套系统全部维护中、runtime 均为空、无子系统适配”已被四系统实际运行与验收取代；原先未纳入的 Li 完整系统现已记录。第一阶段证据保留并明确标记历史。
 
-新克隆 main 没有独立项目记忆文件。按既定方案新增并跟踪本集成基线、开发说明、实施边界和验收记录，没有另建 MEMORY.md 或其他记忆体系。
-
-发现并解决的记忆差异：旧方案 Ye 骨架结论由最新核定源码更新；main 旧分支命名由真实分支与目录替换；Nginx 预期与本机环境不一致，明确记录 Vite 本地演示适配；远端 Ye 的新回退记录为待核对事实，没有未经确认改变本地源码。
+没有另建 MEMORY.md 或其他记忆体系。外部 LLM、真实外部采集、历史数据迁移、全量业务回归、Nginx 本体与公网部署仍未验证，不把本地启动通过等同于这些能力已验收。
