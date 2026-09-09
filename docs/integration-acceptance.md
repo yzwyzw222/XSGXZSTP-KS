@@ -43,7 +43,30 @@ node scripts/Test-PortalBrowser.mjs C:/Users/likecandy/.cache/codex-runtimes/cod
 
 ## 新克隆复现
 
-待候选实现提交后执行独立本地克隆、依赖恢复、构建、自动化检查和启停。本节在实际完成后更新，不把尚未执行的复现视为通过。
+候选实现提交：`44674f4043f0aa992d61076550c5812a7ef6b1f5`。已在主仓库之外的独立 Git 工作树 `.local/reproduction` 复验；该目录只是位于本仓库忽略目录内，不使用主仓库的 node_modules、缓存、PID 或构建产物。
+
+实际克隆命令：
+
+```powershell
+git clone --no-hardlinks --branch codex/integrate-systems F:\Program\Java\course_design F:\Program\Java\course_design\.local\reproduction
+```
+
+在 `F:\Program\Java\course_design\.local\reproduction` 依次执行依赖恢复，再执行各项验证：
+
+```powershell
+npm.cmd --prefix portal ci --no-audit --no-fund --offline=false --registry=https://registry.npmjs.org --cache .local/npm-cache
+npm.cmd --prefix portal run test
+npm.cmd --prefix portal run build
+npm.cmd --prefix portal run check:source
+.\scripts\Test-IntegrationEnvironment.ps1 -Mode Demo
+.\scripts\Test-IntegrationLifecycle.ps1
+```
+
+以上命令均退出 0：新安装 35 包；8 项测试全过；门户构建完成；三个子树/祖先检查通过；Demo 与 Development 均可启动并停止；只有门户进程被启动，运行数据保留。复现过程中未安装子系统依赖，未配置数据库。完成后复现环境进程已停止。
+
+第一阶段 P01 来源完整性、P02 独立构建启动、P03 全维护页面、P04 API 隔离、P05 配置及总入口、P06 本地候选新克隆复现均已通过。P06 中将来的远端 main 合入后复验尚未执行，因为本轮没有远端交付授权；不能把本地候选验收表述为 main 已合入。
+
+最终文档补充只记录上述已发生结果；候选提交中的可执行代码、门户锁文件及三套来源树保持不变。
 
 ## 已遇到的环境失败
 
