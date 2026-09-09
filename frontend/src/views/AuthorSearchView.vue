@@ -15,7 +15,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { searchAuthors } from '../api/author.js'
 import { usePagination } from '../composables/usePagination.js'
 import SearchBar from '../components/common/SearchBar.vue'
@@ -30,7 +30,7 @@ async function doSearch() {
   loading.value = true
   try {
     const res = await searchAuthors({
-      keyword: keyword.value,
+      name: keyword.value || '',
       page: page.value,
       size: size.value,
       fetchRemote: fetchRemote.value || undefined
@@ -47,6 +47,10 @@ function onPageChange(newPage) {
   page.value = newPage
   doSearch()
 }
+
+onMounted(() => {
+  doSearch()
+})
 </script>
 
 <style lang="scss" scoped>

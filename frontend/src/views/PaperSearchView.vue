@@ -19,7 +19,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { searchPapers } from '../api/paper.js'
 import { usePagination } from '../composables/usePagination.js'
 import SearchBar from '../components/common/SearchBar.vue'
@@ -51,6 +51,10 @@ function onPageChange(newPage) {
   page.value = newPage
   doSearch()
 }
+
+onMounted(() => {
+  doSearch()
+})
 </script>
 
 <style lang="scss" scoped>

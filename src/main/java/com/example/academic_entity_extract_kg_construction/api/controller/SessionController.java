@@ -8,9 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,6 +53,15 @@ public class SessionController {
         HttpSession session = servletRequest.getSession(true);
         session.setAttribute("user", request.getUsername());
         session.setAttribute("role", "ADMIN");
+
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                request.getUsername(), null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
+        securityContext.setAuthentication(authentication);
+        SecurityContextHolder.setContext(securityContext);
+        session.setAttribute("SPRING_SECURITY_CONTEXT", securityContext);
+
         return ResponseEntity.ok(Map.of("message", "Login successful", "username", request.getUsername()));
     }
 

@@ -99,12 +99,32 @@ public class GraphController {
 
             Result entityCount = session.run("MATCH (e:ExtractedEntity) RETURN count(e) as count");
             stats.put("entityCount", entityCount.hasNext() ? entityCount.next().get("count").asLong() : 0);
+
+            Result yearDist = session.run(
+                    "MATCH (p:Paper) WHERE p.year IS NOT NULL RETURN p.year AS year, count(p) AS count ORDER BY year");
+            List<Map<String, Object>> yearDistribution = new ArrayList<>();
+            while (yearDist.hasNext()) {
+                Record r = yearDist.next();
+                yearDistribution.add(Map.of("year", r.get("year").asInt(), "count", r.get("count").asLong()));
+            }
+            stats.put("yearDistribution", yearDistribution);
+
+            Result topCited = session.run(
+                    "MATCH (p:Paper) WHERE p.citationCount IS NOT NULL RETURN p.title AS title, p.citationCount AS citationCount ORDER BY citationCount DESC LIMIT 10");
+            List<Map<String, Object>> topCitedPapers = new ArrayList<>();
+            while (topCited.hasNext()) {
+                Record r = topCited.next();
+                topCitedPapers.add(Map.of("title", r.get("title").asString(""), "citationCount", r.get("citationCount").asLong()));
+            }
+            stats.put("topCitedPapers", topCitedPapers);
         } catch (Exception e) {
             stats.put("neo4jAvailable", false);
             stats.put("paperCount", 0);
             stats.put("authorCount", 0);
             stats.put("citationCount", 0);
             stats.put("entityCount", 0);
+            stats.put("yearDistribution", List.of());
+            stats.put("topCitedPapers", List.of());
         }
 
         return ResponseEntity.ok(stats);

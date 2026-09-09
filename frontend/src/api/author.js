@@ -1,7 +1,15 @@
 import api from './client.js'
 
 export function searchAuthors(params) {
-  return api.get('/authors', params)
+  const qs = new URLSearchParams({
+    name: params.name || '',
+    page: params.page || 0,
+    size: params.size || 20
+  })
+  if (params.fetchRemote) {
+    qs.set('fetchRemote', 'true')
+  }
+  return api.get(`/authors?${qs.toString()}`)
 }
 
 export function getAuthor(id) {
