@@ -17,23 +17,29 @@
         <java.version>17</java.version>
         <springdoc.version>2.9.0</springdoc.version>
     </properties>
+    <!-- 依赖分组说明：Web 层 / 安全（Session+CSRF）/ 参数校验 / MySQL 权威源 / Neo4j 图投影 / 契约文档 / 测试 -->
     <dependencies>
+        <!-- Web MVC：Spring Boot 3.x 的 Web 启动器（Boot 4 起改名为 webmvc） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- 安全：服务端 Session 认证 + CSRF 防护（规范禁用 JWT/Bearer） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
+        <!-- 参数校验：DTO 上的 Bean Validation 注解（@NotBlank/@Size 等），错误映射为 problem+json 的 fieldErrors -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- MySQL 权威数据源：JPA 管理用户/角色/学术实体主数据 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- Neo4j 图投影：SDN 7.x 通过 4.4 驱动兼容本机 Neo4j 4.4 服务端 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-neo4j</artifactId>
@@ -43,6 +49,7 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- OpenAPI 契约文档（Swagger UI），与 docs/openapi.yaml 保持同步 -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

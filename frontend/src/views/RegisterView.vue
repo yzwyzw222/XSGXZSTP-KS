@@ -2,6 +2,7 @@
   <div class="register-page">
     <el-card class="register-card">
       <h1 class="title">注册账号</h1>
+      <!-- 注册表单：用户名/密码长度校验 + 确认密码一致性校验（任务书要求的"对录入数据进行验证"） -->
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="onSubmit">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" autocomplete="username" />
@@ -33,6 +34,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { get, post } from '../api/http'
+import { setCsrfToken } from '../session'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -40,6 +42,8 @@ const loading = ref(false)
 const error = ref('')
 
 const form = reactive({ username: '', displayName: '', password: '', confirm: '' })
+
+// 校验规则：长度约束 + 自定义 validator 实现"两次密码一致"的跨字段校验
 const rules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -52,6 +56,7 @@ const rules: FormRules = {
   ],
   confirm: [
     {
+      // 自定义校验函数：与 password 字段比对，不一致则阻断提交
       validator: (_rule, value: string, callback) => {
         if (value !== form.password) {
           callback(new Error('两次输入的密码不一致'))
@@ -64,13 +69,18 @@ const rules: FormRules = {
   ]
 }
 
+/**
+ * 注册流程：先取 CSRF Token（建立会话 Cookie），再提交注册表单。
+ * 注册成功后跳回登录页；密码由后端 BCrypt 加密存储，前端不处理。
+ */
 async function onSubmit() {
   error.value = ''
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   loading.value = true
   try {
-    await get('/api/v1/auth/csrf')
+    const csrfResp = await get<{ token: string }>('/api/v1/auth/csrf')
+    setCsrfToken(csrfResp.token)
     await post('/api/v1/auth/register', {
       username: form.username,
       displayName: form.displayName,
