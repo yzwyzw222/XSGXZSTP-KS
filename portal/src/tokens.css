@@ -1,1 +1,11 @@
-:root { --paper: #f7f7f0; --white: #fffef9; --panel: #edf0e5; --ink: #203f36; --green: #153e36; --muted: #687568; --line: #dce1d4; --accent: #886636; }
+:root {
+  color-scheme: dark;
+  --page-bg: #020b1c;
+  --panel-bg: #04162bd9;
+  --ink: #edf6ff;
+  --muted: #91b4de;
+  --cyan: #79e6ff;
+  --line: #1a5385;
+  --focus: #c7f8ff;
+  --font-ui: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', sans-serif;
+}
