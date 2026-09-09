@@ -7,6 +7,8 @@ import { RouterLink } from 'vue-router'
 import {
   DataTable, FilterBar, FilterField, PageHeader, PanelSection, StatusPill,
 } from '@/components/business'
+import SplitWorkspace from '@/components/business/SplitWorkspace.vue'
+import AchievementPreview from '@/components/business/AchievementPreview.vue'
 import EntitySuggestInput from '@/components/business/EntitySuggestInput.vue'
 import YearPicker from '@/components/business/YearPicker.vue'
 import type { DataTableColumn } from '@/components/business/types'
@@ -22,6 +24,7 @@ import { formatDateTime } from '@/utils/format'
 const sessionStore = useSessionStore()
 const { hasPermission } = sessionStore
 
+const previewId = ref<number | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
 const exportCreating = ref<ExportFormat | null>(null)
@@ -189,6 +192,7 @@ useSessionCleanup(disposeExport)
       description="检索规范化成果，进入详情核对作者、来源记录和字段级血缘。"
     />
 
+    <SplitWorkspace :open="previewId !== null" title="成果快速预览" @update:open="previewId = null">
     <section class="catalog-workspace" aria-label="成果检索工作区">
     <FilterBar :columns="4" :applying="loading" apply-text="查询成果" @apply="load()" @reset="reset">
       <FilterField label="题名">
@@ -323,7 +327,7 @@ useSessionCleanup(disposeExport)
           <RouterLink class="catalog-title" :to="`/catalog/achievements/${row.id}`">
             {{ row.title }}
           </RouterLink>
-          <span class="mono-evidence mt-0.5 block text-xs text-muted-foreground">{{ row.doi || '无 DOI' }}</span>
+          <div class="flex items-center justify-between gap-2"><span class="mono-evidence text-xs text-muted-foreground">{{ row.doi || '无 DOI' }}</span><ElButton link type="primary" :aria-label="`预览成果：${row.title}`" @click="previewId = row.id">预览</ElButton></div>
         </template>
         <template #cell-authors="{ value }">
           <span class="text-muted-foreground">{{ value || '—' }}</span>
@@ -339,5 +343,7 @@ useSessionCleanup(disposeExport)
       </DataTable>
     </PanelSection>
     </section>
+    <template #detail><AchievementPreview v-if="previewId !== null" :id="previewId" /></template>
+    </SplitWorkspace>
   </section>
 </template>

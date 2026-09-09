@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ElAlert, ElButton, ElDrawer, ElInput } from 'element-plus'
+import SplitWorkspace from '@/components/business/SplitWorkspace.vue'
+import { ElAlert, ElButton, ElInput } from 'element-plus'
 import { ArrowLeft, Search } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
@@ -134,6 +135,7 @@ onMounted(() => load())
 
     <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
 
+    <SplitWorkspace v-model:open="drawerVisible" :title="`${selectedEntity?.displayName ?? '实体'} · 关联成果与来源证据`">
     <PanelSection
       :title="`${labels[collection]}列表`"
       :subtitle="`共 ${result.totalElements.toLocaleString('zh-CN')} 条`"
@@ -156,23 +158,8 @@ onMounted(() => load())
       </DataTable>
     </PanelSection>
 
-    <!-- 窄屏下侧面板转为抽屉，证据与关联成果仍可完整阅读 -->
-    <ElDrawer
-      v-model="drawerVisible"
-      direction="rtl"
-      size="min(512px, 100vw)"
-      class="aacv-drawer"
-      :aria-label="`${selectedEntity?.displayName ?? '实体'}的关联成果与来源证据`"
-    >
-      <template #header>
-        <div class="min-w-0 pr-6">
-          <h2 class="truncate text-base font-semibold text-foreground">{{ selectedEntity?.displayName }}</h2>
-          <p class="mt-0.5 truncate text-xs text-muted-foreground">
-            {{ labels[collection] }} · 外部标识 {{ selectedEntity?.externalId || '—' }} · 关联成果 {{ selectedEntity?.achievementCount ?? 0 }}
-          </p>
-        </div>
-      </template>
-
+    <template #detail>
+      <p v-if="selectedEntity" class="mb-4 break-words text-sm text-muted-foreground">{{ labels[collection] }} · 外部标识 {{ selectedEntity.externalId || '—' }} · 关联成果 {{ selectedEntity.achievementCount ?? 0 }}</p>
       <LoadingSkeleton v-if="relatedLoading" variant="text" :rows="4" />
       <ElAlert v-if="relatedError" type="error" :closable="false" :title="relatedError" show-icon />
       <CatalogEntityEvidencePanel v-if="evidence" :evidence="evidence" />
@@ -197,7 +184,8 @@ onMounted(() => load())
           </p>
         </li>
       </ul>
-    </ElDrawer>
+    </template>
+    </SplitWorkspace>
   </section>
 </template>
 

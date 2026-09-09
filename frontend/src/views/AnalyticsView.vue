@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import { ElAlert, ElButton, ElOption, ElSelect } from 'element-plus'
 import type { EChartsCoreOption } from 'echarts/core'
 import { RouterLink } from 'vue-router'
@@ -28,6 +29,9 @@ const props = withDefaults(defineProps<{
 const sectionTitle = computed(() => ({
   overview: '统计分析', coverage: '字段覆盖率', distributions: '成果分布', research: '机构与主题', collaboration: '合作排行',
 })[props.section])
+const compactFilters = useMediaQuery('(min-width: 768px) and (max-height: 800px)')
+const wideOverview = useMediaQuery('(min-width: 1600px) and (min-height: 1000px)')
+const filtersCollapsed = ref(true)
 const showingTables = reactive<Record<string, boolean>>({})
 const distributionFocus = reactive({ distributions: 'type', research: 'org' })
 const selectedDistribution = computed({
@@ -154,6 +158,12 @@ function distributionOption(items: AnalyticsDistributionItem[], color: string): 
 }
 
 const typeOption = computed(() => distributionOption(distributions.value?.achievementTypes ?? [], palette.value.series[0]!))
+const typeRingOption = computed<EChartsCoreOption>(() => ({
+  aria: { enabled: true, description: '当前统计范围的成果类型分布' },
+  tooltip: { trigger: 'item' },
+  legend: { right: 12, top: 'middle', orient: 'vertical', type: 'scroll', textStyle: { color: palette.value.text } },
+  series: [{ type: 'pie', radius: ['46%', '76%'], center: ['35%', '50%'], label: { show: false }, itemStyle: { borderColor: '#061B38', borderWidth: 2 }, data: distributions.value?.achievementTypes.map(item => ({ name: item.label, value: item.achievementCount })) ?? [] }],
+}))
 const sourceOption = computed(() => distributionOption(distributions.value?.sources ?? [], palette.value.series[1]!))
 const orgOption = computed(() => distributionOption(distributions.value?.organizations ?? [], palette.value.series[2]!))
 const topicOption = computed(() => distributionOption(distributions.value?.topics ?? [], palette.value.series[3]!))
@@ -231,7 +241,7 @@ onMounted(loadAnalytics)
   <section class="page-stack analytics-page">
     <PageHeader
       :title="sectionTitle"
-      description="从规范成果中读取趋势、分布与合作关系，按实际范围核对统计口径。"
+      description="按年份、类型与来源探索规范成果。"
     >
       <template #actions>
         <nav v-if="section === 'overview' || section === 'coverage'" class="workspace-tabs" aria-label="趋势与覆盖">
@@ -248,7 +258,7 @@ onMounted(loadAnalytics)
       </template>
     </PageHeader>
 
-    <FilterBar :columns="6" :applying="loading" apply-text="应用筛选" @apply="loadAnalytics" @reset="resetFilters">
+    <FilterBar :collapsible="compactFilters" :collapsed="filtersCollapsed" @toggle="filtersCollapsed = !filtersCollapsed" :columns="6" :applying="loading" apply-text="应用筛选" @apply="loadAnalytics" @reset="resetFilters">
       <FilterField label="起始年份">
         <YearPicker v-model="yearFromModel" aria-label="选择起始年份" />
       </FilterField>
@@ -291,12 +301,26 @@ onMounted(loadAnalytics)
       </div>
       <p class="context-note">计数口径：规范成果去重；机构、主题和来源按完整计数，一项成果可贡献多个分类，各分类数量不能相加作为成果总量。合作数表示共同署名的规范成果数，不表示合作强度或质量。</p>
 
-      <div :class="isFiltering ? 'opacity-50 transition-opacity' : 'transition-opacity'" :aria-busy="loading" class="analytics-content workspace-fill">
+      <div :class="[{ 'analytics-content--summary': section === 'overview' && wideOverview }, isFiltering ? 'opacity-50 transition-opacity' : 'transition-opacity']" :aria-busy="loading" class="analytics-content workspace-fill">
         <PanelSection v-if="section === 'overview' && trends" title="年度成果趋势" class="workspace-panel analytics-chart-panel">
           <template #actions><ElButton text size="small" :aria-pressed="Boolean(showingTables.trend)" @click="showingTables.trend = !showingTables.trend">{{ showingTables.trend ? '返回趋势图' : '查看趋势表格' }}</ElButton></template>
           <ChartFrame v-if="!showingTables.trend" :option="trendOption" label="年度成果趋势折线图" height="100%" />
           <DataTable v-else :columns="trendColumns" :data="trends.items" :get-row-id="(row) => String(row.publicationYear)" empty-text="暂无趋势数据" dense fill />
         </PanelSection>
+        <template v-if="section === 'overview' && wideOverview">
+          <PanelSection v-if="distributions" title="成果类型分布" class="workspace-panel analytics-chart-panel">
+            <template #actions><RouterLink to="/analytics/distributions" class="text-sm text-primary">查看分布 →</RouterLink></template>
+            <ChartFrame :option="typeRingOption" label="统计成果类型分布环形图" height="100%" />
+          </PanelSection>
+          <PanelSection v-if="overview?.coverage" title="字段覆盖摘要" class="workspace-panel analytics-coverage">
+            <template #actions><RouterLink to="/analytics/coverage" class="text-sm text-primary">查看覆盖明细 →</RouterLink></template>
+            <AnalyticsCoveragePanel :coverage="overview.coverage" :total="overview.achievementCount" />
+          </PanelSection>
+          <PanelSection v-if="collaboration" title="作者合作排行" class="workspace-panel">
+            <template #actions><RouterLink to="/analytics/collaboration" class="text-sm text-primary">查看合作分析 →</RouterLink></template>
+            <DataTable :columns="collaborationColumns" :data="sortedAuthorCollaborations.slice(0, 5)" :get-row-id="row => `summary-${row.leftId}-${row.rightId}`" empty-text="当前范围没有作者合作关系" dense fill />
+          </PanelSection>
+        </template>
         <PanelSection v-if="section === 'coverage' && overview?.coverage" title="本地字段覆盖率" subtitle="仅当前范围，非全球采集覆盖率" class="workspace-panel analytics-coverage">
           <AnalyticsCoveragePanel :coverage="overview.coverage" :total="overview.achievementCount" />
         </PanelSection>
@@ -365,6 +389,8 @@ onMounted(loadAnalytics)
 .analytics-page > .metric-strip { flex-shrink: 0; }
 .analytics-page .workspace-tabs { padding-bottom: 0; border-bottom: 0; }
 .analytics-content { display: flex; flex-direction: column; gap: var(--space-3); }
+.analytics-content--summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.analytics-content--summary :deep(.panel-section__body) { padding: 10px 14px; }
 .analytics-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .analytics-chart-panel :deep(.panel-section__body) { display: flex; flex-direction: column; overflow: hidden; }
 .analytics-coverage :deep(.panel-section__body > div) { max-width: 900px; }

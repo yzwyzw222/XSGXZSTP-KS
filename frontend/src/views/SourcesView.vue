@@ -196,6 +196,10 @@ onMounted(() => load())
 
     <ElAlert v-if="errorMessage && !dialogVisible && !probeVisible" type="error" :closable="false" show-icon><template #title>{{ errorMessage }}</template></ElAlert>
 
+    <div v-if="result.items.length" class="source-highlights" aria-label="当前页来源概况">
+      <article v-for="source in result.items.slice(0, 2)" :key="source.id" class="source-highlight"><Database aria-hidden="true" /><div><h2>{{ source.sourceCode }}</h2><p>{{ source.baseUri }}</p><p>{{ source.requestsPerSecond }} 次 / 秒 · 并发 {{ source.maxConcurrency }} · 最近成功 {{ formatDateTime(source.lastSuccessAt) }}</p></div><StatusPill :status="source.enabled ? 'ACTIVE' : 'DISABLED'" /></article>
+    </div>
+
     <PanelSection title="来源配置" :subtitle="`共 ${result.totalElements} 个`">
       <template #actions><Database class="size-4 text-muted-foreground" aria-hidden="true" /></template>
       <DataTable fill
