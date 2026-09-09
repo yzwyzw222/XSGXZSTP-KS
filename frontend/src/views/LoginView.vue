@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElAlert, ElButton, ElInput } from 'element-plus'
-import { ArrowRight, History, Lock, Network, Percent, ShieldCheck, UserRound } from 'lucide-vue-next'
+import { ArrowRight, GraduationCap, History, Lock, Percent, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -14,7 +14,6 @@ const sessionStore = useSessionStore()
 const loading = ref(false)
 const errorMessage = ref('')
 const form = reactive({ username: '', password: '' })
-const brandLogo = '/favicon.svg'
 
 const features = [
   { icon: History, label: '来源留痕', note: '每条成果保留采集来源与观测时间' },
@@ -50,72 +49,34 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <main class="login-page">
-    <svg class="login-page__constellation" viewBox="0 0 1600 1000" fill="none" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
-      <g class="login-page__connections">
-        <path d="M-40 340 92 224 242 110 422 156 572 68M92 224 62 68M242 110 282-24M242 110 422 156 486 310M92 224 188 410" />
-        <path d="m1120 916 174-72 168-78 158 66m-326 12 66 134m102-212 38-158m-38 158 138-68m-280 252 168-48" />
-        <circle cx="242" cy="110" r="32" />
-        <circle cx="1462" cy="766" r="36" />
-      </g>
-      <g class="login-page__nodes">
-        <circle cx="92" cy="224" r="6" /><circle cx="62" cy="68" r="4" />
-        <circle cx="242" cy="110" r="9" /><circle cx="422" cy="156" r="6" />
-        <circle cx="572" cy="68" r="4" /><circle cx="188" cy="410" r="5" />
-        <circle cx="1120" cy="916" r="4" /><circle cx="1294" cy="844" r="6" />
-        <circle cx="1462" cy="766" r="9" /><circle cx="1360" cy="978" r="4" />
-        <circle cx="1500" cy="608" r="5" /><circle cx="1528" cy="928" r="5" />
-      </g>
-      <g class="login-page__node-labels">
-        <text x="260" y="88">学术成果</text><text x="48" y="254">作者</text><text x="436" y="144">机构</text>
-        <text x="1480" y="748">主题</text><text x="1254" y="877">期刊</text>
-      </g>
-    </svg>
-
+  <main class="login-page research-surface">
     <div class="login-page__content">
       <header class="login-page__masthead">
-        <span class="flex items-center gap-2"><Network class="size-4 text-primary" aria-hidden="true" />学术数据工作空间</span>
-        <span class="hidden sm:inline">采集 · 治理 · 分析 · 可视化</span>
+        <span class="login-page__motto">探索学术数据 · 赋能科研创新</span>
+        <div class="research-brand"><span><strong>学术成果爬虫及可视化系统</strong><small>ACADEMIC ACHIEVEMENT VISUALIZATION PLATFORM</small></span></div>
+        <span class="login-page__motto">数据连接世界 · 知识创造未来</span>
       </header>
 
       <div class="login-panel">
         <!-- 左：品牌与能力说明 -->
         <section class="login-panel__intro">
+          <img :src="'/images/research-core.png'" alt="" class="login-core" aria-hidden="true" />
           <div>
-            <div class="flex items-center gap-3">
-              <span class="grid size-12 shrink-0 place-items-center rounded-lg border border-border bg-card">
-                <img :src="brandLogo" alt="" class="size-8" />
-              </span>
-              <span class="text-base font-semibold tracking-tight text-foreground">学术成果爬虫及可视化系统</span>
-            </div>
             <h2 class="login-panel__headline">
-              把学术数据整理为<br />可核验的知识资产
+              汇聚学术成果 · 发现知识关联
             </h2>
             <p class="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
               统一采集、治理与追溯成果记录，让每一次修订都有来源、每一项结论都可复核。
             </p>
           </div>
 
-          <ol class="flex flex-col">
-            <li v-for="(feature, index) in features" :key="feature.label" class="flex flex-col">
-              <div v-if="index > 0" class="ml-[23px] h-4 w-px bg-border" aria-hidden="true" />
-              <div class="flex items-start gap-4">
-                <span class="grid size-12 shrink-0 place-items-center rounded-lg border border-border bg-card text-primary">
-                  <component :is="feature.icon" class="size-5" aria-hidden="true" />
-                </span>
-                <span class="min-w-0 pt-1">
-                  <span class="block text-base font-medium text-foreground">{{ feature.label }}</span>
-                  <span class="mt-1 block text-sm leading-relaxed text-muted-foreground">{{ feature.note }}</span>
-                </span>
-              </div>
-            </li>
-          </ol>
+          <div class="login-capabilities"><span v-for="feature in features" :key="feature.label"><component :is="feature.icon" :size="18" />{{ feature.label }}</span></div>
         </section>
 
         <!-- 右：登录面板 -->
         <section class="login-panel__form-section">
           <div class="mb-8 flex items-center gap-3 lg:hidden">
-            <img :src="brandLogo" alt="" class="size-9" />
+            <GraduationCap class="size-9 text-primary" aria-hidden="true" />
             <span class="text-sm font-semibold text-foreground">学术成果爬虫及可视化系统</span>
           </div>
           <h1 class="text-2xl font-semibold tracking-tight text-foreground">登录 AACV System</h1>
@@ -207,97 +168,26 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
-.login-page {
-  position: relative;
-  display: grid;
-  min-height: 100dvh;
-  place-items: center;
-  overflow: hidden;
-  padding: clamp(32px, 7dvh, 88px) clamp(24px, 4vw, 80px);
-  background: hsl(var(--background));
-}
-
-.login-page__constellation {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.login-page__connections { stroke: hsl(var(--primary) / 0.14); stroke-width: 1; }
-.login-page__nodes { fill: hsl(var(--background)); stroke: hsl(var(--primary) / 0.3); stroke-width: 1.5; }
-.login-page__node-labels { fill: hsl(var(--muted-foreground) / 0.65); font-size: 12px; }
-
-.login-page__content {
-  position: relative;
-  width: 100%;
-  max-width: 1360px;
-}
-
-.login-page__masthead,
-.login-page__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  color: hsl(var(--muted-foreground));
-  font-size: var(--font-size-sm);
-}
-
-.login-page__masthead { margin-bottom: var(--space-5); }
-.login-page__footer { margin-top: var(--space-5); }
-
-.login-panel {
-  display: grid;
-  grid-template-columns: 1.08fr 1fr;
-  min-height: 640px;
-  overflow: hidden;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius-xl);
-  background: hsl(var(--card));
-}
-
-.login-panel__intro,
-.login-panel__form-section {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  padding: clamp(32px, 4vw, 64px);
-}
-
-.login-panel__intro {
-  justify-content: space-between;
-  gap: var(--space-10);
-  border-right: 1px solid hsl(var(--border));
-  background: hsl(var(--muted) / 0.3);
-}
-
-.login-panel__headline {
-  margin-top: var(--space-10);
-  color: hsl(var(--foreground));
-  font-size: clamp(var(--font-size-3xl), 2.4vw, var(--font-size-4xl));
-  font-weight: var(--font-semibold);
-  line-height: var(--leading-snug);
-  letter-spacing: var(--tracking-tight);
-}
-
-.login-panel__form-section { justify-content: center; }
-.login-form { display: grid; gap: var(--space-6); margin-top: var(--space-8); }
-.login-form__input { --el-input-height: 52px; font-size: var(--font-size-lg); }
-.login-form__submit { --el-button-size: 52px; font-size: var(--font-size-lg); }
-
-@media (max-width: 1023px) {
-  .login-page__content { max-width: 560px; }
-  .login-page__constellation,
-  .login-panel__intro { display: none; }
-  .login-panel { grid-template-columns: minmax(0, 1fr); min-height: 0; }
-  .login-panel__form-section { padding: var(--space-10); }
-}
-
-@media (max-width: 639px) {
-  .login-page { padding: var(--space-8) var(--space-4); }
-  .login-panel__form-section { padding: var(--space-8) var(--space-6); }
-  .login-page__footer { justify-content: center; }
-}
+.login-page { position: relative; display: grid; min-height: 100dvh; place-items: center; padding: 32px; overflow-x: hidden; }
+.login-page__content { position: relative; width: 100%; max-width: 1480px; }
+.login-page__masthead,.login-page__footer { display: flex; align-items: center; justify-content: space-between; color: #96c5e2; font-size: 13px; padding: 20px 4px; letter-spacing: 2px; }
+.login-page__masthead { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; border-bottom: 1px solid hsl(var(--primary) / .65); background: linear-gradient(0deg, #06325188, transparent); }
+.login-page__motto:last-child { text-align: right; }
+.login-page__masthead .research-brand strong { font-size: clamp(24px, 2vw, 34px); }
+.login-panel { display: grid; grid-template-columns: 1.25fr 1fr; align-items: center; min-height: 660px; gap: clamp(32px, 5vw, 88px); padding: 32px; }
+.login-panel__intro { position: relative; min-width: 0; text-align: center; }
+.login-panel__intro > div:first-child > div { justify-content: center; }
+.login-panel__headline { margin-top: 12px; font-size: clamp(24px, 2vw, 32px); font-weight: 600; line-height: 1.55; color: #cef2ff; letter-spacing: 2px; }
+.login-panel__intro p { margin-inline: auto; }
+.login-core { width: 100%; height: 400px; object-fit: contain; transform: scale(1.45); margin: 0 auto 15px; pointer-events: none; }
+.login-capabilities { display: flex; gap: 24px; justify-content: center; color: #9adbfa; font-size: 14px; margin-top: 26px; }
+.login-capabilities span { display: flex; gap: 8px; align-items: center; }
+.login-panel__form-section { position: relative; min-width: 0; padding: 48px; border: 1px solid hsl(var(--primary) / .55); background: linear-gradient(140deg, #0a2a4deb, #04162fee); border-radius: 8px; box-shadow: inset 0 0 35px hsl(var(--primary) / .04), 0 0 35px hsl(var(--primary) / .09); }
+.login-panel__form-section::before { content: ''; position: absolute; inset: -1px auto auto -1px; width: 60px; height: 20px; border-top: 3px solid hsl(var(--primary)); border-left: 3px solid hsl(var(--primary)); border-radius: 8px 0 0; }
+.login-form { display: grid; gap: 24px; margin-top: 32px; }
+.login-form__input { --el-input-height: 52px; --el-component-size-large: 52px; }
+.login-form__submit { min-height: 52px; letter-spacing: 2px; }
+.login-page__footer { border-top: 1px solid hsl(var(--primary) / .3); }
+@media (max-width: 1023px) { .login-panel { display: block; min-height: auto; padding: 36px 0; max-width: 540px; margin-inline: auto; } .login-panel__intro { display: none; } .login-page__masthead { display: block; letter-spacing: 0; } .login-page__motto { display: none; } .login-page__masthead .research-brand strong { font-size: 20px; } }
+@media (max-width: 639px) { .login-page { padding: 16px; } .login-panel { padding: 24px 0; } .login-panel__form-section { padding: 28px 22px; } .login-page__footer { font-size: 11px; letter-spacing: 1px; } }
 </style>

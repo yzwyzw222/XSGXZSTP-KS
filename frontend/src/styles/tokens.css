@@ -6,7 +6,7 @@
 
 /* ---------- Primitive 层：原始调色板与尺度 ---------- */
 :root {
-  /* 靛蓝品牌色，沿用参考 HTML 的主色与选中衬底。 */
+  /* 保留原始靛蓝色阶用于图形分类，科研主题通过语义层映射。 */
   --color-indigo-50: 225.882 100.000% 96.667%;
   --color-indigo-100: 226.452 100.000% 93.922%;
   --color-indigo-200: 228.000 96.491% 88.824%;
@@ -80,10 +80,10 @@
 
   /* 圆角尺度 */
   --radius-xs: 0.25rem;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.875rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
   --radius-2xl: 1.125rem;
   --radius-full: 9999px;
 
@@ -155,159 +155,55 @@
   /* 布局 */
   --sidebar-width: 15rem;
   --sidebar-width-collapsed: 4rem;
-  --topbar-height: 3.75rem;
-  --content-max-width: 100rem;
+  --topbar-height: 5rem;
+  --content-max-width: none;
   --z-topbar: 30;
   --z-sidebar: 40;
   --z-skip-link: 50;
   --z-overlay: 2000;
 }
 
-/* ---------- Semantic 层：浅色主题 ---------- */
-[data-theme='light'] {
-  /* 指标分类的衬底与前景色。 */
-  --metric-blue-bg: 225.882 100.000% 96.667%;
-  --metric-blue-fg: 243.396 75.355% 58.627%;
-  --metric-green-bg: 159.000 50.000% 92.157%;
-  --metric-green-fg: 164.842 76.000% 24.510%;
-  --metric-amber-bg: 37.500 76.190% 91.765%;
-  --metric-amber-fg: 33.443 84.722% 28.235%;
-  --metric-rose-bg: 338.824 68.000% 95.098%;
-  --metric-rose-fg: 340.200 48.544% 40.392%;
-  --metric-cyan-bg: 188.571 51.220% 91.961%;
-  --metric-cyan-fg: 190.851 67.143% 27.451%;
-  --metric-violet-bg: 263.333 75.000% 95.294%;
-  --metric-violet-fg: 268.235 43.966% 45.490%;
-
-  color-scheme: light;
-
-  --background: var(--color-slate-50);
-  --foreground: var(--color-slate-900);
-
-  --card: var(--color-slate-0);
-  --card-foreground: var(--color-slate-900);
-
-  --popover: var(--color-slate-0);
-  --popover-foreground: var(--color-slate-900);
-
-  --primary: var(--color-indigo-600);
-  --primary-foreground: var(--color-slate-0);
-  --primary-hover: var(--color-indigo-700);
-  --primary-active: var(--color-indigo-800);
-
-  --secondary: var(--color-slate-100);
-  --secondary-foreground: var(--color-slate-700);
-
-  --muted: var(--color-slate-100);
-  --muted-foreground: var(--color-slate-500);
-
-  --accent: var(--color-indigo-50);
-  --accent-foreground: var(--color-indigo-700);
-
-  --destructive: 354 67% 43%;
-  --destructive-foreground: var(--color-slate-0);
-
-  --success: 162 70% 28%;
-  --success-foreground: var(--color-slate-0);
-  --success-subtle: 160 72% 95%;
-
-  --warning: 30 82% 31%;
-  --warning-foreground: var(--color-slate-900);
-  --warning-subtle: 40 96% 94%;
-
-  --info: 195 73% 31%;
-  --info-foreground: var(--color-slate-0);
-
-  --border: var(--color-slate-200);
-  --border-strong: var(--color-slate-300);
-  --input: var(--color-slate-200);
-  --input-background: var(--color-slate-0);
-  --ring: var(--primary);
-
-  --sidebar: 0 0% 98%;
-  --sidebar-foreground: var(--color-slate-600);
-  --sidebar-accent: var(--color-indigo-50);
-  --sidebar-accent-foreground: var(--color-indigo-700);
-  --sidebar-border: var(--color-slate-200);
-  --sidebar-active: var(--color-indigo-600);
-
-  --overlay: 219 36% 11% / 0.45;
-
-  /* 图表色板 */
-  --chart-1: var(--color-indigo-600);
-  --chart-2: var(--color-emerald-600);
-  --chart-3: var(--color-amber-600);
-  --chart-4: var(--color-rose-600);
-  --chart-5: var(--color-violet-400);
-  --chart-6: var(--color-cyan-600);
-  --chart-grid: var(--color-slate-200);
-  --chart-axis: var(--color-slate-400);
-  --chart-tooltip-bg: var(--color-slate-0);
-  --chart-tooltip-border: var(--color-slate-300);
-  --chart-tooltip-fg: var(--color-slate-900);
-
-  /* 知识图谱节点色 */
-  --graph-achievement: var(--color-indigo-500);
-  --graph-author: var(--color-cyan-500);
-  --graph-institution: var(--color-amber-500);
-  --graph-venue: var(--color-violet-500);
-  --graph-topic: var(--color-emerald-500);
-  --graph-edge: var(--color-slate-300);
-  --graph-canvas: var(--color-slate-50);
-
-  /* 表格 */
-  --table-header-bg: var(--color-slate-100);
-  --table-header-fg: var(--color-slate-500);
-  --table-row-hover: var(--color-indigo-50);
-  --table-border: var(--color-slate-200);
-
-  /* 状态点 */
-  --status-running: var(--color-emerald-500);
-  --status-idle: var(--color-slate-400);
-  --status-warning: var(--color-amber-500);
-  --status-error: var(--color-rose-500);
-}
-
 /* ---------- Semantic 层：深色主题 ---------- */
+:root,
 [data-theme='dark'] {
   /* 指标分类的衬底与前景色。 */
-  --metric-blue-bg: 244.615 30.233% 25.294%;
-  --metric-blue-fg: 229.655 93.548% 81.765%;
+  --metric-blue-bg: 202.400 82.418% 17.843%;
+  --metric-blue-fg: 191.294 100.000% 50.000%;
   --metric-green-bg: 169.412 40.476% 16.471%;
   --metric-green-fg: 160.571 56.150% 63.333%;
   --metric-amber-bg: 33.750 31.373% 20.000%;
   --metric-amber-fg: 36.585 83.673% 71.176%;
   --metric-rose-bg: 320.769 23.636% 21.569%;
   --metric-rose-fg: 337.500 68.966% 77.255%;
-  --metric-cyan-bg: 198.000 40.816% 19.216%;
-  --metric-cyan-fg: 190.851 58.750% 68.627%;
+  --metric-cyan-bg: 192.203 80.822% 14.314%;
+  --metric-cyan-fg: 190.909 100.000% 69.804%;
   --metric-violet-bg: 259.286 24.138% 22.745%;
   --metric-violet-fg: 263.636 71.739% 81.961%;
 
   color-scheme: dark;
 
-  --background: var(--color-slate-950);
-  --foreground: 210 40% 96%;
+  --background: 222.000 88.235% 6.667%;
+  --foreground: 211.111 100.000% 94.706%;
 
-  --card: var(--color-slate-900);
-  --card-foreground: 210 40% 96%;
+  --card: 214.800 80.645% 12.157%;
+  --card-foreground: 211.111 100.000% 94.706%;
 
-  --popover: var(--color-slate-900);
-  --popover-foreground: 210 40% 96%;
+  --popover: 212.069 76.316% 14.902%;
+  --popover-foreground: 211.111 100.000% 94.706%;
 
-  --primary: var(--color-indigo-300);
-  --primary-foreground: var(--color-slate-950);
-  --primary-hover: var(--color-indigo-200);
-  --primary-active: var(--color-indigo-400);
+  --primary: 191.294 100.000% 50.000%;
+  --primary-foreground: 211.500 90.909% 8.627%;
+  --primary-hover: 190.909 100.000% 69.804%;
+  --primary-active: 192.442 100.000% 42.549%;
 
-  --secondary: var(--color-slate-800);
-  --secondary-foreground: var(--color-slate-200);
+  --secondary: 211.304 75.824% 17.843%;
+  --secondary-foreground: 209.455 100.000% 89.216%;
 
-  --muted: var(--color-slate-850);
-  --muted-foreground: var(--color-slate-400);
+  --muted: 213.214 73.684% 14.902%;
+  --muted-foreground: 211.154 39.394% 74.118%;
 
-  --accent: 243 35% 24%;
-  --accent-foreground: var(--color-indigo-200);
+  --accent: 205.618 84.762% 20.588%;
+  --accent-foreground: 190.588 100.000% 70.000%;
 
   --destructive: var(--color-rose-400);
   --destructive-foreground: var(--color-slate-950);
@@ -323,48 +219,48 @@
   --info: var(--color-cyan-400);
   --info-foreground: var(--color-slate-950);
 
-  --border: 217 30% 24%;
-  --border-strong: 215 25% 33%;
-  --input: 217 30% 26%;
-  --input-background: var(--color-slate-925);
+  --border: 206.374 67.407% 26.471%;
+  --border-strong: 197.358 79.899% 39.020%;
+  --input: 206.327 64.474% 29.804%;
+  --input-background: 214.884 84.314% 10.000%;
   --ring: var(--primary);
 
-  --sidebar: var(--color-slate-925);
-  --sidebar-foreground: var(--color-slate-400);
-  --sidebar-accent: 243 35% 24%;
-  --sidebar-accent-foreground: var(--color-indigo-200);
-  --sidebar-border: 217 30% 20%;
-  --sidebar-active: var(--color-indigo-400);
+  --sidebar: 214.800 80.645% 12.157%;
+  --sidebar-foreground: 209.362 50.538% 81.765%;
+  --sidebar-accent: 205.618 84.762% 20.588%;
+  --sidebar-accent-foreground: 190.588 100.000% 70.000%;
+  --sidebar-border: 206.374 67.407% 26.471%;
+  --sidebar-active: 191.294 100.000% 50.000%;
 
   --overlay: 222 47% 3% / 0.65;
 
   /* 图表色板（深色下提高亮度） */
-  --chart-1: var(--color-indigo-300);
-  --chart-2: var(--color-emerald-300);
-  --chart-3: var(--color-amber-300);
-  --chart-4: var(--color-rose-300);
-  --chart-5: var(--color-violet-300);
-  --chart-6: var(--color-cyan-300);
-  --chart-grid: 217 28% 20%;
-  --chart-axis: var(--color-slate-500);
-  --chart-tooltip-bg: var(--color-slate-900);
-  --chart-tooltip-border: 217 30% 28%;
-  --chart-tooltip-fg: 210 40% 96%;
+  --chart-1: 191.294 100.000% 50.000%;
+  --chart-2: 165.176 75.893% 56.078%;
+  --chart-3: 39.273 100.000% 67.647%;
+  --chart-4: 350.732 100.000% 75.882%;
+  --chart-5: 250.693 100.000% 80.196%;
+  --chart-6: 215.258 100.000% 61.961%;
+  --chart-grid: 210.811 62.712% 23.137%;
+  --chart-axis: 211.154 39.394% 74.118%;
+  --chart-tooltip-bg: 212.069 76.316% 14.902%;
+  --chart-tooltip-border: 197.358 79.899% 39.020%;
+  --chart-tooltip-fg: 211.111 100.000% 94.706%;
 
   /* 知识图谱节点色 */
-  --graph-achievement: var(--color-indigo-300);
+  --graph-achievement: 191.294 100.000% 50.000%;
   --graph-author: var(--color-cyan-300);
   --graph-institution: var(--color-amber-300);
   --graph-venue: var(--color-violet-300);
   --graph-topic: var(--color-emerald-300);
-  --graph-edge: 215 20% 40%;
-  --graph-canvas: var(--color-slate-925);
+  --graph-edge: 203.306 54.751% 43.333%;
+  --graph-canvas: 216.585 87.234% 9.216%;
 
   /* 表格 */
-  --table-header-bg: var(--color-slate-925);
-  --table-header-fg: var(--color-slate-400);
-  --table-row-hover: 243 35% 20%;
-  --table-border: 217 30% 22%;
+  --table-header-bg: 212.113 79.775% 17.451%;
+  --table-header-fg: 208.846 81.250% 87.451%;
+  --table-row-hover: 202.400 82.418% 17.843%;
+  --table-border: 205.588 65.385% 20.392%;
 
   /* 状态点 */
   --status-running: var(--color-emerald-400);

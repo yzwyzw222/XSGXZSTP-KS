@@ -1,33 +1,16 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="dark" class="dark" style="color-scheme: dark; background: #020B20">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#020B20" />
     <meta name="description" content="AACV System 学术成果采集、治理、图谱与分析平台" />
     <title>AACV System · 学术成果平台</title>
     <script>
-      // 防 FOUC：在首帧渲染前应用持久化主题或系统偏好
-      ;(function () {
-        try {
-          var stored = localStorage.getItem('aacv-theme')
-          var resolved =
-            stored === 'light' || stored === 'dark'
-              ? stored
-              : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-                ? 'dark'
-                : 'light'
-          var root = document.documentElement
-          root.setAttribute('data-theme', resolved)
-          root.classList.toggle('dark', resolved === 'dark')
-          root.style.colorScheme = resolved
-        } catch (e) {
-          /* 无法读取本地主题时继续使用页面默认主题 */
-        }
-      })()
+      // 旧主题偏好统一迁移；存储不可用时仍由静态根节点保证首帧深蓝。
+      try { localStorage.setItem('aacv-theme', 'dark') } catch { /* 隐私模式下不依赖本地存储 */ }
     </script>
   </head>
   <body>

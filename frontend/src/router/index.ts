@@ -11,6 +11,7 @@ import type { Permission } from '@/types/api'
 
 declare module 'vue-router' {
   interface RouteMeta {
+    shell?: 'dashboard' | 'module'
     public?: boolean
     permission?: Permission
     title?: string
@@ -41,12 +42,13 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: () => import('@/layouts/BusinessLayout.vue'),
+    meta: { shell: 'module' },
     children: [
       {
         path: '',
         name: 'overview',
         component: () => import('@/views/OverviewView.vue'),
-        meta: { title: '成果总览', workspace: 'overview' },
+        meta: { title: '可视化大屏', workspace: 'overview', shell: 'dashboard' },
       },
       {
         path: 'overview',

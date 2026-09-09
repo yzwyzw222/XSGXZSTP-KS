@@ -4,10 +4,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAppRouter } from '@/router'
 import type { CurrentUser } from '@/types/api'
 
-const { ensureSession, hasPermission, storeState } = vi.hoisted(() => ({
+const { ensureSession, hasPermission, cancelSessionRequests, storeState } = vi.hoisted(() => ({
   ensureSession: vi.fn<() => Promise<CurrentUser | null>>(),
   hasPermission: vi.fn<(permission?: string) => boolean>(),
+  cancelSessionRequests: vi.fn(),
   storeState: { lastError: '' },
+}))
+
+vi.mock('@/services/http', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/services/http')>(),
+  cancelSessionRequests,
 }))
 
 // 路由守卫只依赖会话 store 的这三项契约；store 自身的行为由 stores/session.test.ts 覆盖。
@@ -25,6 +31,7 @@ describe('权限路由', () => {
   beforeEach(() => {
     ensureSession.mockReset()
     hasPermission.mockReset()
+    cancelSessionRequests.mockReset()
     hasPermission.mockImplementation((permission) => permission === undefined)
     storeState.lastError = ''
   })
@@ -48,7 +55,7 @@ describe('权限路由', () => {
     await router.push('/operations')
 
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/operations')
+    expect(router.currentRoute.value.query.redirect).toBe('/logs')
     expect(router.currentRoute.value.query.reason).toBe('unavailable')
   })
 
@@ -73,15 +80,66 @@ describe('权限路由', () => {
     expect(router.currentRoute.value.name).toBe('crawl-tasks')
   })
 
-  it('运行监控路由沿用OPERATIONS_READ权限门禁', async () => {
+  it.each(['/operations', '/operations/alerts', '/operations/events', '/operations/maintenance', '/operations/audits', '/overview/activity'])('旧入口 %s 转到日志，并按日志权限校验', async (path) => {
     ensureSession.mockResolvedValue({} as CurrentUser)
     hasPermission.mockImplementation((permission) => permission === 'OPERATIONS_READ')
     const router = createAppRouter(createMemoryHistory())
+    await router.push(path)
+    expect(router.currentRoute.value.name).toBe('forbidden')
+    expect(hasPermission).toHaveBeenCalledWith('AUDIT_READ')
+    hasPermission.mockImplementation((permission) => permission === 'AUDIT_READ')
+    await router.push(path)
+    expect(router.currentRoute.value.name).toBe('logs')
+  })
 
-    await router.push('/operations')
+  it('重复的工作台研究入口合并到合作分析', async () => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockImplementation((permission) => permission === 'ANALYTICS_READ')
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/overview/research')
+    expect(router.currentRoute.value.name).toBe('analytics-collaboration')
+  })
 
-    expect(router.currentRoute.value.name).toBe('operations')
-    expect(hasPermission).toHaveBeenCalledWith('OPERATIONS_READ')
+  it.each([
+    ['/analytics/coverage', 'ANALYTICS_READ', 'analytics-coverage'],
+    ['/analytics/distributions', 'ANALYTICS_READ', 'analytics-distributions'],
+    ['/analytics/research', 'ANALYTICS_READ', 'analytics-research'],
+    ['/analytics/collaboration', 'ANALYTICS_READ', 'analytics-collaboration'],
+    ['/users/overview', 'USER_LIST', 'users-overview'],
+  ])('子模块 %s 继承父模块权限 %s', async (path, permission, name) => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockReturnValue(false)
+    const router = createAppRouter(createMemoryHistory())
+
+    await router.push(path)
+    expect(router.currentRoute.value.name).toBe('forbidden')
+    expect(hasPermission).toHaveBeenCalledWith(permission)
+
+    hasPermission.mockImplementation((required) => required === permission)
+    await router.push(path)
+    expect(router.currentRoute.value.name).toBe(name)
+    expect(router.currentRoute.value.meta.permission).toBe(permission)
+  })
+
+  it.each([
+    ['/analytics', '/analytics/coverage', '/analytics/collaboration'],
+    ['/users', '/users/overview', '/users'],
+  ])('从 %s 切换同模块子页保留请求，离开模块才取消', async (initial, next, last) => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockReturnValue(true)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push(initial)
+    cancelSessionRequests.mockClear()
+
+    await router.push(next)
+    expect(router.currentRoute.value.path).toBe(next)
+    await router.push(last)
+    expect(router.currentRoute.value.path).toBe(last)
+    expect(cancelSessionRequests).not.toHaveBeenCalled()
+
+    await router.push('/logs')
+    expect(router.currentRoute.value.name).toBe('logs')
+    expect(cancelSessionRequests).toHaveBeenCalledTimes(1)
   })
 
   it('已登录访问登录页时直接进入工作台', async () => {

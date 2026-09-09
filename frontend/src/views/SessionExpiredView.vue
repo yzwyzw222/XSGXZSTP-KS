@@ -3,8 +3,8 @@ import { ElButton } from 'element-plus'
 </script>
 
 <template>
-  <main class="grid min-h-screen place-items-center bg-background px-6 text-center">
-    <div class="max-w-md">
+  <main class="research-surface research-exception grid min-h-screen place-items-center bg-background px-6 text-center">
+    <div class="research-exception__panel max-w-md">
       <p class="select-none text-[clamp(5rem,15vw,8rem)] font-semibold leading-none text-muted-foreground/25" aria-hidden="true">401</p>
       <h1 class="mt-2 text-2xl font-semibold tracking-tight text-foreground">登录会话已过期</h1>
       <p class="mt-3 text-sm leading-relaxed text-muted-foreground">

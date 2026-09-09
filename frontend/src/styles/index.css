@@ -6,6 +6,7 @@
 /* Element Plus 变量映射必须在 tokens.css 之后，依赖其中的语义令牌。 */
 @import './element-plus.css';
 @import './workbench.css';
+@import './research.css';
 
 /* 将 semantic token 映射为 Tailwind 工具类（bg-background / text-foreground / border-border ...） */
 @theme inline {

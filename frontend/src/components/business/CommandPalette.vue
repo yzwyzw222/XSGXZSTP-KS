@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ElDialog, ElInput } from 'element-plus'
-import { CornerDownLeft, LogOut, Monitor, Moon, Search, Sun } from 'lucide-vue-next'
+import { CornerDownLeft, LogOut, Search } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { navGroups, navItems } from '@/config/nav'
 import { cn } from '@/lib/utils'
-import { usePreferencesStore } from '@/stores/preferences'
 import { useSessionStore } from '@/stores/session'
 
 const props = defineProps<{ open: boolean }>()
@@ -14,7 +13,6 @@ const emit = defineEmits<{ (e: 'update:open', v: boolean): void; (e: 'logout'): 
 
 const router = useRouter()
 const sessionStore = useSessionStore()
-const preferences = usePreferencesStore()
 
 const query = ref('')
 const activeIndex = ref(0)
@@ -50,9 +48,6 @@ const commands = computed<Command[]>(() => {
       })),
     ])
   const actions: Command[] = [
-    { id: 'theme-light', label: '切换到浅色主题', group: '操作', icon: Sun, run: () => preferences.setTheme('light') },
-    { id: 'theme-dark', label: '切换到深色主题', group: '操作', icon: Moon, run: () => preferences.setTheme('dark') },
-    { id: 'theme-auto', label: '主题跟随系统', group: '操作', icon: Monitor, run: () => preferences.setTheme('auto') },
     { id: 'logout', label: '退出登录', group: '操作', icon: LogOut, run: () => emit('logout') },
   ]
   return [...nav, ...actions]
@@ -75,11 +70,6 @@ const grouped = computed(() => {
     map.get(command.group)!.push(command)
   }
   return [...map.entries()]
-})
-
-const themeLabel = computed(() => {
-  if (preferences.theme === 'auto') return '主题：跟随系统'
-  return `主题：${preferences.theme === 'dark' ? '深色' : '浅色'}`
 })
 
 watch(() => props.open, (open) => {
@@ -181,7 +171,7 @@ function onKeydown(event: KeyboardEvent): void {
       </div>
 
       <div class="flex items-center justify-between border-t border-border px-4 py-2 text-[10px] text-muted-foreground">
-        <span>{{ themeLabel }}</span>
+        <span>深蓝科研主题</span>
         <span class="flex items-center gap-2">
           <kbd class="rounded border border-border bg-muted px-1">↑</kbd>
           <kbd class="rounded border border-border bg-muted px-1">↓</kbd> 选择

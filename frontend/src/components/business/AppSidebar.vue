@@ -3,7 +3,7 @@ import { ChevronDown, ChevronsLeft } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
-import { groupNavigation, type NavItem } from '@/config/nav'
+import { activeNavigation, groupNavigation, type NavItem } from '@/config/nav'
 import { cn } from '@/lib/utils'
 
 const props = withDefaults(defineProps<{
@@ -28,6 +28,7 @@ function isActive(to: string): boolean {
 }
 
 function activeChild(item: NavItem): string | undefined {
+  if (activeNavigation(route.path, props.items)?.to !== item.to) return undefined
   const children = item.children ?? []
   const exact = children.find(child => (child.activePaths ?? [child.to]).includes(route.path))
   return exact?.to ?? children.filter(child => isActive(child.to)).sort((a, b) => b.to.length - a.to.length)[0]?.to
@@ -101,7 +102,7 @@ function activeChild(item: NavItem): string | undefined {
               <span class="block truncate">{{ item.label }}</span>
             </span>
           </RouterLink>
-          <!-- 子项共享紧凑行高，选中项沿用参考配色的靛蓝衬底。 -->
+          <!-- 抽屉子项共享青色选中态与键盘入口。 -->
           <ul
             v-if="item.children?.length && !collapsed && expanded[item.to]"
             class="graph-submenu grid gap-0.5"

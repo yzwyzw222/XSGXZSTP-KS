@@ -295,7 +295,7 @@ html.dark {
 .el-notification,
 .el-select__popper,
 .el-picker__popper {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 html.dark .el-popper,

@@ -2,6 +2,7 @@ import {
   Activity,
   BookOpen,
   Database,
+  ContactRound,
   LayoutDashboard,
   Library,
   ShieldCheck,
@@ -18,6 +19,7 @@ export interface NavItem {
   label: string
   caption: string
   to: string
+  activePaths?: readonly string[]
   icon: LucideIcon
   permission?: Permission
   /** 用于命令面板搜索的关键词 */
@@ -42,10 +44,13 @@ export function groupNavigation(items: readonly NavItem[]) {
 }
 
 export const navItems: NavItem[] = [
-  { group: 'visualization', label: '工作台', caption: 'Dashboard', to: '/', icon: LayoutDashboard, keywords: ['dashboard', 'overview', 'home'] },
+  { group: 'visualization', label: '可视化大屏', caption: 'Dashboard', to: '/', icon: LayoutDashboard, keywords: ['dashboard', 'overview', 'home'] },
   { group: 'visualization', label: '成果目录', caption: 'Catalog', to: '/catalog', icon: Library, permission: 'CATALOG_READ', keywords: ['catalog', 'achievement'], children: [
     { label: '全部成果', to: '/catalog' },
-    { label: '实体编目', to: '/catalog/authors', activePaths: ['/catalog/authors', '/catalog/organizations', '/catalog/venues', '/catalog/topics'] },
+  ] },
+  { group: 'visualization', label: '实体编目', caption: 'Entities', to: '/catalog/authors', icon: ContactRound, permission: 'CATALOG_READ', activePaths: ['/catalog/authors', '/catalog/organizations', '/catalog/venues', '/catalog/topics'], children: [
+    { label: '作者', to: '/catalog/authors' }, { label: '机构', to: '/catalog/organizations' },
+    { label: '期刊', to: '/catalog/venues' }, { label: '主题', to: '/catalog/topics' },
   ] },
   {
     group: 'visualization', label: '知识图谱', caption: 'Network', to: '/graph', icon: BookOpen, permission: 'GRAPH_READ', keywords: ['graph', 'network'],
@@ -53,6 +58,9 @@ export const navItems: NavItem[] = [
       { label: '图谱概览', to: '/graph' },
       { label: '实体管理', to: '/graph/entities' },
       { label: '关系管理', to: '/graph/relations' },
+      { label: '高级查询', to: '/graph/explore' },
+      { label: '路径分析', to: '/graph/path' },
+      { label: '保存的查询', to: '/graph/queries' },
     ],
   },
   { group: 'visualization', label: '统计分析', caption: 'Analytics', to: '/analytics', icon: TrendingUp, permission: 'ANALYTICS_READ', keywords: ['analytics', 'trend', 'chart'], children: [
@@ -67,3 +75,10 @@ export const navItems: NavItem[] = [
   { group: 'status', label: '日志管理', caption: 'Logs', to: '/logs', icon: ShieldCheck, permission: 'AUDIT_READ', keywords: ['logs', 'audit', 'login'] },
   { group: 'status', label: '账号管理', caption: 'Accounts', to: '/users', icon: Users, permission: 'USER_LIST', keywords: ['user', 'account', 'role', '用户管理'] },
 ]
+
+/** 优先匹配更具体的模块路径，避免实体编目被成果目录前缀覆盖。 */
+export function activeNavigation(path: string, items: readonly NavItem[] = navItems): NavItem | undefined {
+  return items.filter(item => (item.activePaths ?? [item.to]).some(prefix =>
+    path === prefix || (prefix !== '/' && path.startsWith(`${prefix}/`)),
+  )).sort((a, b) => b.to.length - a.to.length)[0]
+}

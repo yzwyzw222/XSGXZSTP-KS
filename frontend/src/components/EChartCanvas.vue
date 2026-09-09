@@ -4,6 +4,7 @@ import {
   AriaComponent,
   GridComponent,
   LegendComponent,
+  TitleComponent,
   TooltipComponent,
 } from 'echarts/components'
 import { init, use, type ECharts, type EChartsCoreOption } from 'echarts/core'
@@ -29,6 +30,7 @@ use([
   AriaComponent,
   GridComponent,
   LegendComponent,
+  TitleComponent,
   TooltipComponent,
   CanvasRenderer,
 ])

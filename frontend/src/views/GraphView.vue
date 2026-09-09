@@ -143,7 +143,6 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
   <section class="graph-overview" aria-labelledby="graph-title">
     <header class="graph-heading">
       <h1 id="graph-title"><Circle :size="17" aria-hidden="true" />图谱概览</h1>
-      <div class="graph-links"><RouterLink to="/graph/explore">高级查询</RouterLink><RouterLink to="/graph/path">路径分析</RouterLink><RouterLink to="/graph/queries">常用查询</RouterLink></div>
     </header>
     <div class="overview-toolbar">
       <ElInput v-model="keyword" class="overview-search" aria-label="搜索当前图谱" placeholder="搜索当前图谱中的名称或 ID" clearable :maxlength="200"><template #suffix><Search :size="16" /></template></ElInput>
@@ -212,12 +211,12 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
 .graph-context-menu button:disabled { color: hsl(var(--muted-foreground)); cursor: not-allowed; }
 .graph-overview { margin: 12px; height: calc(100% - 24px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); min-width: 0; }
 .graph-overview > :not(.overview-stage) { flex-shrink: 0; }
-.graph-heading { min-height: 52px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid hsl(var(--border)); }
+.graph-heading { min-height: 40px; padding: 8px 16px; background: linear-gradient(90deg, #0b345d, #071e3b); display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid hsl(var(--border)); }
 .graph-heading h1 { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
 .graph-heading h1 svg { color: hsl(var(--primary)); stroke-width: 3; }
 .graph-links { display: flex; gap: 16px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .graph-links a:hover { color: hsl(var(--primary)); }
-.overview-toolbar { padding: 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.overview-toolbar { padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .overview-toolbar .overview-search { width: 280px; }
 .overview-toolbar :deep(.el-select) { width: 160px; }
 .overview-actions { display: flex; gap: 8px; margin-left: auto; }
