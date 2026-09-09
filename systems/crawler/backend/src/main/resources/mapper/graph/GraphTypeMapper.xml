@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.graph.infrastructure.persistence.GraphTypeMapper">
+    <select id="findAll" resultType="com.aacv.system.graph.domain.GraphTypeDefinition">
+        SELECT kind, code, display_name, color, size, review_status, version
+        FROM graph_type_definition ORDER BY kind, code
+    </select>
+    <select id="find" resultType="com.aacv.system.graph.domain.GraphTypeDefinition">
+        SELECT kind, code, display_name, color, size, review_status, version
+        FROM graph_type_definition WHERE kind = #{kind} AND code = #{code}
+    </select>
+    <update id="update">
+        UPDATE graph_type_definition
+        SET display_name = #{displayName}, color = #{color}, size = #{size},
+            review_status = #{reviewStatus}, version = version + 1
+        WHERE kind = #{kind} AND code = #{code} AND version = #{version}
+    </update>
+</mapper>

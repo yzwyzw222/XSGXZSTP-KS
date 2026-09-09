@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.graph.infrastructure.persistence.GraphSnapshotMapper">
+    <select id="resolveCanonicalAchievementId" resultType="long">
+        SELECT COALESCE(link.canonical_entity_id, achievement.id)
+        FROM achievement
+        LEFT JOIN canonical_entity_link link
+          ON link.entity_type = 'ACHIEVEMENT' AND link.entity_id = achievement.id
+        WHERE achievement.id = #{achievementId}
+    </select>
+
+    <select id="findAchievement" resultType="com.aacv.system.graph.infrastructure.persistence.GraphSnapshotRow">
+        SELECT a.id AS achievement_id,
+               COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_normalized, a.title_original) AS title,
+               COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type) AS achievement_type,
+               COALESCE(JSON_UNQUOTE(language_override.field_value), a.language) AS language,
+               COALESCE(STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'), a.publication_date)
+                   AS publication_date,
+               a.doi_normalized AS doi,
+               COALESCE(CAST(JSON_UNQUOTE(venue_override.field_value) AS UNSIGNED), venue_link.canonical_entity_id,
+                        a.primary_venue_id) AS venue_id,
+               venue.display_name AS venue_name,
+               venue.venue_type AS venue_type,
+               venue.issn_l AS venue_issn
+        FROM achievement a
+        LEFT JOIN manual_field_override title_override
+          ON title_override.achievement_id = a.id AND title_override.field_name = 'title' AND title_override.active = TRUE
+        LEFT JOIN manual_field_override type_override
+          ON type_override.achievement_id = a.id AND type_override.field_name = 'type' AND type_override.active = TRUE
+        LEFT JOIN manual_field_override language_override
+          ON language_override.achievement_id = a.id AND language_override.field_name = 'language'
+         AND language_override.active = TRUE
+        LEFT JOIN manual_field_override date_override
+          ON date_override.achievement_id = a.id AND date_override.field_name = 'publicationDate'
+         AND date_override.active = TRUE
+        LEFT JOIN manual_field_override venue_override
+          ON venue_override.achievement_id = a.id AND venue_override.field_name = 'venueId'
+         AND venue_override.active = TRUE
+        LEFT JOIN canonical_entity_link venue_link
+          ON venue_link.entity_type = 'VENUE' AND venue_link.entity_id = a.primary_venue_id
+        LEFT JOIN venue
+          ON venue.id = COALESCE(CAST(JSON_UNQUOTE(venue_override.field_value) AS UNSIGNED),
+                                 venue_link.canonical_entity_id, a.primary_venue_id)
+        WHERE a.id = #{achievementId}
+    </select>
+
+    <select id="findAuthors" resultType="com.aacv.system.graph.domain.GraphAchievementSnapshot$Author">
+        SELECT resolved.id, resolved.display_name AS name, resolved.orcid
+        FROM (
+            SELECT COALESCE(link.canonical_entity_id, author.id) AS id,
+                   COALESCE(canonical.display_name, author.display_name) AS display_name,
+                   orcid.external_id AS orcid,
+                   MIN(aa.author_position) AS author_position
+            FROM achievement_author aa
+            JOIN author ON author.id = aa.author_id
+            LEFT JOIN canonical_entity_link link
+              ON link.entity_type = 'AUTHOR' AND link.entity_id = author.id
+            LEFT JOIN author canonical ON canonical.id = link.canonical_entity_id
+            LEFT JOIN author_external_id orcid
+              ON orcid.author_id = COALESCE(link.canonical_entity_id, author.id)
+             AND orcid.id_type = 'ORCID'
+            WHERE aa.achievement_id = #{achievementId}
+            GROUP BY COALESCE(link.canonical_entity_id, author.id),
+                     COALESCE(canonical.display_name, author.display_name), orcid.external_id
+        ) resolved
+        ORDER BY resolved.author_position, resolved.id
+    </select>
+
+    <select id="findAffiliations" resultType="com.aacv.system.graph.domain.GraphAchievementSnapshot$Affiliation">
+        SELECT DISTINCT COALESCE(author_link.canonical_entity_id, rel.author_id) AS author_id,
+               COALESCE(org_link.canonical_entity_id, rel.organization_id) AS institution_id,
+               COALESCE(canonical_org.display_name, organization.display_name) AS institution_name,
+               ror.external_id AS standard_code,
+               COALESCE(canonical_org.country_code, organization.country_code) AS country_code
+        FROM authorship_organization rel
+        JOIN organization ON organization.id = rel.organization_id
+        LEFT JOIN canonical_entity_link author_link
+          ON author_link.entity_type = 'AUTHOR' AND author_link.entity_id = rel.author_id
+        LEFT JOIN canonical_entity_link org_link
+          ON org_link.entity_type = 'ORGANIZATION' AND org_link.entity_id = rel.organization_id
+        LEFT JOIN organization canonical_org ON canonical_org.id = org_link.canonical_entity_id
+        LEFT JOIN organization_external_id ror
+          ON ror.organization_id = COALESCE(org_link.canonical_entity_id, rel.organization_id)
+         AND ror.id_type = 'ROR'
+        WHERE rel.achievement_id = #{achievementId}
+    </select>
+
+    <select id="findTopics" resultType="com.aacv.system.graph.domain.GraphAchievementSnapshot$Topic">
+        SELECT subject.id, subject.display_name AS name, subject.external_id AS code,
+               subject.subject_path AS path
+        FROM achievement_subject rel
+        JOIN subject ON subject.id = rel.subject_id
+        WHERE rel.achievement_id = #{achievementId}
+        ORDER BY rel.subject_position, subject.id
+    </select>
+
+    <select id="findReferences" resultType="com.aacv.system.graph.domain.GraphAchievementSnapshot$ReferencedAchievement">
+        SELECT DISTINCT canonical.id,
+               COALESCE(JSON_UNQUOTE(title_override.field_value), canonical.title_normalized,
+                        canonical.title_original) AS title,
+               canonical.achievement_type,
+               canonical.language,
+               canonical.publication_date,
+               canonical.doi_normalized AS doi
+        FROM achievement_reference rel
+        JOIN achievement cited ON cited.id = rel.cited_achievement_id
+        LEFT JOIN canonical_entity_link link
+          ON link.entity_type = 'ACHIEVEMENT' AND link.entity_id = cited.id
+        JOIN achievement canonical ON canonical.id = COALESCE(link.canonical_entity_id, cited.id)
+        LEFT JOIN manual_field_override title_override
+          ON title_override.achievement_id = canonical.id AND title_override.field_name = 'title'
+         AND title_override.active = TRUE
+        WHERE rel.citing_achievement_id = #{achievementId}
+    </select>
+</mapper>

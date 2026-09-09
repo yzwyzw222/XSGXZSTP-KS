@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.graph.infrastructure.persistence.GraphMaintenanceMapper">
+    <insert id="insertRun" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO graph_maintenance_run (run_type, status, requested_by)
+        VALUES (#{runType}, #{status}, #{requestedBy})
+    </insert>
+
+    <select id="findRun" resultType="com.aacv.system.graph.domain.GraphMaintenanceRun">
+        SELECT id, run_type, status, cursor_achievement_id, scanned_count, repaired_count,
+               difference_count, requested_by, error_code, error_summary,
+               started_at, completed_at, created_at, updated_at
+        FROM graph_maintenance_run WHERE id = #{runId}
+    </select>
+
+    <select id="findLatestFailed" resultType="com.aacv.system.graph.domain.GraphMaintenanceRun">
+        SELECT id, run_type, status, cursor_achievement_id, scanned_count, repaired_count,
+               difference_count, requested_by, error_code, error_summary,
+               started_at, completed_at, created_at, updated_at
+        FROM graph_maintenance_run
+        WHERE run_type = #{runType} AND status = 'FAILED'
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <update id="resumeRun">
+        UPDATE graph_maintenance_run
+        SET status = 'PENDING', requested_by = #{requestedBy}, error_code = NULL,
+            error_summary = NULL, completed_at = NULL
+        WHERE id = #{runId} AND status = 'FAILED'
+    </update>
+
+    <update id="markRunning">
+        UPDATE graph_maintenance_run
+        SET status = 'RUNNING', started_at = COALESCE(started_at, UTC_TIMESTAMP(6))
+        WHERE id = #{runId} AND status = 'PENDING'
+    </update>
+
+    <update id="markSucceeded">
+        UPDATE graph_maintenance_run
+        SET status = 'SUCCEEDED', completed_at = UTC_TIMESTAMP(6)
+        WHERE id = #{runId} AND status = 'RUNNING'
+    </update>
+
+    <update id="markFailed">
+        UPDATE graph_maintenance_run
+        SET status = 'FAILED', error_code = #{errorCode}, error_summary = #{errorSummary},
+            completed_at = UTC_TIMESTAMP(6)
+        WHERE id = #{runId} AND status IN ('PENDING', 'RUNNING')
+    </update>
+
+    <select id="findAchievementPage" resultType="long">
+        SELECT achievement.id
+        FROM achievement
+        WHERE achievement.id > #{cursor}
+          AND NOT EXISTS (
+              SELECT 1 FROM canonical_entity_link link
+              WHERE link.entity_type = 'ACHIEVEMENT' AND link.entity_id = achievement.id
+          )
+        ORDER BY achievement.id
+        LIMIT #{size}
+    </select>
+
+    <select id="findDesiredVersion" resultType="long">
+        SELECT desired_version FROM graph_projection_state WHERE achievement_id = #{achievementId}
+    </select>
+
+    <update id="advanceProgress">
+        UPDATE graph_maintenance_run
+        SET cursor_achievement_id = #{cursor},
+            scanned_count = scanned_count + #{scanned},
+            repaired_count = repaired_count + #{repaired},
+            difference_count = difference_count + #{differences}
+        WHERE id = #{runId} AND status = 'RUNNING'
+    </update>
+
+    <select id="countRuns" resultType="long">
+        SELECT COUNT(*) FROM graph_maintenance_run
+    </select>
+
+    <select id="findRuns" resultType="com.aacv.system.graph.domain.GraphMaintenanceRun">
+        SELECT id, run_type, status, cursor_achievement_id, scanned_count, repaired_count,
+               difference_count, requested_by, error_code, error_summary,
+               started_at, completed_at, created_at, updated_at
+        FROM graph_maintenance_run
+        ORDER BY id DESC LIMIT #{size} OFFSET #{offset}
+    </select>
+</mapper>

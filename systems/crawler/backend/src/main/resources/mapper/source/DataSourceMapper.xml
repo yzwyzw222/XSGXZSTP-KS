@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.source.infrastructure.persistence.DataSourceMapper">
+    <sql id="columns">
+        id, source_code, source_type, base_url, enabled, requests_per_second, max_concurrency,
+        connect_timeout_seconds, response_timeout_seconds, max_retries, max_response_bytes,
+        compliance_note, last_success_at, last_failure_at, consecutive_failures, version,
+        created_at, updated_at
+    </sql>
+
+    <select id="countAll" resultType="long">SELECT COUNT(*) FROM data_source</select>
+    <select id="countByCode" resultType="int">
+        SELECT COUNT(*) FROM data_source WHERE source_code = #{sourceCode}
+    </select>
+    <select id="findPage" resultType="com.aacv.system.source.infrastructure.persistence.DataSourceRow">
+        SELECT <include refid="columns"/> FROM data_source ORDER BY id LIMIT #{size} OFFSET #{offset}
+    </select>
+    <select id="findById" resultType="com.aacv.system.source.infrastructure.persistence.DataSourceRow">
+        SELECT <include refid="columns"/> FROM data_source WHERE id = #{id}
+    </select>
+    <select id="lockById" resultType="com.aacv.system.source.infrastructure.persistence.DataSourceRow">
+        SELECT <include refid="columns"/> FROM data_source WHERE id = #{id} FOR UPDATE
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO data_source (
+            source_code, source_type, base_url, adapter_code, enabled, requests_per_second,
+            max_concurrency, connect_timeout_seconds, response_timeout_seconds, max_retries,
+            max_response_bytes, compliance_note, version, created_at, updated_at
+        ) VALUES (
+            #{sourceCode}, #{sourceType}, #{baseUrl},
+            CASE #{sourceType} WHEN 'OPENALEX' THEN 'OPENALEX_REST_V1' ELSE 'CROSSREF_REST_V1' END,
+            #{enabled}, #{requestsPerSecond},
+            #{maxConcurrency}, #{connectTimeoutSeconds}, #{responseTimeoutSeconds}, #{maxRetries},
+            #{maxResponseBytes}, #{complianceNote}, 0, #{createdAt}, #{updatedAt}
+        )
+    </insert>
+    <update id="update">
+        UPDATE data_source
+        SET requests_per_second = #{row.requestsPerSecond},
+            max_concurrency = #{row.maxConcurrency},
+            connect_timeout_seconds = #{row.connectTimeoutSeconds},
+            response_timeout_seconds = #{row.responseTimeoutSeconds},
+            max_retries = #{row.maxRetries},
+            max_response_bytes = #{row.maxResponseBytes},
+            compliance_note = #{row.complianceNote},
+            version = version + 1,
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{row.id} AND version = #{expectedVersion}
+    </update>
+    <update id="updateEnabled">
+        UPDATE data_source
+        SET enabled = #{enabled}, version = version + 1, updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{id} AND version = #{expectedVersion}
+    </update>
+    <update id="updateProbeResult">
+        UPDATE data_source
+        SET last_success_at = CASE WHEN #{reachable} THEN #{checkedAt} ELSE last_success_at END,
+            last_failure_at = CASE WHEN #{reachable} THEN last_failure_at ELSE #{checkedAt} END,
+            consecutive_failures = CASE WHEN #{reachable} THEN 0 ELSE consecutive_failures + 1 END,
+            updated_at = UTC_TIMESTAMP(6)
+        WHERE id = #{id}
+    </update>
+</mapper>

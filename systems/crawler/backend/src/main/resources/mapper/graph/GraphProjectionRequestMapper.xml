@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.graph.infrastructure.persistence.GraphProjectionRequestMapper">
+    <insert id="advanceDesiredVersion">
+        INSERT INTO graph_projection_state (
+            achievement_id, desired_version, applied_version, last_enqueued_at
+        ) VALUES (
+            #{achievementId}, 1, 0, #{now}
+        )
+        ON DUPLICATE KEY UPDATE
+            desired_version = desired_version + 1,
+            last_enqueued_at = VALUES(last_enqueued_at)
+    </insert>
+
+    <select id="findDesiredVersion" resultType="long">
+        SELECT desired_version
+        FROM graph_projection_state
+        WHERE achievement_id = #{achievementId}
+    </select>
+
+    <insert id="insertOutboxEvent">
+        INSERT INTO graph_outbox_event (
+            event_id, achievement_id, desired_version, next_attempt_at
+        ) VALUES (
+            #{eventId}, #{achievementId}, #{desiredVersion}, #{now}
+        )
+    </insert>
+
+    <select id="findRelatedAchievementIds" resultType="long">
+        <choose>
+            <when test="entityType == 'ACHIEVEMENT'">
+                SELECT DISTINCT id
+                FROM achievement
+                WHERE id IN
+                <foreach collection="entityIds" item="id" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </when>
+            <when test="entityType == 'AUTHOR'">
+                SELECT DISTINCT achievement_id
+                FROM achievement_author
+                WHERE author_id IN
+                <foreach collection="entityIds" item="id" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </when>
+            <when test="entityType == 'INSTITUTION'">
+                SELECT DISTINCT achievement_id
+                FROM authorship_organization
+                WHERE organization_id IN
+                <foreach collection="entityIds" item="id" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </when>
+            <when test="entityType == 'VENUE'">
+                SELECT DISTINCT id
+                FROM achievement
+                WHERE primary_venue_id IN
+                <foreach collection="entityIds" item="id" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </when>
+            <otherwise>
+                SELECT id FROM achievement WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+</mapper>

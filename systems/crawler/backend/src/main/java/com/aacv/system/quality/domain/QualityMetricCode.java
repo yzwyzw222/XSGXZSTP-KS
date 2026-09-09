@@ -1,0 +1,15 @@
+package com.aacv.system.quality.domain;
+
+public enum QualityMetricCode {
+    TOTAL_RECORDS,
+    VALID_RECORDS,
+    MISSING_OR_INVALID_DOI,
+    MISSING_TITLE,
+    MISSING_DATE,
+    MISSING_AUTHORS,
+    AUTHORS_WITHOUT_STABLE_ID,
+    ORGANIZATIONS_WITHOUT_ROR,
+    FIELD_CONFLICTS,
+    AUTO_MATCHES,
+    NEW_CANDIDATES
+}

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.graph.infrastructure.persistence.GraphOutboxMapper">
+    <select id="rebuildInProgress" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM graph_maintenance_run
+            WHERE run_type = 'FULL_REBUILD' AND status IN ('PENDING', 'RUNNING', 'PAUSED')
+        )
+    </select>
+
+    <update id="recoverExpiredLeases">
+        UPDATE graph_outbox_event
+        SET status = 'PENDING', locked_by = NULL, locked_until = NULL,
+            next_attempt_at = #{now}
+        WHERE status = 'PROCESSING' AND locked_until &lt; #{now}
+    </update>
+
+    <select id="findClaimableIds" resultType="long">
+        SELECT e.id
+        FROM graph_outbox_event e
+        WHERE e.status = 'PENDING'
+          AND e.next_attempt_at &lt;= #{now}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM graph_outbox_event earlier
+              WHERE earlier.achievement_id = e.achievement_id
+                AND earlier.desired_version &lt; e.desired_version
+                AND earlier.status IN ('PENDING', 'PROCESSING')
+          )
+        ORDER BY e.id
+        LIMIT #{limit}
+        FOR UPDATE SKIP LOCKED
+    </select>
+
+    <update id="claimIds">
+        UPDATE graph_outbox_event
+        SET status = 'PROCESSING', locked_by = #{workerId}, locked_until = #{lockedUntil}
+        WHERE status = 'PENDING' AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <select id="findClaimed" resultType="com.aacv.system.graph.domain.GraphOutboxEvent">
+        SELECT id, event_id, achievement_id, desired_version, attempts
+        FROM graph_outbox_event
+        WHERE locked_by = #{workerId} AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY id
+    </select>
+
+    <update id="markEventSucceeded">
+        UPDATE graph_outbox_event
+        SET status = 'SUCCEEDED', completed_at = #{now},
+            locked_by = NULL, locked_until = NULL,
+            last_error_code = NULL, last_error_summary = NULL
+        WHERE id = #{id} AND locked_by = #{workerId} AND status = 'PROCESSING'
+    </update>
+
+    <update id="advanceAppliedVersion">
+        UPDATE graph_projection_state
+        SET applied_version = GREATEST(applied_version, #{desiredVersion}),
+            last_projected_at = #{now}
+        WHERE achievement_id = #{achievementId}
+    </update>
+
+    <update id="markRetry">
+        UPDATE graph_outbox_event
+        SET status = 'PENDING', attempts = attempts + 1,
+            next_attempt_at = #{nextAttemptAt}, locked_by = NULL, locked_until = NULL,
+            last_error_code = #{errorCode}, last_error_summary = #{errorSummary}
+        WHERE id = #{id} AND locked_by = #{workerId} AND status = 'PROCESSING'
+    </update>
+
+    <update id="markDead">
+        UPDATE graph_outbox_event
+        SET status = 'DEAD', attempts = attempts + 1, completed_at = #{failedAt},
+            locked_by = NULL, locked_until = NULL,
+            last_error_code = #{errorCode}, last_error_summary = #{errorSummary}
+        WHERE id = #{id} AND locked_by = #{workerId} AND status = 'PROCESSING'
+    </update>
+
+    <insert id="insertDeadLetter">
+        INSERT INTO graph_sync_dead_letter (event_id, error_code, error_summary, failed_at)
+        VALUES (#{eventId}, #{errorCode}, #{errorSummary}, #{failedAt})
+    </insert>
+
+    <select id="findDeadAchievementId" resultType="long">
+        SELECT achievement_id
+        FROM graph_outbox_event
+        WHERE event_id = #{eventId} AND status = 'DEAD'
+    </select>
+
+    <update id="linkReplay">
+        UPDATE graph_sync_dead_letter
+        SET replay_event_id = #{replayEventId}
+        WHERE event_id = #{eventId} AND replay_event_id IS NULL
+    </update>
+</mapper>

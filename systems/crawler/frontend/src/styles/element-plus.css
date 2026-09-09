@@ -1,0 +1,522 @@
+/* ============================================================
+   Element Plus 变量映射
+   ------------------------------------------------------------
+   规则：不复制任何色值，只把 --el-* 指向 tokens.css 中的语义令牌，
+   改一处令牌即可同时驱动 Tailwind 工具类与 Element Plus 组件。
+
+   层叠说明（重要）：
+   Element Plus 样式放在 element-plus 层，在 Tailwind base 之后、utilities 之前。
+   本文件的变量映射为非分层样式，确保语义主题优先。
+   因此：
+   1. 响应式 hidden/flex 等布局类可正常覆盖组件 display，不会同时显示桌面和窄屏入口；
+   2. 覆盖 Element Plus 优先通过 --el-* 变量、组件 props 或内联 style，硬编码尺寸在有界组件类中映射回令牌，
+      不使用大面积 !important，也不做深层 DOM 结构覆盖。
+
+   本文件必须在 element-plus/dist/index.css 之后引入，
+   以便在同等特异性下按出现顺序覆盖默认值。
+   ============================================================ */
+
+/* ---------- 品牌与语义色 ---------- */
+:root {
+  --el-color-white: hsl(var(--color-slate-0));
+  --el-color-black: hsl(var(--color-slate-950));
+
+  --el-color-primary: hsl(var(--primary));
+  --el-color-primary-light-3: hsl(var(--primary-hover));
+  --el-color-primary-light-5: hsl(var(--primary) / 0.5);
+  --el-color-primary-light-7: hsl(var(--primary) / 0.3);
+  --el-color-primary-light-8: hsl(var(--primary) / 0.2);
+  --el-color-primary-light-9: hsl(var(--primary) / 0.1);
+  --el-color-primary-dark-2: hsl(var(--primary-active));
+
+  --el-color-success: hsl(var(--success));
+  --el-color-success-light-3: hsl(var(--success) / 0.7);
+  --el-color-success-light-5: hsl(var(--success) / 0.5);
+  --el-color-success-light-7: hsl(var(--success) / 0.3);
+  --el-color-success-light-8: hsl(var(--success) / 0.2);
+  --el-color-success-light-9: hsl(var(--success) / 0.12);
+  --el-color-success-dark-2: hsl(var(--color-emerald-600));
+
+  --el-color-warning: hsl(var(--warning));
+  --el-color-warning-light-3: hsl(var(--warning) / 0.7);
+  --el-color-warning-light-5: hsl(var(--warning) / 0.5);
+  --el-color-warning-light-7: hsl(var(--warning) / 0.3);
+  --el-color-warning-light-8: hsl(var(--warning) / 0.2);
+  --el-color-warning-light-9: hsl(var(--warning) / 0.12);
+  --el-color-warning-dark-2: hsl(var(--color-amber-600));
+
+  --el-color-danger: hsl(var(--destructive));
+  --el-color-danger-light-3: hsl(var(--destructive) / 0.7);
+  --el-color-danger-light-5: hsl(var(--destructive) / 0.5);
+  --el-color-danger-light-7: hsl(var(--destructive) / 0.3);
+  --el-color-danger-light-8: hsl(var(--destructive) / 0.2);
+  --el-color-danger-light-9: hsl(var(--destructive) / 0.12);
+  --el-color-danger-dark-2: hsl(var(--color-rose-600));
+
+  /* Element Plus 同时提供 error 与 danger，两者指向同一语义。 */
+  --el-color-error: hsl(var(--destructive));
+  --el-color-error-light-3: var(--el-color-danger-light-3);
+  --el-color-error-light-5: var(--el-color-danger-light-5);
+  --el-color-error-light-7: var(--el-color-danger-light-7);
+  --el-color-error-light-8: var(--el-color-danger-light-8);
+  --el-color-error-light-9: var(--el-color-danger-light-9);
+  --el-color-error-dark-2: var(--el-color-danger-dark-2);
+
+  /* info 用于中性提示，映射到次要文本而不是引入第五种强调色。 */
+  --el-color-info: hsl(var(--muted-foreground));
+  --el-color-info-light-3: hsl(var(--muted-foreground) / 0.7);
+  --el-color-info-light-5: hsl(var(--muted-foreground) / 0.5);
+  --el-color-info-light-7: hsl(var(--muted-foreground) / 0.3);
+  --el-color-info-light-8: hsl(var(--muted-foreground) / 0.2);
+  --el-color-info-light-9: hsl(var(--muted-foreground) / 0.12);
+  --el-color-info-dark-2: hsl(var(--muted-foreground));
+
+  /* ---------- 表面阶梯 ---------- */
+  --el-bg-color: hsl(var(--card));
+  --el-bg-color-page: hsl(var(--background));
+  --el-bg-color-overlay: hsl(var(--popover));
+
+  /* ---------- 文本层级 ---------- */
+  --el-text-color-primary: hsl(var(--foreground));
+  --el-text-color-regular: hsl(var(--foreground));
+  --el-text-color-secondary: hsl(var(--muted-foreground));
+  --el-text-color-placeholder: hsl(var(--muted-foreground));
+  --el-text-color-disabled: hsl(var(--muted-foreground) / 0.6);
+
+  /* ---------- hairline 边框 ---------- */
+  --el-border-color: hsl(var(--border));
+  --el-border-color-light: hsl(var(--border));
+  --el-border-color-lighter: hsl(var(--border) / 0.7);
+  --el-border-color-extra-light: hsl(var(--border) / 0.5);
+  --el-border-color-dark: hsl(var(--border-strong));
+  --el-border-color-darker: hsl(var(--border-strong));
+  --el-border-color-hover: hsl(var(--border-strong));
+
+  /* ---------- 填充 ---------- */
+  --el-fill-color: hsl(var(--muted));
+  --el-fill-color-light: hsl(var(--muted) / 0.6);
+  --el-fill-color-lighter: hsl(var(--muted) / 0.3);
+  --el-fill-color-extra-light: hsl(var(--muted) / 0.15);
+  --el-fill-color-blank: hsl(var(--input-background));
+  --el-fill-color-dark: hsl(var(--accent));
+  --el-fill-color-darker: hsl(var(--accent));
+  --el-fill-color-focus: hsl(var(--primary) / 0.12);
+
+  /* ---------- 圆角（按钮与输入统一 6px，不做药丸） ---------- */
+  --el-border-radius-base: var(--radius-sm);
+  --el-border-radius-small: var(--radius-xs);
+  --el-border-radius-round: var(--radius-full);
+  --el-border-radius-circle: 100%;
+
+  /* ---------- 阴影：卡片轻、浮层重 ---------- */
+  --el-box-shadow: var(--shadow-lg);
+  --el-box-shadow-light: var(--shadow-md);
+  --el-box-shadow-lighter: var(--shadow-sm);
+  --el-box-shadow-dark: var(--shadow-xl);
+
+  /* ---------- 字体与字号 ---------- */
+  --el-font-family: var(--font-sans);
+  --el-font-size-extra-large: var(--font-size-2xl);
+  --el-font-size-large: var(--font-size-xl);
+  --el-font-size-medium: var(--font-size-lg);
+  --el-font-size-base: var(--font-size-md);
+  --el-font-size-small: var(--font-size-base);
+  --el-font-size-extra-small: var(--font-size-sm);
+
+  /* ---------- 控件高度：对齐 --button-height-* ---------- */
+  --el-component-size-small: var(--button-height-sm);
+  --el-component-size: var(--button-height-md);
+  --el-component-size-large: var(--button-height-lg);
+
+  /* ---------- 过渡 ---------- */
+  --el-transition-duration: var(--duration-normal);
+  --el-transition-duration-fast: var(--duration-fast);
+  --el-transition-function-ease-in-out-bezier: var(--ease-standard);
+  --el-transition-function-fast-bezier: var(--ease-emphasized);
+
+  /* ---------- 遮罩 ---------- */
+  --el-mask-color: hsl(var(--overlay));
+  --el-mask-color-extra-light: hsl(var(--overlay));
+
+  /* ---------- 禁用 ---------- */
+  --el-disabled-bg-color: hsl(var(--muted));
+  --el-disabled-text-color: hsl(var(--muted-foreground) / 0.7);
+  --el-disabled-border-color: hsl(var(--border));
+
+  /* ---------- 表格 ---------- */
+  --el-table-border-color: hsl(var(--table-border));
+  --el-table-header-bg-color: hsl(var(--table-header-bg));
+  --el-table-header-text-color: hsl(var(--table-header-fg));
+  --el-table-text-color: hsl(var(--foreground));
+  --el-table-bg-color: hsl(var(--card));
+  --el-table-tr-bg-color: hsl(var(--card));
+  --el-table-row-hover-bg-color: hsl(var(--table-row-hover));
+  --el-table-current-row-bg-color: hsl(var(--accent));
+  --el-table-border: 1px solid hsl(var(--table-border));
+  --el-table-font-size: var(--table-font-size);
+
+  /* ---------- 弹窗与抽屉 ---------- */
+  --el-dialog-border-radius: var(--dialog-radius);
+  --el-dialog-bg-color: hsl(var(--card));
+  --el-dialog-box-shadow: var(--dialog-shadow);
+  --el-dialog-title-font-size: var(--font-size-lg);
+  --el-dialog-content-font-size: var(--font-size-md);
+  --el-dialog-padding-primary: var(--space-5);
+  --el-drawer-bg-color: hsl(var(--card));
+
+  /* ---------- 消息与通知 ---------- */
+  --el-message-bg-color: hsl(var(--popover));
+  --el-message-border-color: hsl(var(--border));
+  --el-message-text-color: hsl(var(--popover-foreground));
+  --el-notification-bg-color: hsl(var(--popover));
+  --el-notification-border-color: hsl(var(--border));
+  --el-notification-title-color: hsl(var(--popover-foreground));
+  --el-notification-content-color: hsl(var(--muted-foreground));
+
+  /* ---------- 浮层 z-index：必须高于顶栏（z-30） ---------- */
+  --el-index-popper: var(--z-overlay);
+  --el-index-normal: 1;
+  --el-index-top: 1000;
+}
+
+/* ---------- 组件级细部 ---------- */
+:root {
+  /* 按钮 */
+  --el-button-font-weight: var(--button-font-weight);
+  --el-button-border-radius: var(--button-radius);
+  --el-button-size: var(--button-height-md);
+  --el-button-size-small: var(--button-height-sm);
+  --el-button-size-large: var(--button-height-lg);
+  --el-button-padding-horizontal: var(--button-padding-x);
+  --el-button-hover-bg-color: hsl(var(--accent));
+  --el-button-hover-border-color: hsl(var(--primary) / 0.4);
+  --el-button-active-bg-color: hsl(var(--accent));
+  --el-button-disabled-bg-color: hsl(var(--muted));
+  --el-button-disabled-text-color: hsl(var(--muted-foreground) / 0.7);
+  --el-button-disabled-border-color: hsl(var(--border));
+
+  /* 输入 */
+  --el-input-bg-color: hsl(var(--input-background));
+  --el-input-border-color: hsl(var(--input));
+  --el-input-hover-border-color: hsl(var(--border-strong));
+  --el-input-focus-border-color: hsl(var(--primary));
+  --el-input-text-color: hsl(var(--foreground));
+  --el-input-placeholder-color: hsl(var(--muted-foreground));
+  --el-input-disabled-bg-color: hsl(var(--muted));
+  --el-input-border-radius: var(--input-radius);
+  --el-input-height: var(--input-height);
+
+  /* 菜单（侧栏） */
+  --el-menu-bg-color: hsl(var(--sidebar));
+  --el-menu-text-color: hsl(var(--sidebar-foreground));
+  --el-menu-hover-bg-color: hsl(var(--sidebar-accent));
+  --el-menu-hover-text-color: hsl(var(--sidebar-accent-foreground));
+  --el-menu-active-color: hsl(var(--sidebar-active));
+  --el-menu-border-color: hsl(var(--sidebar-border));
+  --el-menu-item-height: var(--nav-item-height);
+  --el-menu-item-font-size: var(--font-size-md);
+  --el-menu-sub-item-height: var(--nav-item-height);
+  --el-menu-base-level-padding: var(--space-3);
+  --el-menu-icon-width: 18px;
+  --el-menu-horizontal-height: var(--topbar-height);
+
+  /* 标签页 */
+  --el-tabs-header-height: 38px;
+
+  /* 分页 */
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: hsl(var(--muted-foreground));
+  --el-pagination-border-radius: var(--radius-sm);
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-hover-color: hsl(var(--primary));
+
+  /* 空状态 */
+  --el-empty-padding: var(--space-8) 0;
+  --el-empty-description-margin-top: var(--space-3);
+
+  /* 标签（Tag） */
+  --el-tag-border-radius: var(--radius-sm);
+  --el-tag-font-size: var(--badge-font-size);
+
+  /* 骨架屏 */
+  --el-skeleton-color: hsl(var(--muted));
+  --el-skeleton-to-color: hsl(var(--muted-foreground) / 0.25);
+}
+
+/* ============================================================
+   深色主题：html.dark 与 tokens.css 的 [data-theme='dark'] 由
+   composables/useTheme.ts 同步写入，因此这里只覆盖同一批 --el-* 变量，
+   不新增第二套变量名。
+   ============================================================ */
+html.dark {
+  --el-color-primary: hsl(var(--primary));
+  --el-color-primary-light-3: hsl(var(--primary-hover));
+  --el-color-primary-dark-2: hsl(var(--primary-active));
+
+  --el-color-success-dark-2: hsl(var(--color-emerald-300));
+  --el-color-warning-dark-2: hsl(var(--color-amber-300));
+  --el-color-danger-dark-2: hsl(var(--color-rose-300));
+
+  --el-bg-color: hsl(var(--card));
+  --el-bg-color-page: hsl(var(--background));
+  --el-bg-color-overlay: hsl(var(--popover));
+
+  --el-text-color-primary: hsl(var(--foreground));
+  --el-text-color-regular: hsl(var(--foreground));
+  --el-text-color-secondary: hsl(var(--muted-foreground));
+  --el-text-color-placeholder: hsl(var(--muted-foreground));
+
+  --el-border-color: hsl(var(--border));
+  --el-border-color-light: hsl(var(--border));
+  --el-border-color-lighter: hsl(var(--border) / 0.7);
+  --el-border-color-dark: hsl(var(--border-strong));
+  --el-border-color-darker: hsl(var(--border-strong));
+
+  --el-fill-color-blank: hsl(var(--input-background));
+  --el-fill-color-dark: hsl(var(--accent));
+  --el-fill-color-darker: hsl(var(--accent));
+
+  --el-box-shadow: var(--shadow-lg);
+  --el-box-shadow-light: var(--shadow-md);
+  --el-box-shadow-lighter: var(--shadow-sm);
+  --el-box-shadow-dark: var(--shadow-xl);
+
+  --el-disabled-bg-color: hsl(var(--muted));
+  --el-disabled-text-color: hsl(var(--muted-foreground) / 0.7);
+}
+
+/* ============================================================
+   挂载到 body 的浮层（下拉、日期面板、消息、通知、弹窗、抽屉）
+   位于 #app 之外，必须显式确认它们继承根元素的主题变量与层级。
+   ============================================================ */
+.el-popper,
+.el-overlay,
+.el-message,
+.el-notification,
+.el-select__popper,
+.el-picker__popper {
+  color-scheme: dark;
+}
+
+html.dark .el-popper,
+html.dark .el-overlay,
+html.dark .el-message,
+html.dark .el-notification,
+html.dark .el-select__popper,
+html.dark .el-picker__popper {
+  color-scheme: dark;
+}
+
+/* 浮层必须高于固定顶栏与侧栏（z-30 / z-40）。 */
+.el-overlay {
+  z-index: var(--z-overlay);
+}
+
+/* 复合控件由外层绘制边界，内部输入不再叠加焦点小框。 */
+.el-input__inner,
+.el-select__input,
+.el-range-input {
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-range-editor,
+.el-textarea__inner {
+  outline: none;
+}
+
+/* 键盘聚焦只加粗现有边框，不额外绘制第二圈轮廓。 */
+.el-input__wrapper:has(:focus-visible),
+.el-select__wrapper:has(:focus-visible),
+.el-select__wrapper:focus-visible,
+.el-range-editor:has(:focus-visible),
+.el-textarea__inner:focus-visible {
+  box-shadow: 0 0 0 2px hsl(var(--ring)) inset;
+}
+
+/* 按钮、导航和选项控件继续使用项目统一的焦点轮廓。 */
+.el-button:focus-visible,
+.el-checkbox__original:focus-visible + .el-checkbox__inner,
+.el-radio__original:focus-visible + .el-radio__inner,
+.el-tabs__item:focus-visible,
+.el-pager li:focus-visible,
+.el-menu-item:focus-visible,
+.el-switch__input:focus-visible + .el-switch__core {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* 中文排版：表格与表单内的数字使用等宽数字，避免刷新时宽度跳动。 */
+.el-table .cell,
+.el-pagination__total,
+.el-statistic__content {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   项目自有类名的定向修正
+   ------------------------------------------------------------
+   Element Plus 的弹窗会被 Teleport 到 body，脱离组件的 scoped 作用域，
+   因此这类修正必须写在全局样式里。约束：
+   - 只针对项目自有的 `aacv-*` 类名，不使用全局标签选择器；
+   - 优先改用组件提供的 header-class / body-class 等挂载点，
+     不做深层结构覆盖，也不使用 !important。
+   ============================================================ */
+
+/* 命令面板：自身承担分隔线与内边距，去掉弹窗默认留白与头部占位。 */
+.aacv-command-palette {
+  --el-dialog-padding-primary: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--dialog-radius);
+}
+.aacv-command-palette__header {
+  margin: 0;
+  padding: 0;
+}
+.aacv-command-palette__header .el-dialog__headerbtn {
+  display: none;
+}
+.aacv-command-palette__body {
+  padding: 0;
+}
+.aacv-command-palette__input {
+  --el-input-border-color: transparent;
+  --el-input-hover-border-color: transparent;
+  --el-input-focus-border-color: transparent;
+  --el-input-bg-color: transparent;
+  --el-input-height: 48px;
+  --el-input-text-color: hsl(var(--foreground));
+}
+.aacv-command-palette__input .el-input__wrapper {
+  box-shadow: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+.aacv-command-palette__input .el-input__inner {
+  font-size: var(--font-size-md);
+}
+
+/* 表单弹窗：统一标题层级与正文间距，中文长标题允许换行。 */
+.aacv-form-dialog .el-dialog__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: hsl(var(--foreground));
+}
+
+.aacv-dialog-body {
+  min-height: 0;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.aacv-form-dialog h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  padding-right: var(--space-5);
+}
+
+/* 完整弹窗受视口约束，错误标题增高时仅压缩可滚动的正文。 */
+.aacv-form-dialog {
+  --el-dialog-padding-primary: var(--space-6);
+  --aacv-dialog-gutter: clamp(16px, 6dvh, 48px);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 2 * var(--aacv-dialog-gutter));
+  margin-block: var(--aacv-dialog-gutter);
+}
+.aacv-form-dialog .aacv-dialog-body { flex: 1 1 auto; }
+.aacv-form-dialog .el-dialog__header {
+  flex: 0 0 auto;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid hsl(var(--border));
+  margin-bottom: var(--space-4);
+}
+.aacv-form-dialog .el-dialog__footer { flex: 0 0 auto; border-top: 1px solid hsl(var(--border)); margin-top: var(--space-4); padding-top: var(--space-4); }
+.el-select__wrapper { min-height: var(--input-height); }
+.el-pagination {
+  --el-pagination-button-width-small: var(--button-height-sm);
+  --el-pagination-button-height-small: var(--button-height-sm);
+}
+.el-pagination.is-background .el-pager li.is-active { color: hsl(var(--primary-foreground)); }
+.el-button { --el-button-size: var(--button-height-md); height: var(--el-button-size); transition: background-color var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast), transform var(--duration-fast); }
+.el-button--small { --el-button-size: var(--button-height-sm); }
+.el-button--large { --el-button-size: var(--button-height-lg); }
+.el-button.is-circle { width: var(--el-button-size); padding: 0; }
+.el-button.is-link { height: auto; }
+.el-button + .el-button { margin-left: 0; }
+.el-button > span { gap: 6px; }
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
+  --el-button-text-color: hsl(var(--primary-foreground));
+  --el-button-hover-text-color: hsl(var(--primary-foreground));
+  --el-button-disabled-text-color: hsl(var(--primary-foreground));
+}
+.el-button:active:not(:disabled) { transform: translateY(1px); }
+.el-button.is-text:active:not(:disabled), .el-button.is-link:active:not(:disabled) { transform: none; }
+
+/* 抽屉：图谱详情与账号编辑共用，正文区域自行控制滚动。 */
+.aacv-drawer .el-drawer__header {
+  margin-bottom: 0;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+.aacv-drawer .el-drawer__body {
+  padding: var(--space-5);
+}
+.aacv-navigation-drawer .el-drawer__body { padding: 0; }
+.aacv-empty .el-empty__image svg { fill: none; }
+
+/* 中文语境下的消息与通知：正文行高放宽，便于阅读完整原因。 */
+.el-message {
+  min-width: 280px;
+  border-radius: var(--radius-md);
+}
+.el-message__content {
+  font-size: var(--font-size-md);
+  line-height: var(--leading-normal);
+}
+.el-notification__content {
+  font-size: var(--font-size-md);
+  line-height: var(--leading-normal);
+}
+
+/* 窄屏增大触摸目标，所有尺寸仍由同一批令牌驱动。 */
+@media (max-width: 1023px) {
+  :root {
+    --button-height-sm: 40px;
+    --button-height-md: 44px;
+    --button-height-lg: 44px;
+    --input-height: 44px;
+  }
+}
+@media (max-width: 639px) {
+  .data-table__pagination .el-pagination { --el-pagination-item-gap: var(--space-2); }
+  .data-table__pagination .el-pagination__jump { margin-right: var(--space-2); }
+  .data-table__pagination .el-pagination__editor { --el-input-height: var(--input-height); }
+}
+
+/* 减少动态效果：保留信息，只关闭非必要的运动。 */
+@media (prefers-reduced-motion: reduce) {
+  .el-fade-in-linear,
+  .el-fade-in-enter-active,
+  .el-fade-in-leave-active,
+  .el-zoom-in-center-enter-active,
+  .el-zoom-in-center-leave-active,
+  .el-dialog,
+  .el-drawer,
+  .el-popper,
+  .el-message,
+  .el-notification,
+  .el-loading-mask,
+  .el-progress-bar__inner,
+  .el-skeleton__item {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

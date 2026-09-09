@@ -1,0 +1,28 @@
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: aacv-neo4j
+    environment:
+      NEO4J_AUTH: "${NEO4J_USERNAME:?请在 .env 中设置 NEO4J_USERNAME}/${NEO4J_PASSWORD:?请在 .env 中设置 NEO4J_PASSWORD}"
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 512m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - cypher-shell -u "$${NEO4J_AUTH%%/*}" -p "$${NEO4J_AUTH#*/}" "RETURN 1" >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    stop_grace_period: 30s
+
+volumes:
+  neo4j_data:
+  neo4j_logs:

@@ -1,0 +1,61 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message-version": "1.0.0",
+  "message": {
+    "total-results": 2,
+    "next-cursor": "DnF1ZXJ5VGhlbkZldGNoBQAAAAA1",
+    "query": { "search-terms": "graph learning" },
+    "items": [
+      {
+        "DOI": "10.1000/ABC-1",
+        "URL": "https://doi.org/10.1000/ABC-1",
+        "title": ["A Crossref Work"],
+        "type": "journal-article",
+        "language": "en",
+        "published": { "date-parts": [[2026, 8]] },
+        "container-title": ["Journal of Metadata"],
+        "ISSN": ["1234-567X", "2049-3630"],
+        "issn-type": [
+          { "type": "print", "value": "1234-567X" },
+          { "type": "electronic", "value": "2049-3630" }
+        ],
+        "author": [
+          {
+            "given": "Ada",
+            "family": "Lovelace",
+            "ORCID": "https://orcid.org/0000-0003-1613-5981",
+            "affiliation": [
+              {
+                "name": "Example University",
+                "id": [
+                  { "id-type": "ROR", "id": "https://ror.org/03yrm5c26" }
+                ]
+              }
+            ]
+          },
+          {
+            "given": "Same",
+            "family": "Name",
+            "affiliation": [{ "name": "Text Only Institute" }]
+          }
+        ],
+        "subject": ["Computer Science", "Metadata"],
+        "reference": [
+          { "DOI": "10.2000/REF-1" },
+          { "unstructured": "Reference without DOI" }
+        ],
+        "abstract": "<jats:p>Raw abstract text.</jats:p>",
+        "indexed": { "date-time": "2026-08-31T12:30:00Z" },
+        "publisher": "Example Publisher"
+      },
+      {
+        "DOI": "10.1000/SECOND",
+        "title": ["Second Work"],
+        "type": "posted-content",
+        "issued": { "date-parts": [[2025]] },
+        "author": []
+      }
+    ]
+  }
+}

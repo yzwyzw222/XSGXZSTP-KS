@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.export.infrastructure.persistence.ExportMapper">
+    <sql id="recordScope">
+        FROM achievement a
+        LEFT JOIN canonical_entity_link achievement_link
+               ON achievement_link.entity_type = 'ACHIEVEMENT'
+              AND achievement_link.entity_id = a.id
+        LEFT JOIN manual_field_override title_override
+               ON title_override.achievement_id = a.id
+              AND title_override.field_name = 'title'
+              AND title_override.active = TRUE
+        LEFT JOIN manual_field_override type_override
+               ON type_override.achievement_id = a.id
+              AND type_override.field_name = 'type'
+              AND type_override.active = TRUE
+        LEFT JOIN manual_field_override language_override
+               ON language_override.achievement_id = a.id
+              AND language_override.field_name = 'language'
+              AND language_override.active = TRUE
+        LEFT JOIN manual_field_override date_override
+               ON date_override.achievement_id = a.id
+              AND date_override.field_name = 'publicationDate'
+              AND date_override.active = TRUE
+        LEFT JOIN manual_field_override venue_override
+               ON venue_override.achievement_id = a.id
+              AND venue_override.field_name = 'venueId'
+              AND venue_override.active = TRUE
+        LEFT JOIN venue effective_venue
+               ON effective_venue.id = COALESCE(
+                   CAST(JSON_UNQUOTE(venue_override.field_value) AS UNSIGNED),
+                   a.primary_venue_id)
+        LEFT JOIN canonical_entity_link venue_link
+               ON venue_link.entity_type = 'VENUE'
+              AND venue_link.entity_id = effective_venue.id
+        LEFT JOIN venue canonical_venue
+               ON canonical_venue.id = COALESCE(venue_link.canonical_entity_id, effective_venue.id)
+        <where>
+            AND achievement_link.entity_id IS NULL
+            <if test="filter.title != null">
+                AND LOCATE(
+                    LOWER(#{filter.title}),
+                    LOWER(COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_original, a.title_normalized))
+                ) &gt; 0
+            </if>
+            <if test="filter.authorId != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM achievement_author relation_value
+                    LEFT JOIN canonical_entity_link relation_achievement_link
+                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND relation_achievement_link.entity_id = relation_value.achievement_id
+                    LEFT JOIN canonical_entity_link author_link
+                           ON author_link.entity_type = 'AUTHOR'
+                          AND author_link.entity_id = relation_value.author_id
+                    WHERE COALESCE(
+                              relation_achievement_link.canonical_entity_id,
+                              relation_value.achievement_id) = a.id
+                      AND COALESCE(author_link.canonical_entity_id, relation_value.author_id) = #{filter.authorId}
+                )
+            </if>
+            <if test="filter.organizationId != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM authorship_organization relation_value
+                    LEFT JOIN canonical_entity_link relation_achievement_link
+                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND relation_achievement_link.entity_id = relation_value.achievement_id
+                    LEFT JOIN canonical_entity_link organization_link
+                           ON organization_link.entity_type = 'ORGANIZATION'
+                          AND organization_link.entity_id = relation_value.organization_id
+                    WHERE COALESCE(
+                              relation_achievement_link.canonical_entity_id,
+                              relation_value.achievement_id) = a.id
+                      AND COALESCE(
+                              organization_link.canonical_entity_id,
+                              relation_value.organization_id) = #{filter.organizationId}
+                )
+            </if>
+            <if test="filter.publicationYearFrom != null">
+                AND YEAR(COALESCE(
+                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                    a.publication_date)) &gt;= #{filter.publicationYearFrom}
+            </if>
+            <if test="filter.publicationYearTo != null">
+                AND YEAR(COALESCE(
+                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                    a.publication_date)) &lt;= #{filter.publicationYearTo}
+            </if>
+            <if test="filter.achievementType != null">
+                AND COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type)
+                    = #{filter.achievementType}
+            </if>
+            <if test="filter.sourceType != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM achievement_source relation_value
+                    JOIN data_source source_value ON source_value.id = relation_value.source_id
+                    LEFT JOIN canonical_entity_link relation_achievement_link
+                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND relation_achievement_link.entity_id = relation_value.achievement_id
+                    WHERE COALESCE(
+                              relation_achievement_link.canonical_entity_id,
+                              relation_value.achievement_id) = a.id
+                      AND source_value.source_type = #{filter.sourceType}
+                )
+            </if>
+            <if test="filter.venueId != null">
+                AND COALESCE(venue_link.canonical_entity_id, effective_venue.id) = #{filter.venueId}
+            </if>
+            <if test="filter.topicId != null">
+                AND EXISTS (
+                    SELECT 1
+                    FROM achievement_subject relation_value
+                    LEFT JOIN canonical_entity_link relation_achievement_link
+                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
+                          AND relation_achievement_link.entity_id = relation_value.achievement_id
+                    WHERE COALESCE(
+                              relation_achievement_link.canonical_entity_id,
+                              relation_value.achievement_id) = a.id
+                      AND relation_value.subject_id = #{filter.topicId}
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="lockRequester" resultType="long">
+        SELECT id FROM sys_user WHERE id = #{userId} FOR UPDATE
+    </select>
+
+    <select id="countActiveByRequester" resultType="long">
+        SELECT COUNT(*) FROM export_task
+        WHERE requested_by = #{userId} AND status IN ('PENDING', 'RUNNING')
+    </select>
+
+    <select id="countActive" resultType="long">
+        SELECT COUNT(*) FROM export_task WHERE status IN ('PENDING', 'RUNNING')
+    </select>
+
+    <select id="countRecords" resultType="long">
+        SELECT COUNT(*)
+        <include refid="recordScope"/>
+    </select>
+
+    <select id="findRecords"
+            resultType="com.aacv.system.export.infrastructure.persistence.ExportRecordRow">
+        SELECT a.id,
+               COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_original, a.title_normalized) AS title,
+               a.doi_normalized AS doi,
+               COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type) AS achievement_type,
+               COALESCE(JSON_UNQUOTE(language_override.field_value), a.language) AS language,
+               COALESCE(
+                   STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
+                   a.publication_date) AS publication_date,
+               canonical_venue.display_name AS primary_venue
+        <include refid="recordScope"/>
+        ORDER BY a.id
+        LIMIT #{limit}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO export_task (
+            id, format, status, filters_json, requested_by, requested_count,
+            exported_count, download_token, created_at, version
+        ) VALUES (
+            #{id}, #{format}, #{status}, CAST(#{filtersJson} AS JSON), #{requestedBy}, #{requestedCount},
+            #{exportedCount}, #{downloadToken}, #{createdAt}, 0
+        )
+    </insert>
+
+    <select id="findById"
+            resultType="com.aacv.system.export.infrastructure.persistence.ExportTaskRow">
+        SELECT id, format, status, CAST(filters_json AS CHAR) AS filters_json,
+               requested_by, requested_count, exported_count, download_token,
+               file_name, file_relative_path, created_at, started_at, completed_at,
+               expires_at, error_code, error_message, version
+        FROM export_task
+        WHERE id = #{taskId}
+    </select>
+
+    <update id="claim">
+        UPDATE export_task
+        SET status = 'RUNNING', started_at = #{startedAt}, version = version + 1
+        WHERE id = #{taskId} AND status = 'PENDING'
+    </update>
+
+    <update id="markSucceeded">
+        UPDATE export_task
+        SET status = 'SUCCEEDED', exported_count = #{exportedCount}, file_name = #{fileName},
+            file_relative_path = #{fileRelativePath}, completed_at = #{completedAt}, expires_at = #{expiresAt},
+            error_code = NULL, error_message = NULL, version = version + 1
+        WHERE id = #{taskId} AND status = 'RUNNING'
+    </update>
+
+    <update id="markFailed">
+        UPDATE export_task
+        SET status = 'FAILED', completed_at = #{completedAt},
+            error_code = #{errorCode}, error_message = #{errorMessage}, version = version + 1
+        WHERE id = #{taskId} AND status IN ('PENDING', 'RUNNING')
+    </update>
+
+    <select id="findRunningIds" resultType="string">
+        SELECT id FROM export_task WHERE status = 'RUNNING'
+        ORDER BY started_at, id
+    </select>
+
+    <select id="findPendingIds" resultType="string">
+        SELECT id FROM export_task WHERE status = 'PENDING'
+        ORDER BY created_at, id
+        LIMIT #{limit}
+    </select>
+
+    <update id="markExpired">
+        UPDATE export_task
+        SET status = 'EXPIRED', version = version + 1
+        WHERE id = #{taskId} AND status = 'SUCCEEDED' AND expires_at &lt;= #{expiredAt}
+    </update>
+</mapper>

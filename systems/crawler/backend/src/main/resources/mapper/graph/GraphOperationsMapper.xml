@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.graph.infrastructure.persistence.GraphOperationsMapper">
+    <select id="countEvents" resultType="long">
+        SELECT COUNT(*) FROM graph_outbox_event
+        <if test="status != null">WHERE status = #{status}</if>
+    </select>
+
+    <select id="findEvents" resultType="com.aacv.system.graph.domain.GraphEventView">
+        SELECT event_id, achievement_id, desired_version, event_type, status, attempts,
+               next_attempt_at, last_error_code AS error_code,
+               last_error_summary AS error_summary, replay_of_event_id,
+               created_at, updated_at, completed_at
+        FROM graph_outbox_event
+        <if test="status != null">WHERE status = #{status}</if>
+        ORDER BY id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="findEvent" resultType="com.aacv.system.graph.domain.GraphEventView">
+        SELECT event_id, achievement_id, desired_version, event_type, status, attempts,
+               next_attempt_at, last_error_code AS error_code,
+               last_error_summary AS error_summary, replay_of_event_id,
+               created_at, updated_at, completed_at
+        FROM graph_outbox_event
+        WHERE event_id = #{eventId}
+    </select>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(*) FROM graph_outbox_event WHERE status = #{status}
+    </select>
+
+    <select id="oldestPendingAgeSeconds" resultType="long">
+        SELECT TIMESTAMPDIFF(SECOND, MIN(created_at), #{now})
+        FROM graph_outbox_event
+        WHERE status IN ('PENDING', 'PROCESSING')
+    </select>
+
+    <select id="lastSucceededAt" resultType="java.time.Instant">
+        SELECT MAX(completed_at) FROM graph_outbox_event WHERE status = 'SUCCEEDED'
+    </select>
+
+    <select id="rebuildInProgress" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM graph_maintenance_run
+            WHERE run_type = 'FULL_REBUILD' AND status IN ('PENDING', 'RUNNING', 'PAUSED')
+        )
+    </select>
+
+    <select id="latestProjectedAt" resultType="java.time.Instant">
+        SELECT MAX(last_projected_at) FROM graph_projection_state
+    </select>
+</mapper>
