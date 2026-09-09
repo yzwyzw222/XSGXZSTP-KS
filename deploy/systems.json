@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "portalPort": 18000,
+  "systems": [
+    {
+      "id": "relation",
+      "name": "学术关系知识图谱构建平台",
+      "description": "围绕论文、作者与机构，探索合作网络、引用影响和研究主题之间的学术关系。",
+      "capabilities": ["关系分析", "合作网络", "知识图谱"],
+      "status": "maintenance",
+      "message": "正在完成独立环境与接入验证，业务入口暂未开放。",
+      "sourceBranch": "feature/Ye",
+      "sourceSha": "184f651b223efe9a07ea6d352146e5df34a537da",
+      "runtime": null
+    },
+    {
+      "id": "extraction",
+      "name": "学术多源实体抽取与学术知识图谱构建",
+      "description": "面向多源学术文本，提取论文、学者与研究实体，组织可查询的结构化学术知识。",
+      "capabilities": ["多源文本", "实体抽取", "知识构建"],
+      "status": "maintenance",
+      "message": "正在核对运行配置与接入条件，业务入口暂未开放。",
+      "sourceBranch": "feature/Du",
+      "sourceSha": "4833b228b5d8756a35433add01dce5072635cdb7",
+      "runtime": null
+    },
+    {
+      "id": "crawler",
+      "name": "学术成果爬虫及可视化系统",
+      "description": "汇集学术成果元数据，支持成果检索、数据治理、关系探索与多维可视化分析。",
+      "capabilities": ["成果采集", "数据治理", "可视化分析"],
+      "status": "maintenance",
+      "message": "正在准备隔离运行环境与统一入口验收，业务入口暂未开放。",
+      "sourceBranch": "feature/Luo",
+      "sourceSha": "3a0127019052c182962d6630981e0acec2d66d53",
+      "runtime": null
+    }
+  ]
+}

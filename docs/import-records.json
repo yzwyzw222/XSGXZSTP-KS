@@ -1,0 +1,9 @@
+{
+  "main": "13683199046793b1f16c02d2d58f899e02b2dcc1",
+  "mainTree": "9e203d74567d68e33c856aa6bc19384cfa462cf6",
+  "imports": [
+    { "id": "relation", "source": "184f651b223efe9a07ea6d352146e5df34a537da", "commit": "7626f539e5845660d2ed7acded5e5f22413f4d29", "tree": "de77a7c355fcff2ef1269f5dc9183deeb2c708d6" },
+    { "id": "extraction", "source": "4833b228b5d8756a35433add01dce5072635cdb7", "commit": "7db54ef81e95b914a281307e58dee56abb32a4d9", "tree": "1be602f41177ad1cf4013cd424aa4c0f9d81b2ce" },
+    { "id": "crawler", "source": "3a0127019052c182962d6630981e0acec2d66d53", "commit": "ea527edef6ca3d0920725c6803bc03b84792ece9", "tree": "3e4a4737584fceab370a087269a3f9ed2501e19e" }
+  ]
+}

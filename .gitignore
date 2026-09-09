@@ -1,0 +1,21 @@
+# 依赖、构建及隔离运行产物
+**/node_modules/
+**/dist/
+**/target/
+**/coverage/
+**/test-results/
+**/playwright-report/
+/.local/
+*.log
+
+# 本机凭据不得进入集成提交
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.yaml
+*.pem
+*.key
+*.p12
+
+# 必要 Markdown 文档正常跟踪，不继承子系统的全局忽略策略。

@@ -1,0 +1,116 @@
+import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
+import { loadConfig, publicConfig, workspacePath } from './config.mjs'
+
+const escapeHtml = value => String(value).replace(/[&<>"']/g, character =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character])
+
+export function maintenanceHtml(system, message = system.message) {
+  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>维护中 · ${escapeHtml(system.name)}</title><style>body{margin:0;background:#f7f7f0;color:#203f36;font-family:Microsoft YaHei,sans-serif;line-height:1.8}main{max-width:680px;margin:12vh auto;padding:32px}small{letter-spacing:.15em;color:#687568}h1{font-size:clamp(24px,5vw,36px);font-weight:500;margin:22px 0}p{color:#687568}a{display:inline-block;margin-top:28px;color:#153e36;text-underline-offset:7px}a:focus-visible{outline:3px solid #886636;outline-offset:6px}.status{display:inline-block;margin:28px 0 0;border:1px solid #d7c9ad;padding:2px 12px;color:#79613a;font-size:13px}hr{border:0;border-top:1px solid #dce1d4;margin:30px 0}</style><main><small>学术系统 · 统一门户</small><br><span class="status">维护中</span><h1>${escapeHtml(system.name)}</h1><p>${escapeHtml(message)}</p><hr><p>该系统尚未开放业务访问。完成接入验证后，门户将更新开放状态。</p><a href="/">← 返回门户</a></main></html>`
+}
+
+function send(request, response, status, type, body) {
+  response.writeHead(status, {
+    'Content-Type': `${type}; charset=utf-8`,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Length': Buffer.byteLength(body),
+    ...(status === 503 ? { 'Retry-After': '300' } : {}),
+  })
+  response.end(request.method === 'HEAD' ? undefined : body)
+}
+
+const unavailable = (system, code) => JSON.stringify({ status: 503, code,
+  system: system?.id ?? null, message: '系统暂不可用，请返回门户查看接入状态。' })
+
+/** 此中间件先于代理和 SPA 回退，配置失效时默认拒绝所有业务入口。 */
+export function createGateway({ root, initialConfig, development = false, readConfig = () => loadConfig(root) }) {
+  return (request, response, next) => {
+    let url
+    let pathname
+    try {
+      if (!request.url?.startsWith('/') || request.url.startsWith('//') || /\\|%2f|%5c|%00/i.test(request.url.split('?')[0])) throw new Error('invalid')
+      url = new URL(request.url, 'http://127.0.0.1')
+      pathname = decodeURIComponent(url.pathname)
+      url.pathname = pathname
+    } catch {
+      return send(request, response, 400, 'application/json', JSON.stringify({ status: 400, code: 'INVALID_PATH' }))
+    }
+    let config
+    let configurationFailure = false
+    try {
+      config = readConfig()
+      configurationFailure = config.revision !== initialConfig.revision
+    } catch {
+      config = initialConfig
+      configurationFailure = true
+    }
+    if (pathname === '/__integration/health') {
+      return send(request, response, configurationFailure ? 503 : 200, 'application/json',
+        JSON.stringify({ status: configurationFailure ? 'CONFIG_CHANGED' : 'UP', revision: config.revision }))
+    }
+    if (pathname === '/integration.json') {
+      if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
+      return send(request, response, 200, 'application/json', JSON.stringify(publicConfig(config)))
+    }
+    const system = config.systems.find(entry => pathname === `/${entry.id}` || pathname.startsWith(`/${entry.id}/`))
+    if (system) {
+      const prefix = `/${system.id}`
+      const api = new RegExp(`^${prefix}/api(?:/|$)`, 'i').test(pathname)
+      if (pathname === prefix) {
+        response.writeHead(308, { Location: `${prefix}/${url.search}`, 'Cache-Control': 'no-store' })
+        return response.end()
+      }
+      if (configurationFailure || system.status !== 'enabled') {
+        if (api || !['GET', 'HEAD'].includes(request.method)) {
+          return send(request, response, 503, 'application/json', unavailable(system, configurationFailure ? 'CONFIG_CHANGED' : 'SYSTEM_MAINTENANCE'))
+        }
+        return send(request, response, 503, 'text/html', maintenanceHtml(system,
+          configurationFailure ? '接入配置已变更或无效，请维护者检查配置并重新启动门户。' : system.message))
+      }
+      request.url = `${url.pathname}${url.search}`
+      if (api || development) return next()
+      try {
+        const dist = workspacePath(root, system.runtime.dist, `systems/${system.id}`)
+        const relative = pathname.slice(prefix.length + 1)
+        const asset = relative ? workspacePath(dist, relative) : path.join(dist, 'index.html')
+        const file = existsSync(asset) && path.extname(asset) ? asset :
+          (path.extname(relative) ? null : path.join(dist, 'index.html'))
+        if (!file || !existsSync(file)) return send(request, response, 404, 'application/json', '{"status":404}')
+        const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
+          '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon',
+          '.woff': 'font/woff', '.woff2': 'font/woff2', '.pdf': 'application/pdf' }[path.extname(file)] ?? 'application/octet-stream'
+        return send(request, response, 200, mime, readFileSync(file))
+      } catch {
+        return send(request, response, 503, 'application/json', unavailable(system, 'ASSET_UNAVAILABLE'))
+      }
+    }
+    if (pathname === '/favicon.ico') { response.writeHead(204); return response.end() }
+    if (/^\/api(?:\/|$)/i.test(pathname)) return send(request, response, 404, 'application/json', '{"status":404,"code":"UNKNOWN_API"}')
+    if (pathname === '/' || pathname === '/index.html' || pathname.startsWith('/assets/') ||
+      (development && /^\/(src\/|@|node_modules\/)/.test(pathname))) return next()
+    return send(request, response, 404, 'text/html', '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><h1>页面不存在</h1><a href="/">返回门户</a></html>')
+  }
+}
+
+export function proxyOptions(config, development) {
+  const proxies = {}
+  for (const system of config.systems.filter(entry => entry.status === 'enabled')) {
+    const prefix = `/${system.id}`
+    const onError = proxy => proxy.on('error', (_error, _request, response) => {
+      if (response && typeof response.writeHead === 'function' && !response.headersSent) {
+        response.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
+        response.end(unavailable(system, 'BACKEND_UNAVAILABLE'))
+      }
+    })
+    proxies[`^${prefix}/[aA][pP][iI](?:/|$)`] = {
+      target: `http://127.0.0.1:${system.runtime.backendPort}`, changeOrigin: false,
+      rewrite: requestPath => requestPath.slice(prefix.length), timeout: 15000, proxyTimeout: 15000, configure: onError,
+    }
+    if (development) proxies[`^${prefix}/`] = {
+      target: `http://127.0.0.1:${system.runtime.frontendPort}`, changeOrigin: false,
+      ws: true, timeout: 15000, proxyTimeout: 15000, configure: onError,
+    }
+  }
+  return proxies
+}
