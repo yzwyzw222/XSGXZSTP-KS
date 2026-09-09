@@ -7,6 +7,7 @@
  */
 import { del, get, post, put, upload } from './http'
 import type { SessionUser } from '../session'
+import { integrated, logoutFromPortal } from '../services/portal-auth'
 
 // ------------------------------------------------------------------
 // 通用分页契约（与后端 PageResponse 对应）：page 从 0 起
@@ -47,7 +48,7 @@ export const authApi = {
   register: (body: RegisterRequest) => post<SessionUser>('/api/v1/auth/register', body),
   login: (body: LoginRequest) => post<SessionUser>('/api/v1/auth/login', body),
   me: () => get<SessionUser>('/api/v1/auth/me'),
-  logout: () => post<void>('/api/v1/auth/logout')
+  logout: () => integrated ? logoutFromPortal() : post<void>('/api/v1/auth/logout')
 }
 
 // ------------------------------------------------------------------

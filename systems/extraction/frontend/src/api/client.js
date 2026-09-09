@@ -1,4 +1,5 @@
-const BASE = '/api/v1'
+const BASE = `${import.meta.env.BASE_URL}api/v1`
+import { integrated, redirectToPortal } from '../services/portal-auth.js'
 const API_TIMEOUT = 12000
 
 let csrfToken = null
@@ -45,6 +46,7 @@ async function request(path, options = {}) {
     }
 
     if (!res.ok) {
+      if (res.status === 401 && integrated) redirectToPortal()
       let body
       try {
         body = await res.json()

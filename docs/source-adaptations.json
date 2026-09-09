@@ -1,0 +1,260 @@
+{
+  "relation": [
+    {
+      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/bootstrap/DataInitializer.java",
+      "sourceBlob": "e700cee447bf90556f247a10d112a0ca6040d230",
+      "adaptedBlob": "ae2e366f8f6490a0c327306b6446b5b079441413"
+    },
+    {
+      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/security/SecurityConfig.java",
+      "sourceBlob": "6bb6aea260bbb04466f548a8d41e4751b06686a3",
+      "adaptedBlob": "736295611966d128298e8db94dee52e1971cd2e5"
+    },
+    {
+      "path": "frontend/src/App.vue",
+      "sourceBlob": "cd9578a26318d7bd8e4cee2f940bde95772fce17",
+      "adaptedBlob": "e5373f074ac71d48dbcad0927f3cb6c71f4d2150"
+    },
+    {
+      "path": "frontend/src/api/http.ts",
+      "sourceBlob": "1a5bf4c4f0e58f67336512da3d6cbd5bcc187c07",
+      "adaptedBlob": "b53446e89360f654c43cc9dc43b4278a99668475"
+    },
+    {
+      "path": "frontend/src/main.ts",
+      "sourceBlob": "3743c50749ce9526d8f7510b5c7a40ee23268ba5",
+      "adaptedBlob": "25c79f3036a8165781e0389383d45699972491e1"
+    },
+    {
+      "path": "frontend/src/router/index.ts",
+      "sourceBlob": "2e25d7a14e76115e6738614102c418fac19b5f65",
+      "adaptedBlob": "fe9b186516b76a7d623f136113e3d6fa8c45f3fa"
+    },
+    {
+      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationAdminBootstrap.java",
+      "sourceBlob": null,
+      "adaptedBlob": "763ea4944c47e95b34c70f8ac4bbfd2e165ae714"
+    },
+    {
+      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationHealthController.java",
+      "sourceBlob": null,
+      "adaptedBlob": "d32200b3840854b8388c682ba4875b94870ba4d8"
+    },
+    {
+      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/PortalAuthenticationFilter.java",
+      "sourceBlob": null,
+      "adaptedBlob": "57eaf5088ab409363c17a0913cb34ceb539a9609"
+    },
+    {
+      "path": "backend/src/test/java/com/xsyu/academicgraph/infrastructure/integration/PortalAuthenticationFilterTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "d7767f6d557f3ce34bc363ae37200d26570fb60f"
+    },
+    {
+      "path": "frontend/src/services/portal-auth.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "d1560f8a0c99c23e8269d40fbd270aa15d657dd2"
+    },
+    {
+      "path": "backend/src/main/java/com/xsyu/academicgraph/api/auth/AuthController.java",
+      "sourceBlob": "d1b8f9d818b74d1e40fb51217290d792b6755c2b",
+      "adaptedBlob": "51755e24797d03960f0a7278a82cf819b3f544bf"
+    },
+    {
+      "path": "frontend/src/api/index.ts",
+      "sourceBlob": "547134b7f9b2f74c347a20faa7ac68b7e6ee4444",
+      "adaptedBlob": "e5bb7196d37dacaf9c7e766f8712a306fff1fdf0"
+    },
+    {
+      "path": "frontend/src/views/LayoutView.vue",
+      "sourceBlob": "bc53289490f70568d793b52c0c5854364e8020e3",
+      "adaptedBlob": "5b666b1a4dd409b945bc3428edb0d7b122eb8e91"
+    }
+  ],
+  "extraction": [
+    {
+      "path": "frontend/src/App.vue",
+      "sourceBlob": "98240aef8109abb6b658cd4d7c5cd21106cb354e",
+      "adaptedBlob": "65dd9456acb51547c513307186413bd7eb1a1cae"
+    },
+    {
+      "path": "frontend/src/api/client.js",
+      "sourceBlob": "4daa7ca367a908a1df5e9de6e9097a552ddd2a0e",
+      "adaptedBlob": "aad2027cd34f21820e4740beeae94ffd516ce408"
+    },
+    {
+      "path": "frontend/src/main.js",
+      "sourceBlob": "cf9a64be7b81f14fcfebe12e1dcc4a3534110c18",
+      "adaptedBlob": "6fe37e9177f1855662153042830860ce2e2812fb"
+    },
+    {
+      "path": "frontend/src/router/index.js",
+      "sourceBlob": "92bef7273e21f351dc6eb63a14d7c2891561e065",
+      "adaptedBlob": "263cba81481d43879ada5f2fce5212ef842a2542"
+    },
+    {
+      "path": "pom.xml",
+      "sourceBlob": "ac60c061ab28b59887b050fae5113e1cab974d16",
+      "adaptedBlob": "bc2ece006aeb1950331985087205688d46997f8d"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/config/SecurityConfig.java",
+      "sourceBlob": "45e0ecbcccf24e12a783d45de82ee1e0f36b65fe",
+      "adaptedBlob": "98c63a6dc5301023910166d467019241cca70b47"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/exception/GlobalExceptionHandler.java",
+      "sourceBlob": "dfc4d60dd0cf7434ba4aef8e5f2843951e265086",
+      "adaptedBlob": "d053f37100396cc1e028bab4798f8c3b90306090"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/IntegrationHealthController.java",
+      "sourceBlob": null,
+      "adaptedBlob": "10f84a78b4f101e754692d3987d9fd164936f28c"
+    },
+    {
+      "path": "frontend/src/services/portal-auth.js",
+      "sourceBlob": null,
+      "adaptedBlob": "95159d30e47aa5aac4f011896458706252e82c9e"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/PortalAuthenticationFilter.java",
+      "sourceBlob": null,
+      "adaptedBlob": "b4f222ebb5e74c679bf9fe24a6ea1ad6d3204d81"
+    },
+    {
+      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/PortalAuthenticationFilterTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "7c59a6fcd7af4186aeec0163f254854c233febc7"
+    },
+    {
+      "path": "frontend/src/composables/useAuth.js",
+      "sourceBlob": "bf8a2ef70ffd7bfc5d7c4e3ee1da303fb69a6374",
+      "adaptedBlob": "535718e683f9eaf0b5955dc57ce31603452b10b2"
+    },
+    {
+      "path": "frontend/src/layout/Topbar.vue",
+      "sourceBlob": "0b2af972390e3f2c825dd9393f8d0c2375b51d8b",
+      "adaptedBlob": "5fd87ff6f43c4d15bd6f65462c793843c9619e1f"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/api/controller/SessionController.java",
+      "sourceBlob": "f08c79f457035cc626be8450a993c4acc940f821",
+      "adaptedBlob": "521b7855277f689b8eae6a8d3d17c550fc3f2d65"
+    }
+  ],
+  "crawler": [
+    {
+      "path": "frontend/src/App.vue",
+      "sourceBlob": "7cc481014f93672306cb218531e6821f74b6aa7d",
+      "adaptedBlob": "292a4e69af037e4bb00b45fefd8a3365af072e80"
+    },
+    {
+      "path": "frontend/src/router/index.ts",
+      "sourceBlob": "6e81f23792a79d624fb5d46158a205f330881e65",
+      "adaptedBlob": "6f2b512db9b0a23f61c21e1390c976b2a24dda2c"
+    },
+    {
+      "path": "frontend/src/services/http.ts",
+      "sourceBlob": "c5b1a1dc033c8ccf2426817ede7e8bbe8db5fc2f",
+      "adaptedBlob": "510dc70cfede57e22c0eaeb399b43e34c80ded48"
+    },
+    {
+      "path": "frontend/src/services/portal-auth.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "75f356b1e56ac94e879b651817c896281037c6e9"
+    },
+    {
+      "path": "frontend/src/layouts/BusinessLayout.vue",
+      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
+      "adaptedBlob": "b0149324cdeb341f0a337bd89e4593ac5d448178"
+    },
+    {
+      "path": "frontend/src/stores/session.ts",
+      "sourceBlob": "ce69310b16953b74a59ebd9c6aa9daede7b19104",
+      "adaptedBlob": "dd154cac97d076604036fc4f38cabe31b25d91dc"
+    }
+  ],
+  "scholar": [
+    {
+      "path": "web/backend/src/main/java/com/aacv/api/auth/AuthController.java",
+      "sourceBlob": "4ecc100db561b8379e86687102e4a2866924c511",
+      "adaptedBlob": "ff979a9aaae009ce35aff65c02546fa138ac5cb2"
+    },
+    {
+      "path": "web/backend/src/main/java/com/aacv/config/DataInitializer.java",
+      "sourceBlob": "ebd4a74698ecf8323618788a17587a0a99ec142a",
+      "adaptedBlob": "460dbde4706dd3d4c4a8bc3f47d485f00b01f811"
+    },
+    {
+      "path": "web/src/App.vue",
+      "sourceBlob": "95bdf78632e24957abe6c248109a6b32a6aa189f",
+      "adaptedBlob": "4747ced6b9cdb89a7635b804f2aef7ed2c6f0bd0"
+    },
+    {
+      "path": "web/src/api/request.js",
+      "sourceBlob": "ea1eb6c9059c62734765c34d9c419400ac6a8445",
+      "adaptedBlob": "7deaceb9bed84a35ed0b139f354b2f6179648f2c"
+    },
+    {
+      "path": "web/src/components/layout/AppLayout.vue",
+      "sourceBlob": "d7214c548738595d49b6e4713e6c8abcbf9e45b9",
+      "adaptedBlob": "6d729c5cc504fa68e7ab1101d33bb23d61c11177"
+    },
+    {
+      "path": "web/src/router/index.js",
+      "sourceBlob": "60625b370a0ffc87263ef592072cdef703be0db1",
+      "adaptedBlob": "17d96cd66af14e6d6758f3877a15cfd41f2bc0ab"
+    },
+    {
+      "path": "web/src/views/ScholarGraph.vue",
+      "sourceBlob": "c66238cefc0a11a84ccac308953a6099506e8f30",
+      "adaptedBlob": "085ccd5c2fc4f69a93a56451150e7eb7086b9710"
+    },
+    {
+      "path": "web/backend/src/main/java/com/aacv/config/IntegrationAdminBootstrap.java",
+      "sourceBlob": null,
+      "adaptedBlob": "cc4fae9eefddd9e3ce5381817b85c6a63f011642"
+    },
+    {
+      "path": "web/backend/src/main/java/com/aacv/config/IntegrationHealthController.java",
+      "sourceBlob": null,
+      "adaptedBlob": "158eb23d321bf49d89070741b44489832c01af79"
+    },
+    {
+      "path": "web/backend/src/main/java/com/aacv/config/SecurityConfig.java",
+      "sourceBlob": "4b2fbe4e20fc8c85b79de4f6dd062afe15299d53",
+      "adaptedBlob": "f7112bd5ec072fa6a62917d0699d84a60148e5ff"
+    },
+    {
+      "path": "web/backend/src/main/java/com/aacv/infrastructure/integration/PortalAuthenticationFilter.java",
+      "sourceBlob": null,
+      "adaptedBlob": "3ab352d7e92d4cb85b14ece4739c5c3284fae147"
+    },
+    {
+      "path": "web/backend/src/main/java/com/aacv/infrastructure/security/SessionUser.java",
+      "sourceBlob": "2356c65e269b4e4210981bdb557f4f3a8173a391",
+      "adaptedBlob": "77db7e02623acb25edf9ee42da918b251dd685a3"
+    },
+    {
+      "path": "web/backend/src/test/java/com/aacv/infrastructure/integration/PortalAuthenticationFilterTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "a30fb8e1c5e57984a93d5af3e7a80869e018842a"
+    },
+    {
+      "path": "web/src/components/layout/AppTopbar.vue",
+      "sourceBlob": "be85d54e77dc0211b1471b119c497d7bcc0b80c5",
+      "adaptedBlob": "7c36cebc6b13f2d89e40ef845a75cb4239461f4e"
+    },
+    {
+      "path": "web/src/composables/useSession.js",
+      "sourceBlob": "e9075625a9c176f27221e5d469296ad4a593a9c3",
+      "adaptedBlob": "a626f1b6d72bab231ab8663261e7071adc444075"
+    },
+    {
+      "path": "web/src/services/portal-auth.js",
+      "sourceBlob": null,
+      "adaptedBlob": "d28938c2a8d0d3a389d6090215ca8302c262de5e"
+    }
+  ]
+}

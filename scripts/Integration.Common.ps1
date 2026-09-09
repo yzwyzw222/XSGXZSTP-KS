@@ -54,7 +54,8 @@ function Test-IntegrationIdentity {
     $process = Get-Process -Id $Record.pid -ErrorAction SilentlyContinue
     if (-not $process) { return $false }
     $details = Get-CimInstance Win32_Process -Filter "ProcessId = $($Record.pid)" -ErrorAction Stop
-    if (-not $details -or -not $details.CommandLine) { throw "无法核对 $($Record.id) 的进程参数，拒绝操作。" }
+    if (-not $details) { return $false }
+    if (-not $details.CommandLine) { throw "无法核对 $($Record.id) 的进程参数，拒绝操作。" }
     return $process.StartTime.ToUniversalTime().Ticks.ToString() -eq $Record.createdTicks -and
         $details.ExecutablePath -eq $Record.executable -and $details.CommandLine -eq $Record.commandLine
 }
@@ -69,6 +70,7 @@ function Start-IntegrationProcess {
     $command = (Get-Command $Executable -ErrorAction Stop).Source
     # 参数经过配置校验，并独立加引号；不启动 cmd 或按进程名称批量结束。
     $argumentLine = ($Arguments | ForEach-Object {
+        $_ = $_.Replace('{workspace}', $script:IntegrationRoot.Replace('\', '/'))
         if ($_ -match '["\r\n]') { throw '参数包含不支持的引号或换行。' }
         '"' + $_.TrimEnd('\') + '"'
     }) -join ' '
@@ -90,7 +92,7 @@ function Start-IntegrationProcess {
 }
 
 function Wait-IntegrationReady {
-    param($Record, [string]$Url, [string]$Revision = '', [int]$TimeoutSeconds = 30)
+    param($Record, [string]$Url, [string]$Revision = '', [int]$TimeoutSeconds = 90)
     $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
         if (-not (Test-IntegrationIdentity $Record)) { throw "$($Record.id) 已退出或进程身份发生变化。" }

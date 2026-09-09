@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -82,9 +84,12 @@ public class SessionController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> me(HttpSession session, HttpServletRequest request) {
-        String user = (String) session.getAttribute("user");
-        String role = (String) session.getAttribute("role");
+    public ResponseEntity<?> me(Authentication authentication, HttpServletRequest request) {
+        String user = authentication != null && authentication.isAuthenticated()
+                && !(authentication instanceof AnonymousAuthenticationToken) ? authentication.getName() : null;
+        String role = user == null ? null : authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority()).filter(authority -> authority.startsWith("ROLE_"))
+                .map(authority -> authority.substring(5)).findFirst().orElse("RESEARCHER");
         if (user == null) {
             ProblemDetail problem = ProblemDetail.builder()
                     .status(HttpStatus.UNAUTHORIZED.value())

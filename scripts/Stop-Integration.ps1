@@ -1,4 +1,4 @@
-param([ValidateSet('all', 'portal', 'relation', 'extraction', 'crawler')][string]$System = 'all')
+param([ValidateSet('all', 'portal', 'relation', 'extraction', 'crawler', 'scholar')][string]$System = 'all')
 . (Join-Path $PSScriptRoot 'Integration.Common.ps1')
 
 # 停止依赖所属进程记录，不依赖当前接入配置仍然有效。

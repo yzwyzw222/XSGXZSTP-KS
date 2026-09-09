@@ -4,7 +4,11 @@ import test from 'node:test'
 import { loadConfig, publicConfig, startupPlan, validateConfig, workspacePath, rootDirectory } from '../lib/config.mjs'
 import { renderNginx } from '../lib/nginx.mjs'
 
-const fixture = () => JSON.parse(readFileSync(new URL('../../deploy/systems.json', import.meta.url), 'utf8'))
+const fixture = () => {
+  const config = JSON.parse(readFileSync(new URL('../../deploy/systems.json', import.meta.url), 'utf8'))
+  config.systems.forEach(system => { system.status = 'maintenance'; system.runtime = null })
+  return config
+}
 export function enable(system) {
   system.status = 'enabled'
   system.runtime = {
@@ -17,12 +21,12 @@ export function enable(system) {
   return system
 }
 
-test('当前配置有三个完整名称，全部维护中；公开配置不泄漏运行命令', () => {
+test('当前配置包含四个完整系统；公开配置不泄漏运行命令', () => {
   const config = loadConfig()
-  assert.equal(config.systems.length, 3)
-  assert.ok(config.systems.every(system => system.name.length > 8 && system.status === 'maintenance'))
+  assert.equal(config.systems.length, 4)
+  assert.ok(config.systems.every(system => system.name.length > 8))
   assert.ok(publicConfig(config).systems.every(system => !('runtime' in system) && !('sourceSha' in system)))
-  assert.deepEqual(startupPlan(config).processes, [])
+  assert.equal(startupPlan(config).processes.length, config.systems.filter(system => system.status === 'enabled').length)
 })
 
 test('空、缺失、重复、未知和错误状态配置均拒绝启动', () => {
@@ -46,7 +50,8 @@ test('启用要求验收 SHA、隔离端口及直接进程配置', () => {
   assert.equal(startupPlan(config, 'portal').processes.length, 0)
   for (const mutate of [runtime => { runtime.acceptanceSha = '0'.repeat(40) },
     runtime => { runtime.backendPort = 18000 }, runtime => { runtime.frontend.executable = 'cmd' },
-    runtime => { runtime.backend.cwd = '../another-project' }, runtime => { runtime.dist = 'elsewhere' }]) {
+    runtime => { runtime.backend.cwd = '../another-project' }, runtime => { runtime.dist = 'elsewhere' },
+    runtime => { runtime.contextPath = '/other' }]) {
     const invalid = structuredClone(config)
     mutate(invalid.systems[0].runtime)
     assert.throws(() => validateConfig(invalid), /接入配置错误/)
@@ -65,12 +70,22 @@ test('路径遍历和绝对路径被拒绝', () => {
 })
 
 test('维护 Nginx 配置没有上游，API 匹配先于页面，保留查询参数', () => {
-  const nginx = renderNginx(loadConfig(), rootDirectory)
+  const nginx = renderNginx(fixture(), rootDirectory)
   assert.ok(!nginx.includes('proxy_pass'))
-  assert.equal((nginx.match(/SYSTEM_MAINTENANCE/g) ?? []).length, 3)
-  for (const id of ['relation', 'extraction', 'crawler']) {
-    assert.ok(nginx.indexOf(`^/${id}/api`) < nginx.indexOf(`location /${id}/`))
+  assert.equal((nginx.match(/SYSTEM_MAINTENANCE/g) ?? []).length, 4)
+  for (const id of ['relation', 'extraction', 'crawler', 'scholar']) {
+    assert.ok(nginx.indexOf(`^/${id}/(?:api|actuator)`) < nginx.indexOf(`location /${id}/`))
     assert.ok(nginx.includes(`/${id}/$is_args$args`))
   }
   assert.ok(nginx.includes('listen 127.0.0.1:18000'))
+})
+
+test('启用 Nginx 配置保留后端上下文与 Host，Actuator 不回退为页面', () => {
+  const config = fixture()
+  enable(config.systems[0]).runtime.contextPath = '/relation'
+  const nginx = renderNginx(config, rootDirectory)
+  assert.ok(nginx.includes('proxy_pass http://127.0.0.1:18081'))
+  assert.ok(nginx.includes('proxy_set_header Host $http_host'))
+  assert.ok(!nginx.includes('rewrite ^/relation'))
+  assert.ok(nginx.indexOf('^/relation/(?:api|actuator)') < nginx.indexOf('location /relation/'))
 })

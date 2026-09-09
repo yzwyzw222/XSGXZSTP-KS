@@ -57,6 +57,7 @@ public class AuthController {
     /** 当前登录用户信息：前端刷新页面后用这个接口恢复会话状态 */
     @GetMapping("/me")
     public SessionUserResponse me(Authentication authentication) {
+        if (authentication.getDetails() instanceof SessionUserResponse portalUser) return portalUser;
         return authService.currentUser(authentication.getName());
     }
 

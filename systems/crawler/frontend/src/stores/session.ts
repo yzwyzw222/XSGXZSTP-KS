@@ -12,6 +12,7 @@ import {
 import { runSessionCleanups } from '@/services/session-scope'
 import { cancelSessionRequests } from '@/services/http'
 import type { CurrentUser, Permission } from '@/types/api'
+import { integrated, logoutFromPortal } from '@/services/portal-auth'
 
 export type SessionStatus = 'unknown' | 'loading' | 'authenticated' | 'anonymous'
 
@@ -154,7 +155,8 @@ export const useSessionStore = defineStore('session', () => {
     await enqueueAuth(async () => {
       clearCsrfToken()
       try {
-        await api.post<void>('/api/v1/auth/logout')
+        if (integrated) await logoutFromPortal()
+        else await api.post<void>('/api/v1/auth/logout')
       } finally {
         clearCsrfToken()
         resetUnauthorizedLatch()

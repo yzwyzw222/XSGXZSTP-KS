@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * CommandLineRunner 在应用启动完成后执行，包在事务里保证"要么建全、要么不建"。
  */
 @Component
+@Profile("!integration")
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 

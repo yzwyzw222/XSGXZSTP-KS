@@ -1,13 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../composables/useAuth.js'
+import { integrated, redirectToPortal } from '../services/portal-auth.js'
 
 const routes = [
+  ...(integrated ? [] : [
   {
     path: '/login',
     name: 'Login',
     component: () => import('../views/LoginView.vue'),
     meta: { guest: true }
   },
+  ]),
   {
     path: '/',
     component: () => import('../layout/AppLayout.vue'),
@@ -26,12 +29,13 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes
 })
 
 router.beforeEach((to) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, unavailable } = useAuth()
+  if (integrated && !isAuthenticated.value) { redirectToPortal(to.fullPath, unavailable.value); return false }
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     return { name: 'Login' }
   }

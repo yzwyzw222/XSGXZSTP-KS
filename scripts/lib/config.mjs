@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const rootDirectory = fileURLToPath(new URL('../../', import.meta.url))
-export const systemIds = ['relation', 'extraction', 'crawler']
+export const systemIds = ['relation', 'extraction', 'crawler', 'scholar']
 const statuses = ['maintenance', 'enabled']
 
 function requireValue(condition, message) {
@@ -35,7 +35,7 @@ export function validateConfig(config) {
     ports.add(value)
   }
   port(config.portalPort)
-  requireValue(Array.isArray(config.systems) && config.systems.length === 3, '必须配置三个系统')
+  requireValue(Array.isArray(config.systems) && config.systems.length === systemIds.length, '必须配置四个系统')
   for (const id of systemIds) {
     const matches = config.systems.filter(system => system?.id === id)
     requireValue(matches.length === 1, `${id} 缺失或重复`)
@@ -46,13 +46,14 @@ export function validateConfig(config) {
     requireValue(Array.isArray(system.capabilities) && system.capabilities.length === 3 &&
       system.capabilities.every(value => typeof value === 'string' && value.trim()), `${id} 功能说明无效`)
     requireValue(statuses.includes(system.status), `${id} 状态无效`)
-    requireValue(/^feature\/[A-Za-z]+$/.test(system.sourceBranch) && /^[0-9a-f]{40}$/.test(system.sourceSha), `${id} 来源无效`)
+    requireValue(/^(?:feature\/)?[A-Za-z]+$/.test(system.sourceBranch) && /^[0-9a-f]{40}$/.test(system.sourceSha), `${id} 来源无效`)
     if (system.status === 'maintenance') continue
     const runtime = system.runtime
     requireValue(runtime && typeof runtime === 'object', `${id} 缺少接入运行配置`)
     requireValue(runtime.acceptanceSha === system.sourceSha, `${id} 验收来源与同步来源不一致`)
     requireValue(typeof runtime.acceptance === 'string' && /^docs\/[\w/-]+\.md$/.test(runtime.acceptance), `${id} 缺少验收记录路径`)
-    requireValue(runtime.dist === `systems/${id}/frontend/dist`, `${id} 构建目录无效`)
+    requireValue(runtime.dist === `systems/${id}/${id === 'scholar' ? 'web' : 'frontend'}/dist`, `${id} 构建目录无效`)
+    requireValue(runtime.contextPath === undefined || runtime.contextPath === `/${id}`, `${id} 后端上下文路径无效`)
     requireValue(typeof runtime.readinessPath === 'string' && /^\/[\w/-]+$/.test(runtime.readinessPath), `${id} 就绪路径无效`)
     port(runtime.backendPort)
     port(runtime.frontendPort)
@@ -99,6 +100,7 @@ export function startupPlan(config, selected = 'all', mode = 'Demo') {
     processes: enabled.flatMap(system => {
       const runtime = system.runtime
       const backend = { ...runtime.backend, id: `${system.id}-backend`, system: system.id,
+        args: [...runtime.backend.args, ...(system.id !== 'crawler' ? [`--integration.portal-url=http://127.0.0.1:${config.portalPort}`] : [])],
         port: runtime.backendPort, readinessUrl: `http://127.0.0.1:${runtime.backendPort}${runtime.readinessPath}` }
       return mode === 'Demo' ? [backend] : [backend, { ...runtime.frontend, id: `${system.id}-frontend`,
         system: system.id, port: runtime.frontendPort, readinessUrl: `http://127.0.0.1:${runtime.frontendPort}/${system.id}/` }]

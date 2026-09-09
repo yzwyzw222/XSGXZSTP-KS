@@ -8,6 +8,7 @@
  *  - 401 处理：自动清空会话状态，由页面路由跳回登录。
  */
 import { clearSession, getCsrfToken, setCsrfToken } from '../session'
+import { integrated, redirectToPortal } from '../services/portal-auth'
 
 const TIMEOUT_MS = 12_000
 
@@ -77,7 +78,7 @@ export async function request<T>(
   }
 
   try {
-    const res = await fetch(path, {
+    const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, '')}${path}`, {
       method,
       headers,
       body: formData !== undefined ? formData : (body !== undefined ? JSON.stringify(body) : undefined),
@@ -106,6 +107,7 @@ export async function request<T>(
       if (res.status === 401) {
         // 会话失效：清空内存态会话，路由守卫会引导回登录页
         clearSession()
+        if (integrated) redirectToPortal()
       }
       throw new ApiError(res.status, problem, `请求失败（${res.status}）`)
     }

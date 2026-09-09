@@ -7,10 +7,12 @@
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import { getCurrentUser } from '../session'
+import { integrated, redirectToPortal } from '../services/portal-auth'
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    ...(integrated ? [] : [
     {
       path: '/login',
       name: 'login',
@@ -23,6 +25,7 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
       meta: { public: true, title: '注册' }
     },
+    ]),
     {
       path: '/',
       component: () => import('../views/LayoutView.vue'),
@@ -48,6 +51,8 @@ const router = createRouter({
 
 // 前置守卫：登录/注册直接放行；受保护页面依赖内存会话状态（由登录流程或刷新时 /auth/me 恢复）
 router.beforeEach((to) => {
+  if (integrated && to.path === '/admin') { window.location.assign('/crawler/users'); return false }
+  if (integrated && getCurrentUser() === null) { redirectToPortal(to.fullPath); return false }
   if (to.meta.public) {
     return true
   }

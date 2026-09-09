@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { integrated, redirectToPortal } from '@/services/portal-auth'
 import { ElDrawer, ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
@@ -29,10 +30,11 @@ async function handleLogout(): Promise<void> {
   loggingOut.value = true
   try {
     await sessionStore.logout()
-    await router.replace({ name: 'login' })
+    if (integrated) redirectToPortal()
+    else await router.replace({ name: 'login' })
   } catch {
     ElMessage.warning('服务端退出请求未完成，本地会话已清除')
-    await router.replace({ name: 'login' })
+    if (!integrated) await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
   }

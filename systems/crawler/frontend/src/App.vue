@@ -6,6 +6,7 @@ import { watch } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
+import { integrated, redirectToPortal } from '@/services/portal-auth'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
@@ -13,6 +14,7 @@ const { expired } = storeToRefs(sessionStore)
 
 // 业务请求返回 401 时由请求层置位 expired，这里统一跳转到会话过期页。
 watch(expired, (value) => {
+  if (value && integrated) { redirectToPortal(); return }
   if (value && router.currentRoute.value.name !== 'session-expired') {
     void router.replace({ name: 'session-expired' })
   }
@@ -23,5 +25,11 @@ watch(expired, (value) => {
   <!-- 通过 ConfigProvider 下发中文语言包，避免全量注册 Element Plus 带来的体积增长。 -->
   <ElConfigProvider :locale="zhCn">
     <RouterView />
+  <a class="integration-return" href="/">← 统一门户</a>
   </ElConfigProvider>
 </template>
+
+<style scoped>
+.integration-return { position: fixed; right: 16px; bottom: 16px; z-index: 999; padding: 8px 14px; border: 1px solid #507eac; border-radius: 6px; background: #102943; color: #e7f3ff; font-size: 13px; text-decoration: none; }
+.integration-return:focus-visible { outline: 2px solid #90c9ff; outline-offset: 3px; }
+</style>

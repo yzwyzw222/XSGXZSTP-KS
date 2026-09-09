@@ -6,34 +6,201 @@
       "id": "relation",
       "name": "学术关系知识图谱构建平台",
       "description": "围绕论文、作者与机构，探索合作网络、引用影响和研究主题之间的学术关系。",
-      "capabilities": ["关系分析", "合作网络", "知识图谱"],
-      "status": "maintenance",
-      "message": "正在完成独立环境与接入验证，业务入口暂未开放。",
+      "capabilities": [
+        "关系分析",
+        "合作网络",
+        "知识图谱"
+      ],
+      "status": "enabled",
+      "message": "本地服务已启用，可登录使用。",
       "sourceBranch": "feature/Ye",
       "sourceSha": "184f651b223efe9a07ea6d352146e5df34a537da",
-      "runtime": null
+      "runtime": {
+        "acceptance": "docs/relation-acceptance.md",
+        "acceptanceSha": "184f651b223efe9a07ea6d352146e5df34a537da",
+        "dist": "systems/relation/frontend/dist",
+        "backendPort": 18081,
+        "frontendPort": 5174,
+        "contextPath": "/relation",
+        "readinessPath": "/relation/api/integration/health",
+        "backend": {
+          "executable": "java",
+          "cwd": "systems/relation/backend",
+          "args": [
+            "-Xms128m",
+            "-Xmx512m",
+            "-Djava.io.tmpdir={workspace}/.local/integration-runtime/relation/tmp",
+            "-Djdk.net.unixdomain.tmpdir={workspace}/.local/integration-runtime/relation/tmp",
+            "-jar",
+            "target/academic-graph-0.0.1-SNAPSHOT.jar",
+            "--spring.config.additional-location=file:{workspace}/.local/integration-runtime/relation/application.properties"
+          ]
+        },
+        "frontend": {
+          "executable": "node",
+          "cwd": "systems/relation/frontend",
+          "args": [
+            "node_modules/vite/bin/vite.js",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "5174",
+            "--strictPort",
+            "--base",
+            "/relation/"
+          ]
+        }
+      }
     },
     {
       "id": "extraction",
       "name": "学术多源实体抽取与学术知识图谱构建",
       "description": "面向多源学术文本，提取论文、学者与研究实体，组织可查询的结构化学术知识。",
-      "capabilities": ["多源文本", "实体抽取", "知识构建"],
-      "status": "maintenance",
-      "message": "正在核对运行配置与接入条件，业务入口暂未开放。",
+      "capabilities": [
+        "多源文本",
+        "实体抽取",
+        "知识构建"
+      ],
+      "status": "enabled",
+      "message": "本地服务已启用，可登录使用。",
       "sourceBranch": "feature/Du",
       "sourceSha": "4833b228b5d8756a35433add01dce5072635cdb7",
-      "runtime": null
+      "runtime": {
+        "acceptance": "docs/extraction-acceptance.md",
+        "acceptanceSha": "4833b228b5d8756a35433add01dce5072635cdb7",
+        "dist": "systems/extraction/frontend/dist",
+        "backendPort": 18082,
+        "frontendPort": 5175,
+        "contextPath": "/extraction",
+        "readinessPath": "/extraction/api/integration/health",
+        "backend": {
+          "executable": "java",
+          "cwd": "systems/extraction",
+          "args": [
+            "-Xms128m",
+            "-Xmx512m",
+            "-Djava.io.tmpdir={workspace}/.local/integration-runtime/extraction/tmp",
+            "-Djdk.net.unixdomain.tmpdir={workspace}/.local/integration-runtime/extraction/tmp",
+            "-jar",
+            "target/academic_entity_extract_kg_construction-0.0.1-SNAPSHOT.jar",
+            "--spring.config.additional-location=file:{workspace}/.local/integration-runtime/extraction/application.properties"
+          ]
+        },
+        "frontend": {
+          "executable": "node",
+          "cwd": "systems/extraction/frontend",
+          "args": [
+            "node_modules/vite/bin/vite.js",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "5175",
+            "--strictPort",
+            "--base",
+            "/extraction/"
+          ]
+        }
+      }
     },
     {
       "id": "crawler",
       "name": "学术成果爬虫及可视化系统",
       "description": "汇集学术成果元数据，支持成果检索、数据治理、关系探索与多维可视化分析。",
-      "capabilities": ["成果采集", "数据治理", "可视化分析"],
-      "status": "maintenance",
-      "message": "正在准备隔离运行环境与统一入口验收，业务入口暂未开放。",
+      "capabilities": [
+        "成果采集",
+        "数据治理",
+        "可视化分析"
+      ],
+      "status": "enabled",
+      "message": "本地服务已启用，可登录使用。",
       "sourceBranch": "feature/Luo",
       "sourceSha": "3a0127019052c182962d6630981e0acec2d66d53",
-      "runtime": null
+      "runtime": {
+        "acceptance": "docs/crawler-acceptance.md",
+        "acceptanceSha": "3a0127019052c182962d6630981e0acec2d66d53",
+        "dist": "systems/crawler/frontend/dist",
+        "backendPort": 18083,
+        "frontendPort": 5176,
+        "contextPath": "/crawler",
+        "readinessPath": "/crawler/actuator/health/readiness",
+        "backend": {
+          "executable": "java",
+          "cwd": "systems/crawler/backend",
+          "args": [
+            "-Xms128m",
+            "-Xmx512m",
+            "-Djava.io.tmpdir={workspace}/.local/integration-runtime/crawler/tmp",
+            "-Djdk.net.unixdomain.tmpdir={workspace}/.local/integration-runtime/crawler/tmp",
+            "-jar",
+            "target/system-0.0.1-SNAPSHOT.jar",
+            "--spring.config.additional-location=file:{workspace}/.local/integration-runtime/crawler/application.properties"
+          ]
+        },
+        "frontend": {
+          "executable": "node",
+          "cwd": "systems/crawler/frontend",
+          "args": [
+            "node_modules/vite/bin/vite.js",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "5176",
+            "--strictPort",
+            "--base",
+            "/crawler/"
+          ]
+        }
+      }
+    },
+    {
+      "id": "scholar",
+      "name": "学术成果知识图谱构建平台",
+      "description": "整合学者画像、成果图谱、作者与机构检索，支持科研成果查询与分析。",
+      "capabilities": [
+        "学者画像",
+        "成果图谱",
+        "科研分析"
+      ],
+      "status": "enabled",
+      "message": "本地服务已启用，可登录使用。",
+      "sourceBranch": "Li",
+      "sourceSha": "f11b0b8d99f37e8e971aa86661d0ba59a21fbd9d",
+      "runtime": {
+        "acceptance": "docs/scholar-acceptance.md",
+        "acceptanceSha": "f11b0b8d99f37e8e971aa86661d0ba59a21fbd9d",
+        "dist": "systems/scholar/web/dist",
+        "backendPort": 18084,
+        "frontendPort": 5177,
+        "contextPath": "/scholar",
+        "readinessPath": "/scholar/api/integration/health",
+        "backend": {
+          "executable": "java",
+          "cwd": "systems/scholar/web/backend",
+          "args": [
+            "-Xms128m",
+            "-Xmx512m",
+            "-Djava.io.tmpdir={workspace}/.local/integration-runtime/scholar/tmp",
+            "-Djdk.net.unixdomain.tmpdir={workspace}/.local/integration-runtime/scholar/tmp",
+            "-jar",
+            "target/aacv-backend-0.1.0.jar",
+            "--spring.config.additional-location=file:{workspace}/.local/integration-runtime/scholar/application.properties"
+          ]
+        },
+        "frontend": {
+          "executable": "node",
+          "cwd": "systems/scholar/web",
+          "args": [
+            "node_modules/vite/bin/vite.js",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "5177",
+            "--strictPort",
+            "--base",
+            "/scholar/"
+          ]
+        }
+      }
     }
   ]
 }

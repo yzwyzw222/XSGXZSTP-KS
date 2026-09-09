@@ -57,6 +57,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { authApi } from '../api'
 import { clearSession, getCurrentUser, hasRole } from '../session'
+import { ElMessage } from 'element-plus'
+import { integrated, redirectToPortal } from '../services/portal-auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,20 +87,19 @@ onMounted(() => {
 })
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
-/**
- * 退出登录：先调用后端 /auth/logout 销毁服务端 Session（服务端成功后旋转/失效会话），
- * 再清空前端内存态并跳回登录页。接口失败也照样清理本地状态（本地会话已无意义）。
- */
+/** 服务端确认退出后清理页面状态；失败时明确提示并允许重试。 */
 async function onLogout() {
+  if (loggingOut.value) return
   loggingOut.value = true
   try {
     await authApi.logout()
-  } catch {
-    // 服务端会话可能已过期：忽略错误，前端状态照常清理
-  } finally {
     clearSession()
+    if (integrated) redirectToPortal()
+    else await router.replace({ name: 'login' })
+  } catch {
+    ElMessage.error('退出未完成，请稍后重试。')
+  } finally {
     loggingOut.value = false
-    router.replace({ name: 'login' })
   }
 }
 </script>

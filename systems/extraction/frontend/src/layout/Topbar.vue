@@ -6,7 +6,7 @@
     <div class="topbar__spacer" />
     <div class="topbar__user">
       <span class="topbar__username">{{ user?.username || 'Admin' }}</span>
-      <button class="topbar__logout" @click="handleLogout">退出</button>
+      <button class="topbar__logout" :disabled="loggingOut" @click="handleLogout">{{ loggingOut ? '正在退出…' : '退出' }}</button>
     </div>
   </header>
 </template>
@@ -14,15 +14,25 @@
 <script setup>
 import { useAuth } from '../composables/useAuth.js'
 import { useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
+import { integrated, redirectToPortal } from '../services/portal-auth.js'
 
 defineEmits(['toggle-sidebar'])
 
 const { user, logout } = useAuth()
 const router = useRouter()
+const loggingOut = ref(false)
 
 async function handleLogout() {
-  await logout()
-  router.push('/login')
+  if (loggingOut.value) return
+  loggingOut.value = true
+  try {
+    await logout()
+    if (integrated) redirectToPortal()
+    else await router.push('/login')
+  } catch { ElMessage.error('退出未完成，请稍后重试。') }
+  finally { loggingOut.value = false }
 }
 </script>
 

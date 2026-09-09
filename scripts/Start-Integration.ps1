@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('all', 'portal', 'relation', 'extraction', 'crawler')][string]$System = 'all',
+    [ValidateSet('all', 'portal', 'relation', 'extraction', 'crawler', 'scholar')][string]$System = 'all',
     [ValidateSet('Development', 'Demo')][string]$Mode = 'Demo'
 )
 . (Join-Path $PSScriptRoot 'Integration.Common.ps1')
@@ -13,18 +13,25 @@ if ($Mode -eq 'Demo' -and -not (Test-Path -LiteralPath (Join-Path $script:Integr
 }
 $operationLock = Enter-IntegrationLock
 try {
-    $records = @(Read-IntegrationState)
-    foreach ($record in $records) {
-        if (Test-IntegrationIdentity $record) { throw "当前整合环境已经运行：$($record.id)。请先停止所属组件，再重新启动。" }
-        if (Get-Process -Id $record.pid -ErrorAction SilentlyContinue) { throw '进程记录与现有进程不一致，拒绝覆盖记录。' }
-    }
     $records = @()
-    Assert-IntegrationPort $plan.portalPort
-    $portal = Start-IntegrationProcess -Id 'portal' -System 'portal' -Executable 'node' `
-        -Arguments @((Join-Path $script:IntegrationRoot 'portal/server.mjs'), $Mode) `
-        -WorkingDirectory (Join-Path $script:IntegrationRoot 'portal') -Port $plan.portalPort
-    $records += $portal
-    Save-IntegrationState $records
+    foreach ($record in @(Read-IntegrationState)) {
+        if (Test-IntegrationIdentity $record) { $records += $record }
+        elseif (Get-Process -Id $record.pid -ErrorAction SilentlyContinue) { throw '进程记录与现有进程不一致，拒绝覆盖记录。' }
+    }
+    if (($System -eq 'all' -and $records.Count -gt 0) -or ($records | Where-Object system -eq $System)) {
+        throw '请求的整合组件已经运行，请先停止所属组件再重新启动。'
+    }
+    $portal = $records | Where-Object system -eq 'portal' | Select-Object -First 1
+    if ($portal) {
+        if ($portal.commandLine -notmatch ('"' + $Mode + '"$')) { throw '现有门户运行模式不同，请先停止所有组件再切换模式。' }
+    } else {
+        Assert-IntegrationPort $plan.portalPort
+        $portal = Start-IntegrationProcess -Id 'portal' -System 'portal' -Executable 'node' `
+            -Arguments @((Join-Path $script:IntegrationRoot 'portal/server.mjs'), $Mode) `
+            -WorkingDirectory (Join-Path $script:IntegrationRoot 'portal') -Port $plan.portalPort
+        $records += $portal
+        Save-IntegrationState $records
+    }
     Wait-IntegrationReady $portal "http://127.0.0.1:$($plan.portalPort)/__integration/health" $plan.revision
     Write-Output "门户已启动：http://127.0.0.1:$($plan.portalPort)/ （$Mode）"
     foreach ($id in $plan.skipped) { Write-Output "${id}：维护中，未启动。" }

@@ -14,6 +14,7 @@ import axios, { type AxiosInstance } from 'axios'
  *   使 CSRF 获取与业务请求共享同一个截止时间。
  */
 export const httpClient: AxiosInstance = axios.create({
+  baseURL: import.meta.env.BASE_URL,
   withCredentials: true,
   validateStatus: () => true,
   timeout: 0,

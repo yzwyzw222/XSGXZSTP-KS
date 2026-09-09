@@ -13,7 +13,7 @@ export function renderNginx(config, root) {
     if (system.status === 'maintenance') {
       const body = JSON.stringify({ status: 503, code: 'SYSTEM_MAINTENANCE', system: system.id, message: '系统维护中' })
       return `${canonical}
-    location ~* ^${prefix}/api(?:/|$) {
+    location ~* ^${prefix}/(?:api|actuator)(?:/|$) {
       default_type application/json;
       add_header Cache-Control no-store always;
       add_header Retry-After 300 always;
@@ -27,8 +27,8 @@ export function renderNginx(config, root) {
     }`
     }
     return `${canonical}
-    location ~* ^${prefix}/api(?:/|$) {
-      rewrite ^${prefix}(/.*)$ $1 break;
+    location ~* ^${prefix}/(?:api|actuator)(?:/|$) {
+      ${system.runtime.contextPath ? '# 后端已配置所属系统的上下文路径。' : `rewrite ^${prefix}(/.*)$ $1 break;`}
       proxy_pass http://127.0.0.1:${system.runtime.backendPort};
       proxy_set_header Host $http_host;
       proxy_connect_timeout 5s;

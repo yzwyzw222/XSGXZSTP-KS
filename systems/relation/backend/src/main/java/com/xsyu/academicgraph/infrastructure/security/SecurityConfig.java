@@ -26,6 +26,10 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 import java.io.IOException;
+import com.xsyu.academicgraph.infrastructure.integration.PortalAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 /**
  * Spring Security 总配置。
@@ -70,7 +74,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper, Environment environment,
+            @Value("${integration.portal-url:http://127.0.0.1:18000}") String portalUrl) throws Exception {
         // CSRF Token 存 Cookie（httpOnly），前端从 /auth/csrf 接口拿 Token 值放到 X-CSRF-TOKEN 头
         CookieCsrfTokenRepository csrfRepo = new CookieCsrfTokenRepository();
         csrfRepo.setHeaderName("X-CSRF-TOKEN");
@@ -94,7 +99,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 无需登录：拿 CSRF、注册、登录、接口文档、错误页
                         .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/register", "/api/v1/auth/login",
-                                "/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
+                                "/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/error", "/api/integration/health").permitAll()
                         // 后台管理只有 ADMIN 角色能进
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         // 其余接口一律需要登录
@@ -110,6 +115,9 @@ public class SecurityConfig {
                                 writeError(objectMapper, response, HttpStatus.FORBIDDEN.value(),
                                         "权限不足", "当前账号没有执行该操作的权限", "FORBIDDEN", request.getRequestURI()))
                 );
+        if (environment.matchesProfiles("integration")) {
+            http.addFilterAfter(new PortalAuthenticationFilter(portalUrl), SecurityContextHolderFilter.class);
+        }
         return http.build();
     }
 

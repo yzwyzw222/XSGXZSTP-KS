@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -70,6 +72,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .contentType(MediaType.valueOf("application/problem+json"))
                 .body(problem);
+    }
+
+    /** 保留路由与参数错误的 HTTP 语义，避免统一入口把客户端错误误报为后端故障。 */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ProblemDetail> handleMissingResource(NoResourceFoundException ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.NOT_FOUND, "Not Found", "请求的接口不存在",
+                request.getRequestURI(), "NOT_FOUND");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ProblemDetail> handleMissingParameter(MissingServletRequestParameterException ex,
+                                                               HttpServletRequest request) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request", "缺少必要请求参数：" + ex.getParameterName(),
+                request.getRequestURI(), "MISSING_PARAMETER");
     }
 
     @ExceptionHandler(Exception.class)

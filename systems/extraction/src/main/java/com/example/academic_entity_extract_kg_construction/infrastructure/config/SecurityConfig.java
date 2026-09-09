@@ -1,6 +1,7 @@
 package com.example.academic_entity_extract_kg_construction.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,20 +17,25 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import com.example.academic_entity_extract_kg_construction.infrastructure.integration.PortalAuthenticationFilter;
+import org.springframework.core.env.Environment;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, Environment environment,
+            @Value("${server.servlet.context-path:/}") String cookiePath,
+            @Value("${integration.portal-url:http://127.0.0.1:18000}") String portalUrl) throws Exception {
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
         requestHandler.setCsrfRequestAttributeName("_csrf");
 
         CookieCsrfTokenRepository csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-        csrfTokenRepository.setCookiePath("/");
+        csrfTokenRepository.setCookiePath(cookiePath);
 
-        return http
+        http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(csrfTokenRepository)
@@ -44,8 +50,11 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
-                .build();
+                );
+        if (environment.matchesProfiles("integration")) {
+            http.addFilterAfter(new PortalAuthenticationFilter(portalUrl), SecurityContextHolderFilter.class);
+        }
+        return http.build();
     }
 
     @Bean

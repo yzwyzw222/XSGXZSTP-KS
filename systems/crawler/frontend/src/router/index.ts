@@ -8,6 +8,7 @@ import {
 import { useSessionStore } from '@/stores/session'
 import { cancelSessionRequests } from '@/services/http'
 import type { Permission } from '@/types/api'
+import { integrated, redirectToPortal } from '@/services/portal-auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -21,6 +22,7 @@ declare module 'vue-router' {
 }
 
 export const routes: RouteRecordRaw[] = [
+  ...(integrated ? [] : [
   {
     path: '/login',
     name: 'login',
@@ -33,6 +35,7 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/SessionExpiredView.vue'),
     meta: { public: true, title: '会话已过期' },
   },
+  ]),
   {
     path: '/forbidden',
     name: 'forbidden',
@@ -184,7 +187,7 @@ export const routes: RouteRecordRaw[] = [
   },
 ]
 
-export function createAppRouter(history: RouterHistory = createWebHistory()) {
+export function createAppRouter(history: RouterHistory = createWebHistory(import.meta.env.BASE_URL)) {
   const router = createRouter({
     history,
     routes,
@@ -208,6 +211,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
 
     const user = await sessionStore.ensureSession()
     if (!user) {
+      if (integrated) { redirectToPortal(to.fullPath, Boolean(sessionStore.lastError)); return false }
       return sessionExpiredTarget(to.fullPath, sessionStore.lastError)
     }
     if (!sessionStore.hasPermission(to.meta.permission)) {

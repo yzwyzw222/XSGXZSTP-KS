@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadConfig, publicConfig, workspacePath } from './config.mjs'
+import { handlePortalAuth, identityCookies, portalCookies, readPortalSession } from './auth.mjs'
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character])
@@ -53,10 +54,14 @@ export function createGateway({ root, initialConfig, development = false, readCo
       if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
       return send(request, response, 200, 'application/json', JSON.stringify(publicConfig(config)))
     }
+    if (pathname.startsWith('/__integration/auth/')) {
+      if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
+      return handlePortalAuth(request, response, config)
+    }
     const system = config.systems.find(entry => pathname === `/${entry.id}` || pathname.startsWith(`/${entry.id}/`))
     if (system) {
       const prefix = `/${system.id}`
-      const api = new RegExp(`^${prefix}/api(?:/|$)`, 'i').test(pathname)
+      const api = new RegExp(`^${prefix}/(?:api|actuator)(?:/|$)`, 'i').test(pathname)
       if (pathname === prefix) {
         response.writeHead(308, { Location: `${prefix}/${url.search}`, 'Cache-Control': 'no-store' })
         return response.end()
@@ -67,6 +72,15 @@ export function createGateway({ root, initialConfig, development = false, readCo
         }
         return send(request, response, 503, 'text/html', maintenanceHtml(system,
           configurationFailure ? '接入配置已变更或无效，请维护者检查配置并重新启动门户。' : system.message))
+      }
+      if (new RegExp(`^${prefix}/api/v1/auth/(?:login|register|logout)/?$`, 'i').test(pathname)) {
+        return send(request, response, 410, 'application/json', JSON.stringify({ status: 410, detail: '请使用统一登录入口。' }))
+      }
+      if (!api && ['GET', 'HEAD'].includes(request.method) &&
+        (/\/(?:login|register|session-expired)\/?$/.test(pathname) || !readPortalSession(request.headers.cookie))) {
+        const target = /\/(?:login|register|session-expired)\/?$/.test(pathname) ? `${prefix}/` : `${pathname}${url.search}`
+        response.writeHead(302, { Location: `/login?redirect=${encodeURIComponent(target)}`, 'Cache-Control': 'no-store' })
+        return response.end()
       }
       request.url = `${url.pathname}${url.search}`
       if (api || development) return next()
@@ -87,7 +101,7 @@ export function createGateway({ root, initialConfig, development = false, readCo
     }
     if (pathname === '/favicon.ico') { response.writeHead(204); return response.end() }
     if (/^\/api(?:\/|$)/i.test(pathname)) return send(request, response, 404, 'application/json', '{"status":404,"code":"UNKNOWN_API"}')
-    if (pathname === '/' || pathname === '/index.html' || pathname.startsWith('/assets/') ||
+    if (pathname === '/' || pathname === '/login' || pathname === '/index.html' || pathname.startsWith('/assets/') ||
       (development && /^\/(src\/|@|node_modules\/)/.test(pathname))) return next()
     return send(request, response, 404, 'text/html', '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><h1>页面不存在</h1><a href="/">返回门户</a></html>')
   }
@@ -97,15 +111,25 @@ export function proxyOptions(config, development) {
   const proxies = {}
   for (const system of config.systems.filter(entry => entry.status === 'enabled')) {
     const prefix = `/${system.id}`
-    const onError = proxy => proxy.on('error', (_error, _request, response) => {
+    const onError = proxy => {
+      if (system.id === 'crawler') {
+        proxy.on('proxyReq', (upstream, request) => {
+          upstream.setHeader('Cookie', identityCookies(request.headers.cookie))
+        })
+        proxy.on('proxyRes', upstream => {
+          if (upstream.headers['set-cookie']) upstream.headers['set-cookie'] = portalCookies(upstream.headers['set-cookie'])
+        })
+      }
+      proxy.on('error', (_error, _request, response) => {
       if (response && typeof response.writeHead === 'function' && !response.headersSent) {
         response.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
         response.end(unavailable(system, 'BACKEND_UNAVAILABLE'))
       }
-    })
-    proxies[`^${prefix}/[aA][pP][iI](?:/|$)`] = {
+      })
+    }
+    proxies[`^${prefix}/(?:[aA][pP][iI]|actuator)(?:/|$)`] = {
       target: `http://127.0.0.1:${system.runtime.backendPort}`, changeOrigin: false,
-      rewrite: requestPath => requestPath.slice(prefix.length), timeout: 15000, proxyTimeout: 15000, configure: onError,
+      rewrite: requestPath => system.runtime.contextPath ? requestPath : requestPath.slice(prefix.length), timeout: 15000, proxyTimeout: 15000, configure: onError,
     }
     if (development) proxies[`^${prefix}/`] = {
       target: `http://127.0.0.1:${system.runtime.frontendPort}`, changeOrigin: false,
