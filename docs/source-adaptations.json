@@ -33,7 +33,12 @@
     {
       "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationAdminBootstrap.java",
       "sourceBlob": null,
-      "adaptedBlob": "763ea4944c47e95b34c70f8ac4bbfd2e165ae714"
+      "adaptedBlob": "06c720175e5a69d1cb9976fd76d7737b0354374a"
+    },
+    {
+      "path": "backend/src/test/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationAdminBootstrapTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "b88f5e23e5f5a5d7a431ad29ad133656a850f250"
     },
     {
       "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationHealthController.java",
@@ -214,7 +219,12 @@
     {
       "path": "web/backend/src/main/java/com/aacv/config/IntegrationAdminBootstrap.java",
       "sourceBlob": null,
-      "adaptedBlob": "cc4fae9eefddd9e3ce5381817b85c6a63f011642"
+      "adaptedBlob": "587972fab91d7696626df2502e729f4646c3a6f2"
+    },
+    {
+      "path": "web/backend/src/test/java/com/aacv/config/IntegrationAdminBootstrapTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "9d6b1455f30023fa6fddb3aa8c01baeb43d03939"
     },
     {
       "path": "web/backend/src/main/java/com/aacv/config/IntegrationHealthController.java",

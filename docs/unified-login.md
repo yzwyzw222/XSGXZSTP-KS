@@ -6,6 +6,8 @@
 
 打开 http://127.0.0.1:18000/login ，使用现有 crawler 账号登录。登录后从门户访问四个子系统，业务深链接和刷新也使用同一身份。管理员从门户账号菜单的“管理平台账号”进入 `/crawler/users`；忘记密码或需要账号时联系管理员。
 
+统一管理员用户名为 `admin`，密码沿用 crawler。新 clone 初始化默认没有应用用户；完成后端首次建表后，由开发者手动向 `course_crawler` 写入管理员的 `{bcrypt}` 密码哈希、`ACTIVE` 状态及 `ADMIN` 角色关联。本机初始密码在 `.local/integration-runtime/crawler/credentials.json` 的 `admin` 字段，文件生成不会自动创建账号，其他子系统无需重复建号。完整步骤见 [README](../README.md)。已有账号保留；旧 crawler 外部配置需将 `aacv.bootstrap-admin.enabled` 改为 false 后重启，重复初始化不会覆盖该配置。
+
 统一认证只在当前集成模式启用：前端构建 BASE_URL 为各自的 `/<id>/`，三个接入后端使用 `integration` profile。独立运行时保留原系统认证代码和路由。没有合并数据库、迁移旧账号、修改依赖或创建提交。其他三套系统的旧账号不能用于统一入口。
 
 ## 认证契约

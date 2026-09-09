@@ -70,7 +70,7 @@ foreach ($system in $systems) {
         "spring.datasource.password=$($credentials.database)"
         'spring.datasource.hikari.maximum-pool-size=5'
         'spring.datasource.hikari.connection-timeout=5000'
-        "integration.admin-password=$($credentials.admin)"
+        'integration.bootstrap-admin.enabled=false'
         "app.admin.password=$($credentials.admin)"
         'spring.jpa.show-sql=false'
         'logging.level.org.hibernate.SQL=INFO'
@@ -90,7 +90,8 @@ foreach ($system in $systems) {
         $properties += @("spring.neo4j.uri=bolt://127.0.0.1:$($system.bolt)", 'spring.neo4j.authentication.username=neo4j', "spring.neo4j.authentication.password=$($credentials.graph)", 'spring.neo4j.connection-timeout=5s', 'spring.neo4j.max-transaction-retry-time=5s')
     }
     if ($id -eq 'crawler') {
-        $properties += @('aacv.bootstrap-admin.enabled=true', 'aacv.bootstrap-admin.username=admin', "aacv.bootstrap-admin.password=$($credentials.admin)", "aacv.export.root-directory=$($directory.Replace('\','/'))/exports", 'management.endpoint.health.group.readiness.include=readinessState,db,neo4j,graphSchema')
+        # 初次启动只建表；统一账号由开发者在 crawler 数据库中手动添加。
+        $properties += @('aacv.bootstrap-admin.enabled=false', 'aacv.bootstrap-admin.username=admin', "aacv.export.root-directory=$($directory.Replace('\','/'))/exports", 'management.endpoint.health.group.readiness.include=readinessState,db,neo4j,graphSchema')
     }
     # 配置作为外部文件读取，进程参数和 PID 记录不含凭据。
     $applicationPath = Join-Path $directory 'application.properties'
@@ -102,4 +103,4 @@ $composePath = Join-Path $runtimeRoot 'compose.json'
 [IO.File]::WriteAllText($composePath, (@{name='course-integration';services=$services;volumes=$volumes} | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
 & docker compose -f $composePath up -d --wait --wait-timeout 240
 if ($LASTEXITCODE -ne 0) { throw '隔离基础服务未就绪，请检查 course-integration 项目容器状态。' }
-Write-Output '四个独立 MySQL 与三个 Neo4j 已就绪。本机配置位于 .local/integration-runtime，各系统管理员用户名为 admin。'
+Write-Output '四个独立 MySQL 与三个 Neo4j 已就绪。本机配置位于 .local/integration-runtime；新环境不会自动创建用户，请在后端首次启动建表后，按 README 在 crawler 数据库手动添加 admin。已有配置和账号保持不变。'

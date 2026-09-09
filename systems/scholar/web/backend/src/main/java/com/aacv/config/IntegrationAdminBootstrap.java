@@ -6,14 +6,16 @@ import com.aacv.domain.user.UserRepository;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 整合环境使用外部随机凭据，不启用来源分支的演示账号。 */
+/** 保留显式启用的旧引导入口；统一登录模式默认不创建子系统账号。 */
 @Component
 @Profile("integration")
+@ConditionalOnProperty(name = "integration.bootstrap-admin.enabled", havingValue = "true")
 public class IntegrationAdminBootstrap implements CommandLineRunner {
     private final UserRepository users;
     private final PasswordEncoder encoder;

@@ -49,7 +49,11 @@ Neo4j 使用既有 5.26 Community 镜像；MySQL 使用既有 8.0.42 镜像。�
 - `readinessPath`：真实健康路径，前三套检查 MySQL/Neo4j；scholar 检查实际使用的 MySQL。
 - `backend/frontend`：前台直接运行的 java/node 进程，参数不含凭据。`{workspace}` 仅由启停脚本展开为当前仓库绝对目录。
 
-后端从外部 `application.properties` 加载独立连接信息、Cookie 名称与路径、端口及 integration profile。relation、scholar 在该 profile 下停用上游默认种子账号，改用外部随机密码创建管理员。原业务 profile 保留原行为。extraction 沿用原配置账号机制；crawler 沿用现有管理员引导。
+后端从外部 `application.properties` 加载独立连接信息、Cookie 名称与路径、端口及 integration profile。新环境默认不创建用户、不导入业务数据，首次启动只建立表结构及角色、字典等基础记录。relation、scholar 停用上游种子账号，其整合管理员引导仅在显式设置 `integration.bootstrap-admin.enabled=true` 时装配；缺省或 false 均不要求 `integration.admin-password`。原业务 profile 保留原行为。extraction 的原配置账号不参与统一入口认证。
+
+初始化为新配置写入 `integration.bootstrap-admin.enabled=false`，crawler 另写入 `aacv.bootstrap-admin.enabled=false`、`aacv.bootstrap-admin.username=admin`，不再注入自动建号密码。开发者在首次后端建表完成后，手动向 `course_crawler.sys_user` 添加 `admin`，保存带 `{bcrypt}` 前缀的密码哈希和 `ACTIVE` 状态，并在 `sys_user_role` 关联 `ADMIN`。统一密码沿用 crawler；本机初始密码仍在 `.local/integration-runtime/crawler/credentials.json` 的 `admin` 字段，仅生成该文件不会创建账号。其他系统无需复制账号，具体本地哈希与 SQL 操作见 [README](../README.md)。
+
+重复初始化仍保留已有配置、凭据和账号。旧 crawler 配置若含 `aacv.bootstrap-admin.enabled=true`，需开发者改为 false 并重启后端后才遵循空表不建号的规则；旧 relation、scholar 的密码字段不会独自启用引导。在账号管理中修改密码不会同步凭据文件，真实登录验收仍要求数据库密码与该文件一致。
 
 前端构建使用 `--base=/<id>/`，Router 和集中请求层读取 `import.meta.env.BASE_URL`。relation、extraction 在安装路由前恢复会话，scholar 在工作区恢复当前用户。所有系统提供返回门户链接。API/Actuator 先于静态资源和 SPA 回退；后端停止返回 JSON 503，不回退为 HTML。
 
@@ -75,6 +79,8 @@ Neo4j 使用既有 5.26 Community 镜像；MySQL 使用既有 8.0.42 镜像。�
 Ye 的远端回退已由接入阶段的 fetch 再次确认，当前保持本地完整版。后续不得直接将骨架覆盖到系统目录。其他分支同步时也应先核定 SHA 与历史，保留集成路径、会话和运行适配。当前集成版本在 `dev` 分支维护，跟踪 `origin/dev`；本次按用户授权分主题提交和快进推送，原集成分支保留。main 合入、PR 与部署仍需对应任务的授权。
 
 ## 验证与环境限制
+
+`scripts/Test-IntegrationInitialization.ps1` 在临时工作区执行初始化脚本，使用替代 Docker 函数验证新配置默认关闭建号、保留本机密码及重复初始化不覆盖配置和凭据，不操作实际数据库。relation、scholar 的 `IntegrationAdminBootstrapTest` 验证未配置密码、旧版密码字段和显式关闭三种情形均不会装配账号引导；原统一身份过滤器用例继续适用。
 
 四系统接入的历史命令和结果见 [本地运行验收](local-runtime-acceptance.md)，本次认证改造的实际命令和结果见 [统一登录说明](unified-login.md)。原有第一阶段记录是历史证据，不能再理解为当前四系统均维护中。
 

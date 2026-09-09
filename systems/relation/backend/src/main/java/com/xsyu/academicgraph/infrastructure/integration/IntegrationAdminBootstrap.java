@@ -7,14 +7,16 @@ import com.xsyu.academicgraph.domain.user.UserRepository;
 import com.xsyu.academicgraph.domain.user.UserRoleRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 仅为全新整合数据库创建管理员，重启时保留已有账号。 */
+/** 保留显式启用的旧引导入口；统一登录模式默认不创建子系统账号。 */
 @Component
 @Profile("integration")
+@ConditionalOnProperty(name = "integration.bootstrap-admin.enabled", havingValue = "true")
 public class IntegrationAdminBootstrap implements CommandLineRunner {
     private final UserRepository users;
     private final UserRoleRepository roles;
