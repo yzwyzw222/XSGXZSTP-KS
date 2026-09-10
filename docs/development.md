@@ -12,6 +12,71 @@
 
 启停记录位于 `.local/integration/processes.json`，校验工作目录、PID、创建时间、可执行文件和命令行。总入口重复启动会拒绝；在门户已运行且模式一致时，可以恢复已停止的单个系统。停止不按端口或进程名批量结束，也不操作原项目。
 
+## 本地功能试用数据
+
+默认初始化仍保持空业务库。需要试用数据时，先按 README 完成本机基础服务、构建与管理员准备，启动四个后端使表结构就绪，再在仓库根目录执行：
+
+```powershell
+node scripts/Import-IntegrationDemoData.mjs
+node scripts/Import-IntegrationDemoData.mjs --check
+node scripts/Test-IntegratedSystems.mjs
+node scripts/Test-SystemsBrowser.mjs
+```
+
+`Import-IntegrationDemoData.mjs` 只连接归属于当前工作区 `course-integration` 的本机 MySQL 容器，不创建账号、不更改表结构、不调用外部采集或模型服务。数据库连接沿用容器内部环境，运行参数和输出不含凭据。每库独立事务；执行前核对四库容器归属和样例标识，已有完整样例则跳过，存在部分样例或 ID 冲突则明确失败，保留用户数据。重复执行不会重置用户对样例的修改；`--check` 仅核对数据库中的样例数量和标识。
+
+| 系统 | 试用数据 |
+| --- | --- |
+| relation | 30 篇论文、16 位作者、6 个机构、6 个载体、10 个关键词、74 条署名、64 条主题关联、51 条引用。 |
+| extraction | 同一组 30 篇论文、16 位作者、6 个载体、10 个主题、74 条署名、64 条主题关联、51 条引用；另有 10 个实体、5 条关系，前 5 篇论文标记为已抽取。 |
+| crawler | 12 项成果、8 位作者、4 个机构、5 个主题、2 个采集任务，以及来源、治理、质量、告警和模拟失败记录。 |
+| scholar | 同一组 30 篇论文、16 位作者、6 个机构、6 个载体、10 个主题及署名、主题和引用关联，可试用学者画像和科研分析。 |
+
+relation、extraction、scholar 的数据由 relation 原有 `sample-data.sql` 的简单 `INSERT ... VALUES` 数据转换，导入器不会执行原脚本的删除语句。relation、extraction 使用 `910100–910999` 数值标识范围，scholar 使用 `course-demo-` 标识；论文 DOI 为 `10.9999/course-demo.*`，标题、作者等带 `[试用]` 标记。relation 必填时间、版本、抽取状态与 `publication_year` 按实际 JPA 建表结果补齐，不依赖原独立运行 SQL 的默认值或生成列。
+
+crawler 复用已有 `systems/crawler/tools/development/rendering-sample-data.sql`，样例 DOI 为 `10.9999/aacv-demo.*`，任务和异常说明带 `[页面测试]` 标记。此样例有意包含一次图同步死信、失败运行和质量问题，用于试用治理与运维页面；这些标记记录不代表本机基础服务当前不可用。未创建采集定时计划。
+
+所有记录都是功能试用样例；抽取结果由脚本人工构造，不是实际模型输出，样例外部标识和 DOI 不用于验证真实外部检索。relation、extraction、crawler 通过现有 outbox 机制生成图投影，scholar 从 MySQL 组图，导入后需等待异步同步完成。各系统仍保持独立数据库，无自动跨系统数据同步。
+
+2026-09-10 的首次带数据检查发现 extraction 论文图谱错误返回 `404 / AUTHOR_NOT_FOUND`，年份分布和高被引列表为空。随后按用户要求修复，当前实现和复验结果见下节；导入器本身没有改变业务实现。
+
+## 抽取论文图谱与统计
+
+`GraphController.getPaperGraph` 按 Neo4j 数值属性使用 `asLong()` 读取论文、作者和载体 ID，返回以请求论文为根的图谱，对连接查询产生的重复节点和边去重，并返回已有查询中的发表载体。先查询 MySQL 确认论文存在；不存在返回 `404 / PAPER_NOT_FOUND`，存在但图投影尚未生成或 Neo4j 不可用时返回 `503 / GRAPH_UNAVAILABLE`，不再转入同编号作者查询。统计接口同样在图服务不可用时返回 503，正常空库仍返回真实零值；`relationshipCount` 统计全部图关系，供前端“关系总数”卡片使用。
+
+`PaperService.savePaperFromRemote` 对新论文发送 `PAPER_CREATED`，对已有论文发送 `PAPER_UPDATED`。轮询器处理这两类事件时读取 MySQL 当前论文、作者、载体和引用；兼容旧的仅含标题的事件，并在一次 Neo4j 事务内更新 `title/year/citationCount`，重建该论文的 `WROTE`、`PUBLISHED_AT`、`CITES` 边。节点、其他论文的入向引用和抽取实体关系保持；缺失年份或被引次数移除旧属性。已不存在的论文不会被事件重新创建，图事务失败仍保留未处理事件以便重试。
+
+已有已处理事件不会自动回放。旧环境应用修复后，可通过现有 `outbox_events` 追加论文更新事件，等待原轮询器完成同步；不需要重导业务数据、重置历史事件或修改表结构。本机使用以下带固定修复标记的语句，首次追加 30 条，重复执行追加 0 条：
+
+```sql
+START TRANSACTION;
+INSERT INTO outbox_events(event_type, aggregate_id, aggregate_type, payload)
+SELECT 'PAPER_UPDATED', p.id, 'PAPER',
+       JSON_OBJECT('id', p.id, 'repair', 'paper-graph-v1-20260910')
+FROM papers p
+WHERE NOT EXISTS (
+    SELECT 1 FROM outbox_events e
+    WHERE e.aggregate_type = 'PAPER' AND e.aggregate_id = p.id
+      AND e.event_type = 'PAPER_UPDATED'
+      AND JSON_UNQUOTE(JSON_EXTRACT(e.payload, '$.repair')) = 'paper-graph-v1-20260910'
+);
+SELECT ROW_COUNT() AS enqueued;
+COMMIT;
+```
+
+2026-09-10 复验：30 篇论文图谱逐一返回 200，根节点、作者、引用、载体与论文详情一致，节点和边没有重复；原失败的 `910120` 返回 8 个节点和 7 条边，未知论文返回 `404 / PAPER_NOT_FOUND`。统计为 30 篇论文、16 位作者、10 个实体、51 条引用、170 条总关系，7 个年份分组与 10 篇被引排名均与 MySQL 论文详情一致。追加的 30 个任务全部处理完成，重复运行修复 SQL 不再入队。Edge 实际统计页面确认卡片和两张图表加载完成。
+
+针对性测试在 `systems/extraction` 执行，包含图谱 ID、缺失资源、图服务故障、空统计、历史事件、空字段、重试、更新事件与原有统一身份过滤器，共 21 项通过：
+
+```powershell
+.\mvnw.cmd -o -B '-DargLine=-Djdk.net.unixdomain.tmpdir=F:/Program/Java/course_design/.local/integration-runtime/extraction/tmp' '-Dtest=GraphControllerTest,OutboxPollingSchedulerTest,PaperServiceTest,PortalAuthenticationFilterTest' test
+.\mvnw.cmd -o -B '-DskipTests' package
+```
+
+上面的临时目录参数是本机路径，其他工作区需替换为自己的 extraction 临时目录。重新打包后只重启 extraction；根目录的 `node scripts/Test-IntegratedSystems.mjs`、`node scripts/Test-SystemsBrowser.mjs` 和 `npm.cmd --prefix portal run check:source` 均通过，其他三个后端持续运行。未进行真实外部检索或模型调用。
+
+官方依据：[Neo4j Value 数值转换](https://neo4j.com/docs/api/java-driver/current/org.neo4j.driver/org/neo4j/driver/Value.html)、[Neo4j Java 事务](https://neo4j.com/docs/java-manual/current/transactions/)。
+
 ## 门户入口视觉与交互
 
 
@@ -77,6 +142,8 @@ Neo4j 使用既有 5.26 Community 镜像；MySQL 使用既有 8.0.42 镜像。�
 `scripts/check-source.mjs` 核对四个原始来源树、前三套原始导入与 HEAD 的祖先关系、每个原始文件、所有新增文件，以及 `docs/source-adaptations.json` 中经过审阅的适配对象哈希。未记录的新改动、缺失来源文件或过期记录会失败。适配记录的更新必须与实际 diff 一起审阅，不能删除校验来让检查通过。
 
 Ye 的远端回退已由接入阶段的 fetch 再次确认，当前保持本地完整版。后续不得直接将骨架覆盖到系统目录。其他分支同步时也应先核定 SHA 与历史，保留集成路径、会话和运行适配。当前集成版本在 `dev` 分支维护，跟踪 `origin/dev`；本次按用户授权分主题提交和快进推送，原集成分支保留。main 合入、PR 与部署仍需对应任务的授权。
+
+2026-09-10 的试用数据准备与抽取修复已分别通过 `8bb4968`（导入脚本）和 `b86be72`（图谱同步、统计、测试及来源适配记录）提交并快进推送到 `origin/dev`，配套使用说明与项目记忆作为独立文档批次整理。推送前核对导入脚本语法、暂存差异及四系统来源记录；先前完成的 21 项抽取测试和真实接口、浏览器验证对应同一份业务代码。各库中的试用记录由导入脚本生成并保存在独立容器卷，凭据、运行配置和截图仍位于忽略目录。
 
 ## 验证与环境限制
 
