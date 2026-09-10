@@ -91,6 +91,13 @@ public class PaperService {
         return PaperMapper.toDetail(paper);
     }
 
+    @Transactional(readOnly = true)
+    public void requirePaperExists(Long id) {
+        if (!paperRepository.existsById(id)) {
+            throw new PaperNotFoundException(id);
+        }
+    }
+
     @Transactional
     public Paper savePaperFromRemote(SemanticScholarClient.PaperDto dto) {
         Paper paper = paperRepository.findBySemanticScholarId(dto.paperId())
@@ -138,9 +145,8 @@ public class PaperService {
             paper = paperRepository.save(paper);
         }
 
-        if (isNew) {
-            writeOutboxEvent(OutboxEventType.PAPER_CREATED, "PAPER", paper.getId(), paper.getTitle());
-        }
+        writeOutboxEvent(isNew ? OutboxEventType.PAPER_CREATED : OutboxEventType.PAPER_UPDATED,
+                "PAPER", paper.getId(), paper.getTitle());
 
         return paper;
     }

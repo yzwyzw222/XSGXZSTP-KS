@@ -22,6 +22,13 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(GraphUnavailableException.class)
+    public ResponseEntity<ProblemDetail> handleGraphUnavailable(GraphUnavailableException ex, HttpServletRequest request) {
+        log.warn("图谱请求暂不可用：{}", ex.getMessage());
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, "Graph Unavailable", ex.getMessage(),
+                request.getRequestURI(), "GRAPH_UNAVAILABLE");
+    }
+
     @ExceptionHandler(PaperNotFoundException.class)
     public ResponseEntity<ProblemDetail> handlePaperNotFound(PaperNotFoundException ex, HttpServletRequest request) {
         return buildResponse(HttpStatus.NOT_FOUND, "Paper Not Found", ex.getMessage(),

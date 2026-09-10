@@ -1,7 +1,9 @@
 package com.example.academic_entity_extract_kg_construction.infrastructure.sync;
 
 import com.example.academic_entity_extract_kg_construction.domain.model.OutboxEvent;
+import com.example.academic_entity_extract_kg_construction.domain.model.Paper;
 import com.example.academic_entity_extract_kg_construction.domain.repository.OutboxEventRepository;
+import com.example.academic_entity_extract_kg_construction.domain.repository.PaperRepository;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import org.neo4j.driver.Driver;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,12 +28,14 @@ public class OutboxPollingScheduler {
     private final OutboxEventRepository outboxEventRepository;
     private final Driver neo4jDriver;
     private final ObjectMapper objectMapper;
+    private final PaperRepository paperRepository;
 
     public OutboxPollingScheduler(OutboxEventRepository outboxEventRepository,
-                                   Driver neo4jDriver, ObjectMapper objectMapper) {
+                                   Driver neo4jDriver, ObjectMapper objectMapper, PaperRepository paperRepository) {
         this.outboxEventRepository = outboxEventRepository;
         this.neo4jDriver = neo4jDriver;
         this.objectMapper = objectMapper;
+        this.paperRepository = paperRepository;
     }
 
     @Scheduled(fixedDelay = 5000)
@@ -73,16 +78,54 @@ public class OutboxPollingScheduler {
     }
 
     private void syncPaper(Session session, OutboxEvent event) {
-        JsonNode payload = parsePayload(event.getPayload());
-        Long paperId = payload.has("id") ? payload.get("id").asLong() : event.getAggregateId();
-        String title = payload.has("title") ? payload.get("title").asText() : "";
+        // 读取当前持久化状态，兼容旧的仅含标题的事件，也避免旧事件覆盖较新的论文数据。
+        Paper paper = paperRepository.findById(event.getAggregateId()).orElse(null);
+        if (paper == null) {
+            log.info("论文已不存在，跳过图投影：paperId={}", event.getAggregateId());
+            return;
+        }
+        Long paperId = paper.getId();
+        List<Map<String, Object>> authors = paper.getAuthors().stream()
+                .map(author -> Map.<String, Object>of("id", author.getId(), "name", author.getName()))
+                .toList();
+        List<Map<String, Object>> references = paper.getReferences().stream()
+                .map(this::paperProperties).toList();
 
         session.executeWrite(tx -> {
-            tx.run("MERGE (p:Paper {paperId: $paperId}) " +
-                   "SET p.title = $title, p.updatedAt = datetime()",
-                    Map.of("paperId", paperId, "title", title));
+            tx.run("MERGE (p:Paper {paperId: $id}) " +
+                   "SET p.title = $title, p.year = $year, p.citationCount = $citationCount, p.updatedAt = datetime()",
+                    paperProperties(paper)).consume();
+
+            // 只重建当前论文拥有的派生边；节点及其他论文指向它的引用保持不变。
+            tx.run("MATCH (p:Paper {paperId: $paperId}) OPTIONAL MATCH (p)<-[r:WROTE]-(:Author) DELETE r",
+                    Map.of("paperId", paperId)).consume();
+            tx.run("MATCH (p:Paper {paperId: $paperId}) OPTIONAL MATCH (p)-[r:PUBLISHED_AT|CITES]->() DELETE r",
+                    Map.of("paperId", paperId)).consume();
+            tx.run("MATCH (p:Paper {paperId: $paperId}) UNWIND $authors AS author " +
+                   "MERGE (a:Author {authorId: author.id}) SET a.name = author.name " +
+                   "MERGE (a)-[:WROTE]->(p)", Map.of("paperId", paperId, "authors", authors)).consume();
+            if (paper.getVenue() != null) {
+                tx.run("MATCH (p:Paper {paperId: $paperId}) MERGE (v:Venue {venueId: $venueId}) " +
+                       "SET v.name = $name, v.type = $type MERGE (p)-[:PUBLISHED_AT]->(v)",
+                        Map.of("paperId", paperId, "venueId", paper.getVenue().getId(),
+                                "name", paper.getVenue().getName(), "type", paper.getVenue().getType().name())).consume();
+            }
+            tx.run("MATCH (p:Paper {paperId: $paperId}) UNWIND $references AS reference " +
+                   "MERGE (cited:Paper {paperId: reference.id}) " +
+                   "SET cited.title = reference.title, cited.year = reference.year, cited.citationCount = reference.citationCount " +
+                   "MERGE (p)-[:CITES]->(cited)", Map.of("paperId", paperId, "references", references)).consume();
             return null;
         });
+    }
+
+    private Map<String, Object> paperProperties(Paper paper) {
+        // 年份或被引次数允许缺失；传入 null 可移除旧属性，不能伪造为零或使 Map.of 抛异常。
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("id", paper.getId());
+        properties.put("title", paper.getTitle());
+        properties.put("year", paper.getYear());
+        properties.put("citationCount", paper.getCitationCount());
+        return properties;
     }
 
     private void syncAuthor(Session session, OutboxEvent event) {

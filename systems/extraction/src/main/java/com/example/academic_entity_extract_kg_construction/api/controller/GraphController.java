@@ -2,10 +2,13 @@ package com.example.academic_entity_extract_kg_construction.api.controller;
 
 import com.example.academic_entity_extract_kg_construction.api.dto.response.GraphDataDto;
 import com.example.academic_entity_extract_kg_construction.application.service.AuthorService;
+import com.example.academic_entity_extract_kg_construction.application.service.PaperService;
+import com.example.academic_entity_extract_kg_construction.infrastructure.exception.GraphUnavailableException;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
+import org.neo4j.driver.exceptions.Neo4jException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,17 +20,20 @@ public class GraphController {
 
     private final Driver neo4jDriver;
     private final AuthorService authorService;
+    private final PaperService paperService;
 
-    public GraphController(Driver neo4jDriver, AuthorService authorService) {
+    public GraphController(Driver neo4jDriver, AuthorService authorService, PaperService paperService) {
         this.neo4jDriver = neo4jDriver;
         this.authorService = authorService;
+        this.paperService = paperService;
     }
 
     @GetMapping("/paper/{id}")
     public ResponseEntity<GraphDataDto> getPaperGraph(@PathVariable Long id,
                                                        @RequestParam(defaultValue = "2") int depth) {
+        paperService.requirePaperExists(id);
         List<GraphDataDto.GraphNode> nodes = new ArrayList<>();
-        List<GraphDataDto.GraphEdge> edges = new ArrayList<>();
+        Map<String, GraphDataDto.GraphEdge> edges = new LinkedHashMap<>();
         Set<String> seenNodes = new HashSet<>();
 
         try (Session session = neo4jDriver.session()) {
@@ -44,7 +50,7 @@ public class GraphController {
 
                 if (!record.get("p").isNull()) {
                     var paperNode = record.get("p").asNode();
-                    String nodeId = "paper_" + paperNode.get("paperId").asString();
+                    String nodeId = "paper_" + paperNode.get("paperId").asLong();
                     if (seenNodes.add(nodeId)) {
                         nodes.add(buildNode(nodeId, paperNode.get("title").asString("Unknown"), "PAPER",
                                 Map.of()));
@@ -53,29 +59,45 @@ public class GraphController {
 
                 if (!record.get("a").isNull()) {
                     var authorNode = record.get("a").asNode();
-                    String nodeId = "author_" + authorNode.get("authorId").asString();
+                    String nodeId = "author_" + authorNode.get("authorId").asLong();
                     if (seenNodes.add(nodeId)) {
                         nodes.add(buildNode(nodeId, authorNode.get("name").asString("Unknown"), "AUTHOR",
                                 Map.of()));
                     }
-                    edges.add(buildEdge("e_" + nodeId + "_" + id, nodeId, "paper_" + id, "WROTE"));
+                    String edgeId = "e_" + nodeId + "_" + id;
+                    edges.putIfAbsent(edgeId, buildEdge(edgeId, nodeId, "paper_" + id, "WROTE"));
                 }
 
                 if (!record.get("cited").isNull()) {
                     var citedNode = record.get("cited").asNode();
-                    String nodeId = "paper_" + citedNode.get("paperId").asString();
+                    String nodeId = "paper_" + citedNode.get("paperId").asLong();
                     if (seenNodes.add(nodeId)) {
                         nodes.add(buildNode(nodeId, citedNode.get("title").asString("Unknown"), "PAPER",
                                 Map.of()));
                     }
-                    edges.add(buildEdge("e_cite_" + id + "_" + nodeId, "paper_" + id, nodeId, "CITES"));
+                    String edgeId = "e_cite_" + id + "_" + nodeId;
+                    edges.putIfAbsent(edgeId, buildEdge(edgeId, "paper_" + id, nodeId, "CITES"));
+                }
+
+                if (!record.get("v").isNull()) {
+                    var venueNode = record.get("v").asNode();
+                    String nodeId = "venue_" + venueNode.get("venueId").asLong();
+                    if (seenNodes.add(nodeId)) {
+                        nodes.add(buildNode(nodeId, venueNode.get("name").asString("Unknown"), "VENUE", Map.of()));
+                    }
+                    String edgeId = "e_venue_" + id + "_" + nodeId;
+                    edges.putIfAbsent(edgeId, buildEdge(edgeId, "paper_" + id, nodeId, "PUBLISHED_AT"));
                 }
             }
-        } catch (Exception e) {
-            return ResponseEntity.ok(authorService.getAuthorGraph(id));
+        } catch (Neo4jException e) {
+            throw new GraphUnavailableException("图谱服务暂不可用，请稍后重试", e);
         }
 
-        return ResponseEntity.ok(GraphDataDto.builder().nodes(nodes).edges(edges).build());
+        // MySQL 中存在论文而投影尚未生成时，不能误报论文不存在或返回同编号作者。
+        if (nodes.isEmpty()) {
+            throw new GraphUnavailableException("论文图谱尚未同步，请稍后重试");
+        }
+        return ResponseEntity.ok(GraphDataDto.builder().nodes(nodes).edges(new ArrayList<>(edges.values())).build());
     }
 
     @GetMapping("/author/{id}")
@@ -97,6 +119,9 @@ public class GraphController {
             Result citesCount = session.run("MATCH ()-[r:CITES]->() RETURN count(r) as count");
             stats.put("citationCount", citesCount.hasNext() ? citesCount.next().get("count").asLong() : 0);
 
+            Result relationshipCount = session.run("MATCH ()-[r]->() RETURN count(r) as count");
+            stats.put("relationshipCount", relationshipCount.hasNext() ? relationshipCount.next().get("count").asLong() : 0);
+
             Result entityCount = session.run("MATCH (e:ExtractedEntity) RETURN count(e) as count");
             stats.put("entityCount", entityCount.hasNext() ? entityCount.next().get("count").asLong() : 0);
 
@@ -117,14 +142,8 @@ public class GraphController {
                 topCitedPapers.add(Map.of("title", r.get("title").asString(""), "citationCount", r.get("citationCount").asLong()));
             }
             stats.put("topCitedPapers", topCitedPapers);
-        } catch (Exception e) {
-            stats.put("neo4jAvailable", false);
-            stats.put("paperCount", 0);
-            stats.put("authorCount", 0);
-            stats.put("citationCount", 0);
-            stats.put("entityCount", 0);
-            stats.put("yearDistribution", List.of());
-            stats.put("topCitedPapers", List.of());
+        } catch (Neo4jException e) {
+            throw new GraphUnavailableException("图谱统计暂不可用，请稍后重试", e);
         }
 
         return ResponseEntity.ok(stats);

@@ -110,7 +110,7 @@
     {
       "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/exception/GlobalExceptionHandler.java",
       "sourceBlob": "dfc4d60dd0cf7434ba4aef8e5f2843951e265086",
-      "adaptedBlob": "d053f37100396cc1e028bab4798f8c3b90306090"
+      "adaptedBlob": "6013fa7d31179eb74c115296a5d74132f02fcd4c"
     },
     {
       "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/IntegrationHealthController.java",
@@ -146,6 +146,41 @@
       "path": "src/main/java/com/example/academic_entity_extract_kg_construction/api/controller/SessionController.java",
       "sourceBlob": "f08c79f457035cc626be8450a993c4acc940f821",
       "adaptedBlob": "521b7855277f689b8eae6a8d3d17c550fc3f2d65"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/api/controller/GraphController.java",
+      "sourceBlob": "3b0b49cf523336cd1b71a1af9c47ee1ff8eb057b",
+      "adaptedBlob": "a09a61f93743b9313019ae035ed82b45348d0fe9"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/application/service/PaperService.java",
+      "sourceBlob": "03d98176e58548ceabb4e581cc606d0cd9751087",
+      "adaptedBlob": "499e63c385386403d1cd4f14c8851816f157690b"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/sync/OutboxPollingScheduler.java",
+      "sourceBlob": "8626c51e85239a5d39718e7ad4923806d1566cd3",
+      "adaptedBlob": "5316e9fdc48ca63355750e0703c8c4e977000980"
+    },
+    {
+      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/exception/GraphUnavailableException.java",
+      "sourceBlob": null,
+      "adaptedBlob": "3eb8b2968377ad0010372fd3148a3138d9e5d23b"
+    },
+    {
+      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/api/controller/GraphControllerTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "3810f345e5dfe4c2c795091223a5cbf98077cffe"
+    },
+    {
+      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/application/service/PaperServiceTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "8c51cfeca3797c720149a407ba6eaafd23da710b"
+    },
+    {
+      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/infrastructure/sync/OutboxPollingSchedulerTest.java",
+      "sourceBlob": null,
+      "adaptedBlob": "7bb3efde61bd2244eb451fb61e7cdd349dff3326"
     }
   ],
   "crawler": [
