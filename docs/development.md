@@ -113,6 +113,28 @@ Ye 的远端回退已由接入阶段的 fetch 再次确认，当前保持本地�
 
 官方依据：[Vite 子路径构建](https://vite.dev/guide/build.html)、[Spring Boot 外部配置](https://docs.spring.io/spring-boot/reference/features/external-config.html)。Vite preview 仅用作本地入口，Nginx 本体与公网部署仍未验收。
 
+## 图谱计数正常但画布空白的排查（2026-09-10）
+
+源码中的 CSS 动效时长可在构建压缩时由 `280ms` 改为等价的 `.28s`。`systems/crawler/frontend/src/composables/useMotion.ts` 必须识别 `ms`、`s` 并统一返回毫秒；禁止只用 `parseFloat` 后直接传给 vis-network、Cytoscape 或 ECharts。零时长和减少动画偏好仍返回零；缺失、非法、负数或溢出的配置使用各类动效原有默认值。
+
+本次故障中 `/crawler/api/v1/graph/overview` 返回 20 个节点、38 条关系，`/crawler/actuator/health/graph` 为 `UP`，画布尺寸正常，但秒值被误作毫秒导致 vis-network 动画后的缩放比例为负、实际绘制像素为零。排查此类问题需区分接口空态与有数据未绘制，无需重建数据库或重放图投影。
+
+回归覆盖 `useMotion.test.ts` 的单位和边界条件、`e2e/graph-overview-vis.spec.ts` 的秒单位多节点绘制。`node scripts/Test-SystemsBrowser.mjs` 额外检查 crawler 独立入口和门户 iframe 的持续绘制像素，以及工作区刷新和适应画布；数据库为空时验证正常空态。该脚本使用现有本机验收账号，不输出凭据。修复前单位测试与画布回归均重现故障；旧构建也未通过新增的像素断言。
+
+前端修改后运行 `npm.cmd --prefix systems/crawler/frontend run build -- --base=/crawler/` 更新本机 Demo 产物，再运行上述浏览器脚本；只修复前端无需重启 Java 后端。Development 模式的测试结果不能替代压缩构建产物验收。
+
+本轮已执行的验证：
+
+| 命令 | 结果 |
+| --- | --- |
+| `npm.cmd --prefix systems/crawler/frontend test -- src/composables/useMotion.test.ts src/components/business/graph-overview/GraphCanvas.test.ts src/utils/graph-rendering.test.ts src/components/EChartCanvas.test.ts` | 4 个文件、35 项测试通过，包含共享动效的图谱及 ECharts 调用方。 |
+| `npm.cmd --prefix systems/crawler/frontend run test:e2e -- e2e/graph-overview-vis.spec.ts` | 9 项通过，覆盖压缩单位、绘制、缩放、拖动、空态和窄屏。 |
+| `npm.cmd --prefix systems/crawler/frontend run build -- --base=/crawler/` | 类型检查和生产构建通过；保留已有超过 500 kB 的分块警告。 |
+| `node scripts/Test-SystemsBrowser.mjs` | 新构建的真实接口、独立入口及门户工作区绘制、刷新、适应画布和返回通过；相同像素检查在旧构建上失败。 |
+| `node scripts/check-source.mjs` | relation、crawler 的来源树、文件及适配哈希检查通过。 |
+
+本轮保留已有未提交改动，只重建 crawler 前端，未修改或重启后端。测试使用现有本机服务及 Edge；未执行其他浏览器或公网环境验收。初次受限运行的 `spawn EPERM` / `spawnSync git EPERM` 属于工具进程权限限制，相关验证已在正常本机权限下完成，未修改业务权限配置。
+
 ## 统一管理与全屏工作区（2026-09-10）
 
 门户顶部提供用户管理、日志管理和全屏控制。平台账号页面为 /management/users（含 /management/users/overview），平台请求日志为 /management/logs，原登录与采集后台审计为 /management/audits。管理页使用 crawler 前端新增的 management.html 多入口产物，复用已有用户与审计组件、统一账号后端及 CSRF/版本号/权限校验；没有新建用户库、迁移账号或增加依赖。网关先校验 USER_LIST / AUDIT_READ 再返回管理页面，平台日志 API 每次确认实时身份。集成模式移除 crawler 与 relation 的独立管理入口；旧地址导向门户管理，独立运行保留来源系统兼容行为。

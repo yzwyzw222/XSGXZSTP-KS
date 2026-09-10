@@ -501,6 +501,21 @@
       "path": "frontend/src/components/business/SourceEntitySelect.vue",
       "sourceBlob": null,
       "adaptedBlob": "8a3ab4249a65134c5e5433c47777fa1a11abf33f"
+    },
+    {
+      "path": "frontend/src/composables/useMotion.ts",
+      "sourceBlob": "0866e47f60a03c456051cc49ebaab0e170154dc0",
+      "adaptedBlob": "aa2403cb784542ebe43fac93606648e161646688"
+    },
+    {
+      "path": "frontend/src/composables/useMotion.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "50ea8952c5f8dd09de0c9ad5f6b76e20144c3d7f"
+    },
+    {
+      "path": "frontend/e2e/graph-overview-vis.spec.ts",
+      "sourceBlob": "e4f3e538b4617d0a91abde16ef737cf412f3d115",
+      "adaptedBlob": "0be62f1879fa678558016693fd82925825f68343"
     }
   ]
 }

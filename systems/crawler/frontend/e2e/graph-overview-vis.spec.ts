@@ -91,6 +91,48 @@ test('真实画布双击、历史截断、返回及刷新使用正确后端中�
   await page.screenshot({ path: 'test-results/graph-vis-desktop.png', fullPage: true })
 })
 
+test('CSS 压缩后的秒单位动效在首次适配和刷新后仍能显示节点', async ({ page }) => {
+  const state = await setup(page)
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const graph: GraphResponse = { ...sample, nodes: [], edges: [] }
+  for (let id = 1; id <= 10; id++) {
+    graph.nodes.push(
+      { ...sample.nodes[0]!, id: `AUTHOR:${id}`, businessId: String(id) },
+      { ...sample.nodes[1]!, id: `ACHIEVEMENT:${id}`, businessId: String(id) },
+    )
+    graph.edges.push({ ...sample.edges[0]!, id: `authored-${id}`, source: `AUTHOR:${id}`, target: `ACHIEVEMENT:${id}` })
+  }
+  await page.route('**/api/v1/graph/overview', async route => {
+    // 数据返回前模拟正式构建的秒单位，确保首次适配也经过单位转换。
+    await page.addStyleTag({ content: ':root { --duration-slow: .28s; }' })
+    await route.fulfill({ json: graph })
+  })
+  await page.goto('/graph')
+  await expect(page.getByRole('img', { name: '知识图谱，共20个节点和10条关系' })).toHaveAttribute('aria-busy', 'false')
+  let paintedSamples = 0
+  await expect.poll(async () => {
+    const painted = await page.locator('.graph-canvas canvas').evaluate(element => {
+      const canvas = element as HTMLCanvasElement
+      const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
+      let authors = 0
+      let works = 0
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i + 3]! <= 200) continue
+        if (pixels[i] === 37 && pixels[i + 1] === 140 && pixels[i + 2] === 163) authors++
+        if (pixels[i] === 35 && pixels[i + 1] === 99 && pixels[i + 2] === 184) works++
+      }
+      return authors > 30 && works > 30
+    })
+    paintedSamples = painted ? paintedSamples + 1 : 0
+    return paintedSamples
+  }, { intervals: [200], timeout: 5000 }).toBeGreaterThanOrEqual(3)
+  await page.getByRole('button', { name: '刷新图谱', exact: true }).click()
+  await page.getByRole('button', { name: '适应画布', exact: true }).click()
+  await nodePoint(page, [37, 140, 163])
+  await nodePoint(page, [35, 99, 184])
+  expect(state.errors).toEqual([])
+})
+
 test('节点和关系右键菜单、完整名称、扩展字段与只读入口可用', async ({ page }) => {
   const state = await setup(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
