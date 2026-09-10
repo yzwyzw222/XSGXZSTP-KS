@@ -249,6 +249,47 @@ public class MyBatisCrawlRepository implements CrawlRepository {
     }
 
     @Override
+    public boolean deleteSchedule(long taskId, long version) {
+        return mapper.deleteSchedule(taskId, version) == 1;
+    }
+
+    @Override
+    public Optional<com.aacv.system.crawl.domain.CrawlWindow> findRunWindow(long runId) {
+        return Optional.ofNullable(mapper.findRunWindow(runId)).map(row -> new com.aacv.system.crawl.domain.CrawlWindow(
+                row.mode(), row.windowStart(), row.windowEnd(), scopeCodec.decode(row.parametersJson())));
+    }
+
+    @Override
+    public Optional<Long> findLatestWindowRun(long taskId, String mode) {
+        return Optional.ofNullable(mapper.findLatestWindowRun(taskId, mode));
+    }
+
+    @Override
+    public void insertRunWindow(long runId, com.aacv.system.crawl.domain.CrawlWindow window) {
+        if (mapper.insertRunWindow(runId, new CrawlWindowRow(window.mode(), window.start(), window.end(),
+                scopeCodec.encode(window.scope()))) != 1) throw new IllegalStateException("运行窗口保存失败");
+    }
+
+    @Override
+    public PageResult<CrawlRun> findRunPage(long taskId, int page, int size) {
+        if (taskId < 1 || page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("运行分页参数无效");
+        return PageResult.of(mapper.findRunPage(taskId, (long) page * size, size).stream().map(this::toRun).toList(),
+                page, size, mapper.countRuns(taskId));
+    }
+
+    @Override
+    public void recordExecutionFailure(long runId, com.aacv.system.crawl.domain.CrawlExecutionFailure failure) {
+        if (mapper.insertExecutionFailure(runId, failure) != 1) throw new IllegalStateException("运行失败明细写入失败");
+    }
+
+    @Override
+    public void recordLaunchFailure(long runId, com.aacv.system.crawl.domain.CrawlLaunchFailure failure) {
+        if (mapper.insertLaunchFailure(runId, "LAUNCH_" + failure.name(), failure.message()) != 1) {
+            throw new IllegalStateException("采集启动失败明细写入失败");
+        }
+    }
+
+    @Override
     public void recordQuotaDeferral(long runId, java.time.Instant deferredUntil, int quotaDeferrals) {
         if (quotaDeferrals < 0 || quotaDeferrals > 3) throw new IllegalArgumentException("额度恢复次数无效");
         if (mapper.recordQuotaDeferral(runId, deferredUntil, quotaDeferrals) != 1) {

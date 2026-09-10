@@ -37,6 +37,11 @@ class OpenAlexRequestGate {
     }
 
     Permit acquire(SourceConnectionSettings settings) {
+        return acquire(settings, null);
+    }
+
+    Permit acquire(SourceConnectionSettings settings, Duration maxWait) {
+        long deadline = maxWait == null ? 0 : System.nanoTime() + maxWait.toNanos();
         lock.lock();
         try {
             while (true) {
@@ -44,6 +49,9 @@ class OpenAlexRequestGate {
                     throw new SourceQuotaExhaustedException(quotaResetAt);
                 }
                 long now = System.nanoTime();
+                if (maxWait != null && now >= deadline) {
+                    throw new OpenAlexClientException("BUSY", true, null, "OpenAlex请求繁忙，请稍后重试");
+                }
                 long intervalNanos = Duration.ofSeconds(1).toNanos() / settings.requestsPerSecond();
                 if (inFlight < settings.maxConcurrency() && now >= nextRequestAtNanos) {
                     inFlight++;
@@ -52,7 +60,10 @@ class OpenAlexRequestGate {
                 }
                 long waitNanos = Math.max(1, nextRequestAtNanos - now);
                 try {
-                    if (inFlight >= settings.maxConcurrency()) available.await();
+                    if (maxWait != null) {
+                        available.awaitNanos(inFlight >= settings.maxConcurrency()
+                                ? deadline - now : Math.min(waitNanos, deadline - now));
+                    } else if (inFlight >= settings.maxConcurrency()) available.await();
                     else available.awaitNanos(waitNanos);
                 } catch (InterruptedException exception) {
                     Thread.currentThread().interrupt();

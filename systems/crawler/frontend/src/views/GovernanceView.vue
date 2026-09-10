@@ -7,6 +7,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import { DataTable, FilterBar, FilterField, JsonEvidence, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import CandidateComparisonPanel from '@/components/business/CandidateComparisonPanel.vue'
+import { useDataSources } from '@/composables/useDataSources'
 import { toErrorMessage } from '@/services/api'
 import { governanceApi } from '@/services/business'
 import { useSessionStore } from '@/stores/session'
@@ -30,6 +31,7 @@ let detailSequence = 0
 const latestDecision = ref<MergeDecision | null>(null)
 const latestOverride = ref<FieldOverride | null>(null)
 const canManage = computed(() => hasPermission('GOVERNANCE_MANAGE'))
+const { sources, sourceLoading, sourceError, loadSources, sourceName } = useDataSources()
 const filters = reactive({ entityType: '', status: 'PENDING', sourceId: '', ruleVersion: '' })
 const decisionForm = reactive({ canonicalEntityId: '' as string, reason: '' })
 const overrideForm = reactive({ achievementId: '', fieldName: '', value: '', reason: '', version: '0' })
@@ -209,7 +211,7 @@ watch(detailVisible, (visible) => {
   if (!visible) ++detailSequence
 }, { flush: 'sync' })
 onBeforeUnmount(() => { ++detailSequence })
-onMounted(() => load())
+onMounted(() => { void load(); void loadSources() })
 </script>
 
 <template>
@@ -223,6 +225,9 @@ onMounted(() => load())
       </template>
     </PageHeader>
 
+    <ElAlert v-if="sourceError" type="error" :closable="false" :title="sourceError">
+      <ElButton link :loading="sourceLoading" @click="loadSources">重试读取数据源</ElButton>
+    </ElAlert>
     <FilterBar :columns="4" :applying="loading" apply-text="查询候选" @apply="load()" @reset="reset">
       <FilterField label="实体类型"><ElInput v-model="filters.entityType"  /></FilterField>
       <FilterField label="候选状态">
@@ -232,7 +237,11 @@ onMounted(() => load())
             <ElOption value="REJECTED" :label="'已拒绝'" />
           </ElSelect>
       </FilterField>
-      <FilterField label="来源 ID"><ElInputNumber :model-value="filters.sourceId === '' ? undefined : Number(filters.sourceId)" @update:model-value="(value) => { filters.sourceId = value == null ? '' : String(value) }"  :min="1"  controls-position="right" style="width: 100%" /></FilterField>
+      <FilterField label="数据源">
+        <ElSelect v-model="filters.sourceId" :loading="sourceLoading" clearable placeholder="全部数据源" style="width: 100%">
+          <ElOption v-for="source in sources" :key="source.id" :value="String(source.id)" :label="sourceName(source.id)" />
+        </ElSelect>
+      </FilterField>
       <FilterField label="规则版本"><ElInputNumber :model-value="filters.ruleVersion === '' ? undefined : Number(filters.ruleVersion)" @update:model-value="(value) => { filters.ruleVersion = value == null ? '' : String(value) }"  :min="1"  controls-position="right" style="width: 100%" /></FilterField>
       <template #meta>默认仅显示待审阅候选</template>
     </FilterBar>

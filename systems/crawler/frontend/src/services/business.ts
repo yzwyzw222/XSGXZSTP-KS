@@ -1,4 +1,4 @@
-import { api } from '@/services/api'
+import { api, apiRequest } from '@/services/api'
 import type {
   AchievementDetail,
   AchievementSummary,
@@ -19,6 +19,7 @@ import type {
   CrawlSchedule,
   CrawlTask,
   CrawlTaskParameters,
+  CrawlWindow,
   DataSource,
   DuplicateCandidate,
   ExportFilter,
@@ -38,6 +39,8 @@ import type {
   QualityMetric,
   QualityMetricDetail,
   SourceConfigurationInput,
+  SourceEntity,
+  SourceEntityKind,
   SourceProbe,
   AuditLog,
 } from '@/types/api'
@@ -88,6 +91,12 @@ export const catalogApi = {
 }
 
 export const sourceApi = {
+  /** 在选定来源按名称查询候选，允许取消过期搜索。 */
+  entities: (sourceId: number, kind: SourceEntityKind, query: string, signal?: AbortSignal) =>
+    api.get<SourceEntity[]>(withQuery(`/api/v1/sources/${sourceId}/entities/${kind}`, { query }), { signal, timeoutMs: 15000 }),
+  /** 批量回显已有任务中的名称，保持原有标识不变。 */
+  resolveEntities: (sourceId: number, kind: SourceEntityKind, ids: string[], signal?: AbortSignal) =>
+    api.get<SourceEntity[]>(withQuery(`/api/v1/sources/${sourceId}/entities/${kind}/resolve`, { ids: ids.join(',') }), { signal, timeoutMs: 15000 }),
   page: (page = 0, size = 20) =>
     api.get<PageResponse<DataSource>>(withQuery('/api/v1/sources', { page, size })),
   create: (input: SourceConfigurationInput) => api.post<DataSource>('/api/v1/sources', input),
@@ -101,6 +110,8 @@ export const sourceApi = {
 }
 
 export const crawlApi = {
+  /** 读取任务定义，运行详情不依赖当前列表页。 */
+  task: (taskId: number) => api.get<CrawlTask>(`/api/v1/crawl/tasks/${taskId}`),
   tasks: (page = 0, size = 20) =>
     api.get<PageResponse<CrawlTask>>(withQuery('/api/v1/crawl/tasks', { page, size })),
   createTask: (input: { sourceId: number; name: string; parameters: CrawlTaskParameters }) =>
@@ -108,18 +119,28 @@ export const crawlApi = {
   updateTask: (task: CrawlTask, name: string, parameters: CrawlTaskParameters) =>
     api.put<CrawlTask>(`/api/v1/crawl/tasks/${task.id}`, { name, parameters, version: task.version }),
   trigger: (taskId: number) => api.post<CrawlRun>(`/api/v1/crawl/tasks/${taskId}/trigger`),
-  schedule: (taskId: number, localTime: string, timeZone: string, version?: number) =>
+  schedule: (taskId: number, localTime: string, timeZone: string, version?: number,
+    incrementalMode = 'FIXED_SCOPE_REFRESH', enabled = true) =>
     api.put<CrawlSchedule>(`/api/v1/crawl/tasks/${taskId}/schedule`, {
       localTime,
       timeZone,
       version,
+      incrementalMode,
+      enabled,
     }),
+  /** 未配置计划时返回空响应，修改时沿用服务端版本。 */
+  getSchedule: (taskId: number) => api.get<CrawlSchedule | undefined>(`/api/v1/crawl/tasks/${taskId}/schedule`),
+  deleteSchedule: (taskId: number, version: number) =>
+    apiRequest<void>(withQuery(`/api/v1/crawl/tasks/${taskId}/schedule`, { version }), { method: 'DELETE' }),
+  runs: (taskId: number, page = 0, size = 20) =>
+    api.get<PageResponse<CrawlRun>>(withQuery(`/api/v1/crawl/tasks/${taskId}/runs`, { page, size })),
+  window: (runId: number) => api.get<CrawlWindow | undefined>(`/api/v1/crawl/runs/${runId}/window`),
   run: (runId: number) => api.get<CrawlRun>(`/api/v1/crawl/runs/${runId}`),
   failures: (runId: number, page = 0, size = 20) =>
     api.get<PageResponse<CrawlFailure>>(
       withQuery(`/api/v1/crawl/runs/${runId}/failures`, { page, size }),
     ),
-  control: (runId: number, action: 'pause' | 'resume' | 'cancel' | 'retry-failures') =>
+  control: (runId: number, action: 'pause' | 'resume' | 'cancel' | 'retry-failures' | 'retry-run') =>
     api.post<CrawlRun>(`/api/v1/crawl/runs/${runId}/${action}`),
 }
 

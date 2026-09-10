@@ -43,6 +43,7 @@ class CrawlTaskServiceTests {
     private CrawlRepository repository;
     private DataSourceRepository sourceRepository;
     private CrawlScopeCodec scopeCodec;
+    private com.aacv.system.source.application.port.DataSourceAdapter adapter;
     private CrawlTaskService service;
 
     @BeforeEach
@@ -53,6 +54,10 @@ class CrawlTaskServiceTests {
         CurrentActorProvider actorProvider = mock(CurrentActorProvider.class);
         when(actorProvider.currentUserId()).thenReturn(OptionalLong.of(7));
         when(scopeCodec.hash(any())).thenReturn(HASH);
+        var registry = mock(com.aacv.system.source.application.DataSourceAdapterRegistry.class);
+        adapter = mock(com.aacv.system.source.application.port.DataSourceAdapter.class);
+        when(registry.require(any())).thenReturn(adapter);
+        when(adapter.validate(any(), any())).thenReturn(com.aacv.system.source.domain.SourceValidationResult.success());
         service = new CrawlTaskService(
                 repository,
                 sourceRepository,
@@ -61,7 +66,7 @@ class CrawlTaskServiceTests {
                 mock(AuditService.class),
                 mock(com.aacv.system.crawl.application.port.CrawlRunLaunchPort.class),
                 mock(com.aacv.system.crawl.application.port.CrawlSchedulePort.class),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC), registry, new CrawlWindowService(repository, Clock.fixed(NOW, ZoneOffset.UTC)));
     }
 
     @Test
@@ -170,6 +175,21 @@ class CrawlTaskServiceTests {
     }
 
     @Test
+    void triggerPersistsActualIncrementalWindowBeforeDispatch() {
+        when(repository.lockTaskById(10)).thenReturn(Optional.of(task(true)));
+        when(sourceRepository.lockById(1)).thenReturn(Optional.of(source(true)));
+        when(repository.findScheduleByTaskId(10)).thenReturn(Optional.of(new CrawlSchedule(1, 10, "schedule-10",
+                LocalTime.of(8, 0), ZoneId.of("Asia/Shanghai"), CrawlWindowService.PUBLICATION, NOW, true, 0)));
+        CrawlRun pending = new CrawlRun(20, 10, "run-20", com.aacv.system.crawl.domain.CrawlTriggerType.MANUAL, null,
+                CrawlRunStatus.PENDING, null, 0, 0, 0, 0, 0, 0, 0, null, null, null, 0);
+        when(repository.insertPendingRun(any(), any(), org.mockito.ArgumentMatchers.eq(7L))).thenReturn(pending);
+        service.trigger(10);
+        verify(repository).insertRunWindow(org.mockito.ArgumentMatchers.eq(20L), org.mockito.ArgumentMatchers.argThat(window ->
+                window.scope().publicationDateFrom().equals(LocalDate.of(2026, 1, 1))
+                        && window.scope().publicationDateTo().equals(LocalDate.of(2026, 1, 7))));
+    }
+
+    @Test
     void dailyScheduleUsesExplicitZoneAndRollsPastTimeToNextDay() {
         when(repository.lockTaskById(10)).thenReturn(Optional.of(task(true)));
         when(sourceRepository.lockById(1)).thenReturn(Optional.of(source(true)));
@@ -207,6 +227,15 @@ class CrawlTaskServiceTests {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new CrawlScope(null, null, null, List.of(), List.of(), 5, 501));
+    }
+
+    @Test
+    void sourceValidationRejectsInvalidScopeBeforeInsert() {
+        when(sourceRepository.lockById(1)).thenReturn(Optional.of(source(true)));
+        when(adapter.validate(any(), any())).thenReturn(
+                com.aacv.system.source.domain.SourceValidationResult.invalid(List.of("来源不支持该范围")));
+        assertThrows(IllegalArgumentException.class, () -> service.create(1, "任务", scope()));
+        verify(repository, never()).insertTask(any());
     }
 
     private CrawlScope scope() {

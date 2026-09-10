@@ -84,6 +84,9 @@ class OpenAlexBatchOrchestrationIntegrationTests {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
+    @Autowired
     private CrawlRunService runService;
 
     @Test
@@ -99,10 +102,14 @@ class OpenAlexBatchOrchestrationIntegrationTests {
         long actorId = createActor();
         DataSourceConfiguration source = createSource();
         CrawlTask task = createTask(source.id(), actorId);
-        CrawlRun run = crawlRepository.insertPendingRun(
-                task, "00000000-0000-0000-0000-000000000201", actorId);
-
-        launchPort.launchAfterCommit(run.id());
+        // 与网页立即执行一致：任务事务提交后才启动批次。
+        CrawlRun run = new org.springframework.transaction.support.TransactionTemplate(transactionManager)
+                .execute(status -> {
+                    CrawlRun pending = crawlRepository.insertPendingRun(
+                            task, "00000000-0000-0000-0000-000000000201", actorId);
+                    launchPort.launchAfterCommit(pending.id());
+                    return pending;
+                });
 
         CrawlRun completed = awaitTerminal(run.id());
         assertEquals(CrawlRunStatus.SUCCEEDED, completed.status());
@@ -231,6 +238,42 @@ class OpenAlexBatchOrchestrationIntegrationTests {
         assertEquals(CrawlCompletionReason.USER_CANCELLED, cancelledResult.completionReason());
         assertNotNull(cancelledResult.finishedAt());
         assertTrue(scheduler.checkExists(TriggerKey.triggerKey("quota-resume", "aacv-crawl")));
+
+        CrawlRun launchFailure = crawlRepository.insertPendingRun(task, java.util.UUID.randomUUID().toString(), actorId);
+        var category = com.aacv.system.crawl.domain.CrawlLaunchFailure.EXECUTOR_BUSY;
+        runService.failLaunch(launchFailure.id(), category);
+        runService.failLaunch(launchFailure.id(), category);
+        assertEquals(CrawlRunStatus.FAILED, crawlRepository.findRunById(launchFailure.id()).orElseThrow().status());
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM crawl_failure WHERE run_id = ? AND failure_stage = 'SYSTEM' AND retryable = FALSE",
+                Integer.class, launchFailure.id()));
+        assertEquals(category.message(), jdbcTemplate.queryForObject("SELECT safe_message FROM crawl_failure WHERE run_id = ?", String.class, launchFailure.id()));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM audit_log WHERE target_type = 'CRAWL_RUN' AND target_id = ? AND result = 'FAILURE'",
+                Integer.class, Long.toString(launchFailure.id())));
+        // 整页请求失败应保留上一页检查点，并允许在同一业务运行中续跑。
+        org.mockito.Mockito.doReturn(new OpenAlexHttpResponse(200, withNextCursor, null, Map.of()),
+                new OpenAlexHttpResponse(400, new byte[0], null, Map.of()))
+                .when(transport).fetchWorks(any(), any(), any());
+        CrawlRun runtimeFailure = crawlRepository.insertPendingRun(quotaTask, java.util.UUID.randomUUID().toString(), actorId);
+        launchPort.launchAfterCommit(runtimeFailure.id());
+        CrawlRun failedFetch = awaitTerminal(runtimeFailure.id());
+        assertEquals(CrawlRunStatus.FAILED, failedFetch.status());
+        assertEquals(CrawlCompletionReason.BATCH_FAILED, failedFetch.completionReason());
+        assertEquals("quota-next", failedFetch.checkpoint());
+        assertEquals(1, failedFetch.readCount());
+        assertEquals("FETCH", jdbcTemplate.queryForObject("SELECT failure_stage FROM crawl_failure WHERE run_id = ?",
+                String.class, failedFetch.id()));
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertEquals("quota-next", ((com.aacv.system.source.domain.OpaqueCursor) invocation.getArgument(2)).value());
+            return new OpenAlexHttpResponse(200, terminalFixture(), null, Map.of());
+        }).when(transport).fetchWorks(any(), any(), any());
+        runService.retryRun(failedFetch.id());
+        CrawlRun retryFetch = awaitTerminal(failedFetch.id());
+        assertEquals(CrawlRunStatus.SUCCEEDED, retryFetch.status());
+        assertEquals(2, retryFetch.readCount());
+        assertTrue(retryFetch.finishedAt().isAfter(failedFetch.finishedAt()));
+        schedulePort.synchronizeAfterCommit(new CrawlSchedule(schedule.id(), task.id(), schedule.scheduleKey(),
+                schedule.localTime(), schedule.timeZone(), schedule.incrementalMode(), null, false, schedule.version()));
+        assertFalse(scheduler.checkExists(TriggerKey.triggerKey(schedule.scheduleKey(), "aacv-crawl")));
     }
 
     private void makeQuotaDue(long runId) {

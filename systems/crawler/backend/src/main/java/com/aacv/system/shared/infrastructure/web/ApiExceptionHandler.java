@@ -95,6 +95,13 @@ public class ApiExceptionHandler {
         return problem(request, HttpStatus.SERVICE_UNAVAILABLE, ErrorCode.GRAPH_UNAVAILABLE, exception.getMessage());
     }
 
+    @ExceptionHandler(com.aacv.system.source.application.SourceEntityLookupException.class)
+    ProblemDetail handleSourceLookup(
+            com.aacv.system.source.application.SourceEntityLookupException exception, HttpServletRequest request) {
+        return problem(request, HttpStatus.SERVICE_UNAVAILABLE,
+                ErrorCode.SOURCE_LOOKUP_UNAVAILABLE, exception.getMessage());
+    }
+
     @ExceptionHandler(GraphQueryTimeoutException.class)
     ProblemDetail handleGraphQueryTimeout(GraphQueryTimeoutException exception, HttpServletRequest request) {
         return problem(request, HttpStatus.GATEWAY_TIMEOUT, ErrorCode.GRAPH_QUERY_TIMEOUT, exception.getMessage());

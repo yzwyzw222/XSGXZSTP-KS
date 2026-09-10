@@ -103,6 +103,15 @@ export interface SourceConfigurationInput {
   version?: number
 }
 
+export type SourceEntityKind = 'authors' | 'institutions'
+
+export interface SourceEntity {
+  id: string
+  displayName: string
+  hint: string
+  worksCount: number | null
+}
+
 export interface DataSource extends Required<Omit<SourceConfigurationInput, 'version'>> {
   id: number
   sourceCode: string
@@ -239,9 +248,17 @@ export interface CrawlSchedule {
   taskId: number
   localTime: string
   timeZone: string
-  nextFireAt: string
+  nextFireAt: string | null
   version: number
   incrementalMode: string
+  enabled: boolean
+}
+
+export interface CrawlWindow {
+  mode: string
+  start: string
+  end: string
+  scope: CrawlTaskParameters
 }
 
 export interface CrawlFailure {

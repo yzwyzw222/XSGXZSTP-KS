@@ -28,6 +28,7 @@ class CrawlRunServiceTests {
     private CrawlRepository repository;
     private CrawlRunLaunchPort launchPort;
     private CrawlRunService service;
+    private com.aacv.system.source.application.port.DataSourceRepository sourceRepository;
 
     @BeforeEach
     void setUp() {
@@ -35,8 +36,9 @@ class CrawlRunServiceTests {
         launchPort = mock(CrawlRunLaunchPort.class);
         CurrentActorProvider actorProvider = mock(CurrentActorProvider.class);
         when(actorProvider.currentUserId()).thenReturn(java.util.OptionalLong.of(7));
+        sourceRepository = mock(com.aacv.system.source.application.port.DataSourceRepository.class);
         service = new CrawlRunService(repository, launchPort, mock(AuditService.class), actorProvider,
-                java.time.Clock.systemUTC());
+                java.time.Clock.systemUTC(), sourceRepository);
     }
 
     @Test
@@ -165,5 +167,40 @@ class CrawlRunServiceTests {
                 null,
                 null,
                 0);
+    }
+
+    @Test
+    void checkpointRetryLocksSourceBeforeCheckingConflicts() {
+        CrawlRun failed = new CrawlRun(1, 10, "run-1", CrawlTriggerType.MANUAL, null, CrawlRunStatus.FAILED, 11L,
+                10, 10, 10, 0, 0, 0, 1, "next", null, null, 0,
+                com.aacv.system.crawl.domain.CrawlCompletionReason.BATCH_FAILED, null, 0);
+        CrawlTask task = mock(CrawlTask.class);
+        var source = mock(com.aacv.system.source.domain.DataSourceConfiguration.class);
+        when(repository.lockRunById(1)).thenReturn(Optional.of(failed));
+        when(repository.lockTaskById(10)).thenReturn(Optional.of(task));
+        when(task.sourceId()).thenReturn(5L);
+        when(task.parameterHash()).thenReturn("hash");
+        when(task.enabled()).thenReturn(true);
+        when(source.enabled()).thenReturn(true);
+        when(sourceRepository.lockById(5)).thenReturn(Optional.of(source));
+        when(repository.hasActiveConflict(5, "hash")).thenReturn(true);
+        assertThrows(ResourceConflictException.class, () -> service.retryRun(1));
+        var order = org.mockito.Mockito.inOrder(sourceRepository, repository);
+        order.verify(sourceRepository).lockById(5);
+        order.verify(repository).hasActiveConflict(5, "hash");
+        verify(launchPort, org.mockito.Mockito.never()).launchAfterCommit(anyLong());
+    }
+
+    @Test
+    void failedLaunchPersistsSystemFailureAndDoesNotDuplicateTerminalRecords() {
+        var failure = com.aacv.system.crawl.domain.CrawlLaunchFailure.EXECUTOR_BUSY;
+        when(repository.lockRunById(1)).thenReturn(Optional.of(run(CrawlRunStatus.PENDING, 0)));
+        when(repository.transitionRun(1, CrawlRunStatus.PENDING, CrawlRunStatus.FAILED, null, null, false, true))
+                .thenReturn(Optional.of(run(CrawlRunStatus.FAILED, 0)));
+        assertEquals(CrawlRunStatus.FAILED, service.failLaunch(1, failure).status());
+        verify(repository).recordLaunchFailure(1, failure);
+        when(repository.lockRunById(1)).thenReturn(Optional.of(run(CrawlRunStatus.FAILED, 0)));
+        service.failLaunch(1, failure);
+        verify(repository, org.mockito.Mockito.times(1)).recordLaunchFailure(1, failure);
     }
 }

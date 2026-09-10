@@ -9,7 +9,8 @@ public record CrawlScheduleResponse(
         String timeZone,
         Instant nextFireAt,
         long version,
-        String incrementalMode) {
+        String incrementalMode,
+        boolean enabled) {
 
     static CrawlScheduleResponse from(CrawlSchedule schedule) {
         return new CrawlScheduleResponse(
@@ -18,6 +19,6 @@ public record CrawlScheduleResponse(
                 schedule.timeZone().getId(),
                 schedule.nextFireAt(),
                 schedule.version(),
-                schedule.incrementalMode());
+                schedule.incrementalMode(), schedule.enabled());
     }
 }

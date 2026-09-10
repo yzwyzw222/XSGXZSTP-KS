@@ -88,6 +88,17 @@ public class MyBatisIngestionRepository implements IngestionRepository {
             autoMatched = achievementId != null;
         }
         boolean created = achievementId == null;
+        if (!created) {
+            List<SourceSnapshot> existing = loadSnapshots(achievementId);
+            boolean unchanged = existing.stream().anyMatch(snapshot -> snapshot.sourceId() == sourceId
+                    && contentOf(snapshot.work()).equals(contentOf(work)));
+            if (unchanged && parserVersion.equals(mapper.findSourceParserVersion(sourceId, work.externalId()))) {
+                // 治理操作有独立的重建入口；重复采集仅更新观测时间，保留既有关系和人工决策。
+                int refreshed = mapper.refreshUnchangedSnapshot(sourceId, work.externalId(), serialize(work), now);
+                if (refreshed < 1 || refreshed > 3) throw new IllegalStateException("来源观测时间更新数量异常");
+                return new PersistOutcome(achievementId, false, 0, 0, countFieldConflicts(existing));
+            }
+        }
         AchievementPersistenceRow row = new AchievementPersistenceRow();
         row.setWork(work);
         row.setVenueId(null);
@@ -587,6 +598,14 @@ public class MyBatisIngestionRepository implements IngestionRepository {
                         row.getObservedAt(),
                         deserialize(row.getNormalizedPayload())))
                 .toList();
+    }
+
+    private tools.jackson.databind.JsonNode contentOf(NormalizedWork work) {
+        tools.jackson.databind.JsonNode value = objectMapper.valueToTree(work);
+        if (value.get("scholarlyMetadata") instanceof tools.jackson.databind.node.ObjectNode metadata) {
+            metadata.remove("observedAt");
+        }
+        return value;
     }
 
     private CanonicalSelection selectCanonical(List<SourceSnapshot> snapshots) {

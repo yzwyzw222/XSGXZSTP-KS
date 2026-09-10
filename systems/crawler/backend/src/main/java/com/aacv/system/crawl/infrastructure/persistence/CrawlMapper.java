@@ -9,6 +9,9 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface CrawlMapper {
     long countTasks();
+    CrawlWindowRow findRunWindow(@Param("runId") long runId);
+    Long findLatestWindowRun(@Param("taskId") long taskId, @Param("mode") String mode);
+    int insertRunWindow(@Param("runId") long runId, @Param("window") CrawlWindowRow window);
     int countTaskName(@Param("sourceId") long sourceId, @Param("taskName") String taskName);
     List<CrawlTaskRow> findTaskPage(@Param("offset") long offset, @Param("size") int size);
     CrawlTaskRow findTaskById(@Param("id") long id);
@@ -52,10 +55,17 @@ public interface CrawlMapper {
             @Param("batchJobExecutionId") long batchJobExecutionId);
     CrawlScheduleRow findScheduleByTaskId(@Param("taskId") long taskId);
     int insertSchedule(CrawlScheduleRow row);
+    int deleteSchedule(@Param("taskId") long taskId, @Param("version") long version);
     int updateSchedule(@Param("row") CrawlScheduleRow row, @Param("expectedVersion") long expectedVersion);
     List<CrawlScheduleRow> findEnabledSchedules();
     List<CrawlRecoveryCandidateRow> findRecoveryCandidates();
+    long countRuns(@Param("taskId") long taskId);
+    List<CrawlRunRow> findRunPage(@Param("taskId") long taskId, @Param("offset") long offset, @Param("size") int size);
+    int insertExecutionFailure(@Param("runId") long runId,
+            @Param("failure") com.aacv.system.crawl.domain.CrawlExecutionFailure failure);
     int recordCompletionReason(@Param("runId") long runId, @Param("reason") String reason);
+    int insertLaunchFailure(@Param("runId") long runId, @Param("category") String category,
+            @Param("message") String message);
     int recordQuotaDeferral(@Param("runId") long runId, @Param("deferredUntil") Instant deferredUntil,
             @Param("quotaDeferrals") int quotaDeferrals);
     List<Long> findDueQuotaRuns(@Param("now") Instant now, @Param("limit") int limit);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElAlert, ElButton, ElDialog, ElInput, ElInputNumber, ElTag } from 'element-plus'
+import { ElAlert, ElButton, ElDialog, ElInput, ElInputNumber, ElOption, ElSelect, ElTag } from 'element-plus'
 import { Gauge } from 'lucide-vue-next'
 import { onMounted, reactive, ref } from 'vue'
 
@@ -7,6 +7,7 @@ import {
   DataTable, FilterBar, FilterField, JsonEvidence, LoadingSkeleton, PageHeader, PanelSection,
 } from '@/components/business'
 import type { DataTableColumn } from '@/components/business/types'
+import { useDataSources } from '@/composables/useDataSources'
 import { toErrorMessage } from '@/services/api'
 import { qualityApi } from '@/services/business'
 import type { PageResponse, QualityMetric, QualityMetricDetail } from '@/types/api'
@@ -24,11 +25,12 @@ const detailVisible = ref(false)
 const detail = ref<QualityMetricDetail | null>(null)
 /** 打开弹窗时作废上一次详情请求，避免迟到响应覆盖当前指标。 */
 let detailVersion = 0
+const { sources, sourceLoading, sourceError, loadSources, sourceName } = useDataSources()
 const filters = reactive({ sourceId: '', runId: '', metricCode: '' })
 
 const columns: DataTableColumn<QualityMetric>[] = [
   { accessorKey: 'metricCode', header: '指标', enableSorting: false },
-  { accessorKey: 'sourceId', header: '来源 ID', enableSorting: false, meta: { width: '90px' } },
+  { accessorKey: 'sourceId', header: '数据源', enableSorting: false, meta: { width: '90px' } },
   { accessorKey: 'taskId', header: '任务 ID', enableSorting: false, meta: { width: '90px' } },
   { accessorKey: 'runId', header: '运行 ID', enableSorting: false, meta: { width: '90px' } },
   { id: 'result', accessorFn: (row) => metricPercent(row), header: '结果', enableSorting: false, meta: { width: '110px' } },
@@ -98,7 +100,7 @@ function metricPercent(metric: QualityMetric): string {
   return (Number(metric.metricValue) * 100).toFixed(2) + '%'
 }
 
-onMounted(() => load())
+onMounted(() => { void load(); void loadSources() })
 </script>
 
 <template>
@@ -108,9 +110,14 @@ onMounted(() => load())
       description="按来源和采集运行检查质量度量，进入详情审阅构成指标的原始记录样本。"
     />
 
+    <ElAlert v-if="sourceError" type="error" :closable="false" :title="sourceError">
+      <ElButton link :loading="sourceLoading" @click="loadSources">重试读取数据源</ElButton>
+    </ElAlert>
     <FilterBar :columns="4" :applying="loading" apply-text="查询指标" @apply="load()" @reset="reset">
-      <FilterField label="来源 ID">
-        <ElInputNumber :model-value="filters.sourceId ? Number(filters.sourceId) : undefined" :min="1" :max="Number.MAX_SAFE_INTEGER" :step="1" :precision="0" controls-position="right" style="width: 100%" placeholder="全部来源" @update:model-value="filters.sourceId = String($event ?? '')" />
+      <FilterField label="数据源">
+        <ElSelect v-model="filters.sourceId" :loading="sourceLoading" clearable placeholder="全部数据源" style="width: 100%">
+          <ElOption v-for="source in sources" :key="source.id" :value="String(source.id)" :label="sourceName(source.id)" />
+        </ElSelect>
       </FilterField>
       <FilterField label="运行 ID">
         <ElInputNumber :model-value="filters.runId ? Number(filters.runId) : undefined" :min="1" :max="Number.MAX_SAFE_INTEGER" :step="1" :precision="0" controls-position="right" style="width: 100%" placeholder="全部运行" @update:model-value="filters.runId = String($event ?? '')" />
@@ -136,6 +143,7 @@ onMounted(() => load())
         :get-row-id="(row) => String(row.id)"
         @update:page="load"
       >
+        <template #cell-sourceId="{ row }">{{ sourceName(row.sourceId) }}</template>
         <template #cell-result="{ value }">
           <ElTag size="small" type="info" effect="plain">{{ value }}</ElTag>
         </template>

@@ -14,6 +14,7 @@ import com.aacv.system.operations.domain.AuditAction;
 import com.aacv.system.operations.domain.AuditResult;
 import com.aacv.system.shared.application.ResourceConflictException;
 import com.aacv.system.shared.application.ResourceNotFoundException;
+import com.aacv.system.source.application.port.DataSourceRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -31,18 +32,21 @@ public class CrawlRunService {
     private final AuditService auditService;
     private final CurrentActorProvider currentActorProvider;
     private final Clock clock;
+    private final DataSourceRepository sourceRepository;
 
     public CrawlRunService(
             CrawlRepository repository,
             CrawlRunLaunchPort launchPort,
             AuditService auditService,
             CurrentActorProvider currentActorProvider,
-            Clock clock) {
+            Clock clock,
+            DataSourceRepository sourceRepository) {
         this.repository = repository;
         this.launchPort = launchPort;
         this.auditService = auditService;
         this.currentActorProvider = currentActorProvider;
         this.clock = clock;
+        this.sourceRepository = sourceRepository;
     }
 
     @Transactional
@@ -180,6 +184,12 @@ public class CrawlRunService {
 
     @Transactional
     public CrawlRun completeBatch(long runId, boolean batchSucceeded, Instant quotaResumeAt) {
+        return completeBatch(runId, batchSucceeded, quotaResumeAt, null);
+    }
+
+    @Transactional
+    public CrawlRun completeBatch(long runId, boolean batchSucceeded, Instant quotaResumeAt,
+            com.aacv.system.crawl.domain.CrawlExecutionFailure failure) {
         CrawlRun current = lock(runId);
         if (CrawlRunStateMachine.isTerminal(current.status()) || current.status() == CrawlRunStatus.PAUSED) {
             return current;
@@ -218,6 +228,12 @@ public class CrawlRunService {
             throw new ResourceConflictException("Batch完成状态与业务运行状态不一致");
         }
         repository.recordCompletionReason(runId, reason);
+        if (target == CrawlRunStatus.FAILED && failure != null) {
+            repository.recordExecutionFailure(runId, failure);
+            auditService.record(AuditAction.OPERATION_FAILED, "CRAWL_RUN", Long.toString(runId),
+                    AuditResult.FAILURE, Map.of("runNumber", current.runNumber(),
+                            "stage", failure.stage(), "errorCategory", failure.category(), "message", failure.message()));
+        }
         repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
         return transition(
                 current,
@@ -230,12 +246,49 @@ public class CrawlRunService {
 
     @Transactional
     public CrawlRun failLaunch(long runId) {
+        return failLaunch(runId, com.aacv.system.crawl.domain.CrawlLaunchFailure.UNKNOWN);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('CRAWL_TASK_CONTROL')")
+    public CrawlRun retryRun(long runId) {
+        CrawlRun current = lock(runId);
+        if (current.status() != CrawlRunStatus.FAILED || current.completionReason() != CrawlCompletionReason.BATCH_FAILED) {
+            throw new ResourceConflictException("只有执行失败的运行可从检查点重试");
+        }
+        var task = repository.lockTaskById(current.taskId()).orElseThrow();
+        // 与新触发使用同一来源锁，防止不同任务的同范围重试和新运行同时通过冲突检查。
+        var source = sourceRepository.lockById(task.sourceId())
+                .orElseThrow(() -> new ResourceNotFoundException("数据源不存在"));
+        if (!task.enabled() || !source.enabled()) throw new ResourceConflictException("任务或数据源已停用");
+        repository.findRunWindow(runId).ifPresent(window -> {
+            if (!repository.findLatestWindowRun(task.id(), window.mode()).filter(id -> id == runId).isPresent()) {
+                throw new ResourceConflictException("该窗口已有后续运行，请从任务运行历史中处理最新运行");
+            }
+        });
+        if (repository.hasActiveConflict(task.sourceId(), task.parameterHash())) {
+            throw new ResourceConflictException("相同范围已有活动运行，请先处理活动运行");
+        }
+        repository.recordCompletionReason(runId, null);
+        CrawlRun updated = transition(current, CrawlRunStatus.RUNNING, null, null, false, false);
+        launchPort.launchAfterCommit(runId);
+        auditService.record(AuditAction.CRAWL_RUN_RESUMED, "CRAWL_RUN", Long.toString(runId),
+                AuditResult.SUCCESS, Map.of("trigger", "RETRY_FROM_CHECKPOINT"));
+        return updated;
+    }
+
+    @Transactional
+    public CrawlRun failLaunch(long runId, com.aacv.system.crawl.domain.CrawlLaunchFailure failure) {
         CrawlRun current = lock(runId);
         if (current.status() != CrawlRunStatus.PENDING && current.status() != CrawlRunStatus.RUNNING) {
             return current;
         }
         repository.recordCompletionReason(runId, CrawlCompletionReason.BATCH_FAILED);
         repository.recordQuotaDeferral(runId, null, current.quotaDeferrals());
+        repository.recordLaunchFailure(runId, failure);
+        auditService.record(AuditAction.OPERATION_FAILED, "CRAWL_RUN", Long.toString(runId),
+                AuditResult.FAILURE, Map.of("runNumber", current.runNumber(), "errorCategory", "LAUNCH_" + failure.name(),
+                        "message", failure.message()));
         return transition(current, CrawlRunStatus.FAILED, null, null, false, true);
     }
 

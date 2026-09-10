@@ -17,6 +17,7 @@ import com.aacv.system.shared.application.ResourceNotFoundException;
 import com.aacv.system.shared.domain.PageResult;
 import com.aacv.system.source.application.port.DataSourceRepository;
 import com.aacv.system.source.domain.DataSourceConfiguration;
+import com.aacv.system.source.application.DataSourceAdapterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalTime;
@@ -39,6 +40,8 @@ public class CrawlTaskService {
     private final CrawlRunLaunchPort launchPort;
     private final CrawlSchedulePort schedulePort;
     private final Clock clock;
+    private final DataSourceAdapterRegistry adapters;
+    private final CrawlWindowService windows;
 
     public CrawlTaskService(
             CrawlRepository repository,
@@ -48,7 +51,9 @@ public class CrawlTaskService {
             AuditService auditService,
             CrawlRunLaunchPort launchPort,
             CrawlSchedulePort schedulePort,
-            Clock clock) {
+            Clock clock,
+            DataSourceAdapterRegistry adapters,
+            CrawlWindowService windows) {
         this.repository = repository;
         this.sourceRepository = sourceRepository;
         this.scopeCodec = scopeCodec;
@@ -57,6 +62,8 @@ public class CrawlTaskService {
         this.launchPort = launchPort;
         this.schedulePort = schedulePort;
         this.clock = clock;
+        this.adapters = adapters;
+        this.windows = windows;
     }
 
     @Transactional(readOnly = true)
@@ -81,6 +88,7 @@ public class CrawlTaskService {
             throw new ResourceConflictException("数据源已停用，不能创建新任务");
         }
         String normalizedName = normalizeName(name);
+        validateScope(source, scope);
         if (repository.taskNameExists(sourceId, normalizedName)) {
             throw new ResourceConflictException("同一数据源下的任务名称已存在");
         }
@@ -107,6 +115,9 @@ public class CrawlTaskService {
         if (repository.taskHasRuns(taskId)) {
             throw new ResourceConflictException("已经运行过的任务不能修改范围，请创建新任务");
         }
+        DataSourceConfiguration source = sourceRepository.lockById(current.sourceId())
+                .orElseThrow(() -> new ResourceNotFoundException("数据源不存在"));
+        validateScope(source, scope);
         String normalizedName = normalizeName(name);
         if (current.parameterVersion() == 1) {
             requireVersionOneScope(scope);
@@ -141,6 +152,7 @@ public class CrawlTaskService {
         }
         long actorId = currentActorProvider.currentUserId().orElseThrow();
         CrawlRun run = repository.insertPendingRun(task, UUID.randomUUID().toString(), actorId);
+        snapshotWindow(task, source, run);
         launchPort.launchAfterCommit(run.id());
         auditService.record(
                 AuditAction.CRAWL_TASK_TRIGGERED,
@@ -157,6 +169,9 @@ public class CrawlTaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("采集任务不存在"));
         DataSourceConfiguration source = sourceRepository.lockById(task.sourceId())
                 .orElseThrow(() -> new ResourceNotFoundException("数据源不存在"));
+        CrawlSchedule schedule = repository.findScheduleByTaskId(taskId)
+                .orElseThrow(() -> new ResourceConflictException("采集计划已移除"));
+        if (!schedule.enabled()) throw new ResourceConflictException("采集计划已停用");
         if (!task.enabled() || !source.enabled()) {
             throw new ResourceConflictException("任务或数据源已停用");
         }
@@ -165,6 +180,7 @@ public class CrawlTaskService {
         }
         CrawlRun run = repository.insertPendingRun(
                 task, UUID.randomUUID().toString(), "SCHEDULED", task.createdBy());
+        snapshotWindow(task, source, run);
         launchPort.launchAfterCommit(run.id());
         auditService.record(
                 AuditAction.CRAWL_TASK_TRIGGERED,
@@ -186,21 +202,33 @@ public class CrawlTaskService {
     @PreAuthorize("hasAuthority('CRAWL_SCHEDULE_MANAGE')")
     public CrawlSchedule configureDailySchedule(
             long taskId, LocalTime localTime, ZoneId zoneId, Long expectedVersion) {
+        return configureDailySchedule(taskId, localTime, zoneId, expectedVersion, CrawlWindowService.FIXED, true);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('CRAWL_SCHEDULE_MANAGE')")
+    public CrawlSchedule configureDailySchedule(long taskId, LocalTime localTime, ZoneId zoneId,
+            Long expectedVersion, String mode, boolean enabled) {
         CrawlTask task = repository.lockTaskById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("采集任务不存在"));
         DataSourceConfiguration source = sourceRepository.lockById(task.sourceId())
                 .orElseThrow(() -> new ResourceNotFoundException("数据源不存在"));
         CrawlSchedule current = repository.findScheduleByTaskId(taskId).orElse(null);
-        Instant nextFireAt = nextFireAt(localTime, zoneId);
+        if (enabled) {
+            validateScope(source, task.scope());
+            windows.validate(task, source.sourceType(), mode);
+        }
+        if (enabled && (!task.enabled() || !source.enabled())) throw new ResourceConflictException("任务或数据源已停用");
+        Instant nextFireAt = enabled ? nextFireAt(localTime, zoneId) : null;
         CrawlSchedule candidate = new CrawlSchedule(
                 current == null ? 0 : current.id(),
                 task.id(),
                 current == null ? "crawl-task-" + task.id() : current.scheduleKey(),
                 localTime,
                 zoneId,
-                "FIXED_SCOPE_REFRESH",
+                mode,
                 nextFireAt,
-                true,
+                enabled,
                 current == null ? 0 : current.version());
         CrawlSchedule saved = repository.saveSchedule(candidate, expectedVersion)
                 .orElseThrow(() -> new ResourceConflictException("采集计划已被其他操作更新"));
@@ -212,6 +240,50 @@ public class CrawlTaskService {
                 AuditResult.SUCCESS,
                 Map.of("taskId", Long.toString(taskId)));
         return saved;
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CRAWL_TASK_READ')")
+    public java.util.Optional<CrawlSchedule> findSchedule(long taskId) {
+        requireTask(taskId);
+        return repository.findScheduleByTaskId(taskId).map(schedule -> new CrawlSchedule(schedule.id(),
+                schedule.taskId(), schedule.scheduleKey(), schedule.localTime(), schedule.timeZone(),
+                schedule.incrementalMode(), schedule.enabled() ? nextFireAt(schedule.localTime(), schedule.timeZone()) : null,
+                schedule.enabled(), schedule.version()));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CRAWL_RUN_READ')")
+    public PageResult<CrawlRun> findRuns(long taskId, int page, int size) {
+        requireTask(taskId);
+        return repository.findRunPage(taskId, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CRAWL_RUN_READ')")
+    public java.util.Optional<com.aacv.system.crawl.domain.CrawlWindow> findRunWindow(long runId) {
+        requireRun(runId);
+        return repository.findRunWindow(runId);
+    }
+
+    @Transactional
+    @PreAuthorize("hasAuthority('CRAWL_SCHEDULE_MANAGE')")
+    public void deleteSchedule(long taskId, long version) {
+        repository.lockTaskById(taskId).orElseThrow(() -> new ResourceNotFoundException("采集任务不存在"));
+        CrawlSchedule current = repository.findScheduleByTaskId(taskId)
+                .orElseThrow(() -> new ResourceNotFoundException("采集计划不存在"));
+        if (!repository.deleteSchedule(taskId, version)) throw new ResourceConflictException("采集计划已被其他操作更新");
+        schedulePort.synchronizeAfterCommit(new CrawlSchedule(current.id(), taskId, current.scheduleKey(),
+                current.localTime(), current.timeZone(), current.incrementalMode(), null, false, current.version()));
+        auditService.record(AuditAction.CRAWL_SCHEDULE_CHANGED, "CRAWL_SCHEDULE", Long.toString(current.id()),
+                AuditResult.SUCCESS, Map.of("operation", "DELETE"));
+    }
+
+    private void snapshotWindow(CrawlTask task, DataSourceConfiguration source, CrawlRun run) {
+        validateScope(source, task.scope());
+        String mode = repository.findScheduleByTaskId(task.id()).map(CrawlSchedule::incrementalMode)
+                .orElse(CrawlWindowService.FIXED);
+        windows.prepare(task, source.sourceType(), mode).ifPresent(window -> repository.insertRunWindow(run.id(), window));
     }
 
     private Instant nextFireAt(LocalTime localTime, ZoneId zoneId) {
@@ -236,6 +308,11 @@ public class CrawlTaskService {
             return 1;
         }
         return 2;
+    }
+
+    private void validateScope(DataSourceConfiguration source, CrawlScope scope) {
+        var result = adapters.require(source.sourceType()).validate(source.settings(), scope);
+        if (!result.valid()) throw new IllegalArgumentException(String.join("；", result.errors()));
     }
 
     private void requireVersionOneScope(CrawlScope scope) {

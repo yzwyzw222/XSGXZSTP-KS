@@ -41,6 +41,7 @@ public final class CrawlRunStateMachine {
                 CrawlRunStatus.PAUSED, CrawlRunStatus.CANCELLING, CrawlRunStatus.FAILED));
         values.put(CrawlRunStatus.PAUSED, EnumSet.of(CrawlRunStatus.RUNNING, CrawlRunStatus.CANCELLING));
         values.put(CrawlRunStatus.CANCELLING, EnumSet.of(CrawlRunStatus.CANCELLED, CrawlRunStatus.FAILED));
+        values.put(CrawlRunStatus.FAILED, EnumSet.of(CrawlRunStatus.RUNNING));
         return Map.copyOf(values);
     }
 }

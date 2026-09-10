@@ -2,6 +2,7 @@ package com.aacv.system.crawl.infrastructure.batch;
 
 import com.aacv.system.crawl.application.CrawlRunService;
 import com.aacv.system.crawl.application.port.CrawlRunLaunchPort;
+import com.aacv.system.crawl.domain.CrawlLaunchFailure;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
@@ -70,7 +71,17 @@ class SpringBatchCrawlRunLauncher implements CrawlRunLaunchPort {
                     "Spring Batch采集运行启动失败，runId={}，异常类型={}",
                     runId,
                     exception.getClass().getSimpleName());
-            crawlRunServiceProvider.getObject().failLaunch(runId);
+            crawlRunServiceProvider.getObject().failLaunch(runId, classify(exception));
         }
+    }
+
+    static CrawlLaunchFailure classify(Throwable exception) {
+        for (int depth = 0; exception != null && depth < 16; depth++, exception = exception.getCause()) {
+            if (exception instanceof java.util.concurrent.RejectedExecutionException) return CrawlLaunchFailure.EXECUTOR_BUSY;
+            if (exception instanceof org.springframework.dao.DataAccessException) return CrawlLaunchFailure.STORAGE_UNAVAILABLE;
+            if (exception instanceof org.springframework.transaction.TransactionException) return CrawlLaunchFailure.TRANSACTION_FAILED;
+            if (exception instanceof IllegalArgumentException) return CrawlLaunchFailure.INVALID_PARAMETERS;
+        }
+        return CrawlLaunchFailure.UNKNOWN;
     }
 }

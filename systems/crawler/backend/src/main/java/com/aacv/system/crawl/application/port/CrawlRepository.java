@@ -16,6 +16,14 @@ public interface CrawlRepository {
 
     PageResult<CrawlTask> findTaskPage(int page, int size);
 
+    PageResult<CrawlRun> findRunPage(long taskId, int page, int size);
+
+    Optional<com.aacv.system.crawl.domain.CrawlWindow> findRunWindow(long runId);
+
+    Optional<Long> findLatestWindowRun(long taskId, String mode);
+
+    void insertRunWindow(long runId, com.aacv.system.crawl.domain.CrawlWindow window);
+
     Optional<CrawlTask> findTaskById(long id);
 
     Optional<CrawlTask> lockTaskById(long id);
@@ -73,11 +81,17 @@ public interface CrawlRepository {
 
     Optional<CrawlSchedule> saveSchedule(CrawlSchedule schedule, Long expectedVersion);
 
+    boolean deleteSchedule(long taskId, long version);
+
     List<CrawlSchedule> findEnabledSchedules();
 
     List<CrawlRecoveryCandidate> findRecoveryCandidates();
 
     void recordCompletionReason(long runId, com.aacv.system.crawl.domain.CrawlCompletionReason reason);
+
+    void recordLaunchFailure(long runId, com.aacv.system.crawl.domain.CrawlLaunchFailure failure);
+
+    void recordExecutionFailure(long runId, com.aacv.system.crawl.domain.CrawlExecutionFailure failure);
 
     void recordQuotaDeferral(long runId, java.time.Instant deferredUntil, int quotaDeferrals);
 

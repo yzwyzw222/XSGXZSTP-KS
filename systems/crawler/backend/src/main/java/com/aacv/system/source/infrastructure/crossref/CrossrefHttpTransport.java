@@ -127,7 +127,7 @@ class CrossrefHttpTransport {
 
     private void addFilter(List<String> filters, String name, List<String> values) {
         if (!values.isEmpty()) {
-            filters.add(name + ":" + String.join("|", values));
+            values.forEach(value -> filters.add(name + ":" + value));
         }
     }
 

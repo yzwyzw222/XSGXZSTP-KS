@@ -30,6 +30,22 @@ class CrawlRecoveryServiceTests {
     }
 
     @Test
+    void recoversPendingWithoutBatchAndInterruptedSubmission() {
+        service.reconcile(new CrawlRecoveryCandidate(5, CrawlRunStatus.PENDING, null, null, false));
+        service.reconcile(new CrawlRecoveryCandidate(6, CrawlRunStatus.PENDING, 16L, "STARTING", false));
+        verify(launchPort).launchAfterCommit(5);
+        verify(launchPort).launchAfterCommit(6);
+        service.reconcile(new CrawlRecoveryCandidate(8, CrawlRunStatus.RUNNING, null, null, true));
+        verify(launchPort).launchAfterCommit(8);
+    }
+
+    @Test
+    void reconcilesCompletedBatchWithoutRefetching() {
+        service.reconcile(new CrawlRecoveryCandidate(7, CrawlRunStatus.RUNNING, 17L, "COMPLETED", true));
+        verify(runService).completeBatch(7, true);
+    }
+
+    @Test
     void interruptedRunningExecutionIsRelaunchedFromBusinessCheckpoint() {
         service.reconcile(new CrawlRecoveryCandidate(
                 1, CrawlRunStatus.RUNNING, 11L, "STARTED", true));
@@ -51,7 +67,7 @@ class CrawlRecoveryServiceTests {
     @Test
     void inconsistentMetadataFailsBusinessRunInsteadOfAdvancing() {
         service.reconcile(new CrawlRecoveryCandidate(
-                4, CrawlRunStatus.RUNNING, 14L, "COMPLETED", true));
+                4, CrawlRunStatus.RUNNING, 14L, "UNKNOWN", true));
 
         verify(runService).completeBatch(4, false);
     }

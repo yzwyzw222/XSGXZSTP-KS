@@ -3,6 +3,7 @@ package com.aacv.system.source.infrastructure.openalex;
 import com.aacv.system.crawl.domain.CrawlScope;
 import com.aacv.system.source.domain.OpaqueCursor;
 import com.aacv.system.source.domain.SourceConnectionSettings;
+import com.aacv.system.source.domain.SourceEntity;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -68,7 +69,29 @@ class OpenAlexHttpTransport {
     private OpenAlexHttpResponse execute(
             SourceConnectionSettings settings,
             java.util.function.Function<UriBuilder, java.net.URI> uriFunction) {
-        try (OpenAlexRequestGate.Permit ignored = requestGate.acquire(settings)) {
+        return execute(settings, uriFunction, null);
+    }
+
+    OpenAlexHttpResponse searchEntities(SourceConnectionSettings settings, SourceEntity.Kind kind, String query) {
+        return execute(settings, builder -> builder.path("/autocomplete/" + kind.path())
+                .queryParam("q", "{query}").build(query), Duration.ofSeconds(2));
+    }
+
+    OpenAlexHttpResponse resolveEntities(
+            SourceConnectionSettings settings, SourceEntity.Kind kind, java.util.List<String> ids) {
+        String fields = kind == SourceEntity.Kind.AUTHORS
+                ? "id,display_name,last_known_institutions,works_count"
+                : "id,display_name,geo,works_count";
+        return execute(settings, builder -> builder.path("/" + kind.path())
+                .queryParam("filter", "{filter}")
+                .queryParam("select", fields).queryParam("per_page", 50)
+                .build("ids.openalex:" + String.join("|", ids)), Duration.ofSeconds(2));
+    }
+
+    private OpenAlexHttpResponse execute(
+            SourceConnectionSettings settings,
+            java.util.function.Function<UriBuilder, java.net.URI> uriFunction, Duration maxWait) {
+        try (OpenAlexRequestGate.Permit ignored = requestGate.acquire(settings, maxWait)) {
             RestClient client = clientFactory.create(settings);
             return client.get().uri(uriFunction).exchange((request, response) -> {
                 int status = response.getStatusCode().value();

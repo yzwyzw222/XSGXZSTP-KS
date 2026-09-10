@@ -21,6 +21,9 @@ interface IngestionMapper {
     Long findAchievementBySource(@Param("sourceId") long sourceId, @Param("externalId") String externalId);
 
     Long findAchievementByDoi(String doi);
+    String findSourceParserVersion(@Param("sourceId") long sourceId, @Param("externalId") String externalId);
+    int refreshUnchangedSnapshot(@Param("sourceId") long sourceId, @Param("externalId") String externalId,
+            @Param("payload") String payload, @Param("now") Instant now);
 
     int upsertVenue(NormalizedWork.NormalizedVenue venue);
 

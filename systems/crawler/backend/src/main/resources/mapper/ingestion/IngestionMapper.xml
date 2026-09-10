@@ -530,4 +530,14 @@
         JOIN crawl_task task ON task.id = run.task_id
         WHERE run.id = #{runId}
     </insert>
+    <select id="findSourceParserVersion" resultType="string">
+        SELECT parser_version FROM achievement_source WHERE source_id = #{sourceId} AND external_record_id = #{externalId}
+    </select>
+    <update id="refreshUnchangedSnapshot">
+        UPDATE achievement_source a JOIN achievement_source_snapshot s ON s.achievement_source_id = a.id
+        JOIN achievement work ON work.id = a.achievement_id
+        SET a.last_seen_at = #{now}, s.observed_at = #{now}, s.normalized_payload = #{payload},
+            work.last_seen_at = #{now}, work.updated_at = work.updated_at
+        WHERE a.source_id = #{sourceId} AND a.external_record_id = #{externalId}
+    </update>
 </mapper>

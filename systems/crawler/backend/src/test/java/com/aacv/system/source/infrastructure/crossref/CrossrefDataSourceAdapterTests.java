@@ -46,6 +46,12 @@ class CrossrefDataSourceAdapterTests {
     }
 
     @Test
+    void refusesOpenAlexIdentifiersInsteadOfSilentlyIgnoringFilters() {
+        CrawlScope unsupported = new CrawlScope(null, null, null, List.of("A1"), List.of("I1"), 1, 100);
+        assertFalse(adapter.validate(settings(1), unsupported).valid());
+    }
+
+    @Test
     void retryableStatusHonorsRetryAfterAndCountsRequests() throws IOException {
         when(transport.fetchWorks(any(), any(), any())).thenReturn(
                 new CrossrefHttpResponse(429, new byte[0], Duration.ofSeconds(2), Map.of()),

@@ -103,11 +103,15 @@ class IngestionPipelineIntegrationTests {
         assertEquals(2, count("achievement_reference"));
         assertEquals("cursor-2", checkpoint(firstRun.id()));
 
+        int initialGraphEvents = count("graph_outbox_event");
+        Instant initialUpdated = jdbcTemplate.queryForObject("SELECT updated_at FROM achievement", Instant.class);
         CrawlRun duplicateRun = createRun(task, actorId, "00000000-0000-0000-0000-000000000102");
         IngestionPageResult duplicate = ingestionPageService.processOpenAlexPage(
                 source.id(), duplicateRun.id(), page(raw("https://openalex.org/W2741809807", officialPayload), null));
 
         assertEquals(1, duplicate.duplicateCount());
+        assertEquals(initialGraphEvents, count("graph_outbox_event"));
+        assertEquals(initialUpdated, jdbcTemplate.queryForObject("SELECT updated_at FROM achievement", Instant.class));
         assertEquals(0, duplicate.createdCount());
         assertEquals(1, count("achievement"));
         assertEquals(firstSeen, jdbcTemplate.queryForObject(
@@ -230,6 +234,16 @@ class IngestionPipelineIntegrationTests {
                 Integer.class,
                 rawRecordId));
         assertEquals(0, retentionService.cleanupExpired(1).clearedCount());
+
+        // 解析器版本变化仍需重新构建，不能被内容相同的快速路径跳过。
+        jdbcTemplate.update("UPDATE achievement_source SET parser_version = 'older-parser' WHERE raw_record_id = ?", rawRecordId);
+        int beforeReparse = count("graph_outbox_event");
+        CrawlRun reparse = createRun(task, actorId, java.util.UUID.randomUUID().toString());
+        ingestionPageService.processOpenAlexPage(source.id(), reparse.id(),
+                page(raw("https://openalex.org/W2741809807", officialPayload), null));
+        assertTrue(count("graph_outbox_event") > beforeReparse);
+        assertEquals(IngestionPageService.PARSER_VERSION, jdbcTemplate.queryForObject(
+                "SELECT parser_version FROM achievement_source WHERE raw_record_id = ?", String.class, rawRecordId));
     }
 
     private long createActor() {

@@ -22,6 +22,7 @@ import org.springframework.batch.infrastructure.item.ExecutionContext;
 import org.springframework.batch.infrastructure.item.ItemStreamReader;
 
 class OpenAlexPageItemReader implements ItemStreamReader<CrawlPageItem> {
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(OpenAlexPageItemReader.class);
 
     private static final int MAX_RETRY_FAILURES = 100;
 
@@ -63,7 +64,7 @@ class OpenAlexPageItemReader implements ItemStreamReader<CrawlPageItem> {
         if (!source.enabled() || !task.enabled()) {
             throw new IllegalStateException("任务或数据源已停用，不能启动采集");
         }
-        scope = task.scope();
+        scope = crawlRepository.findRunWindow(runId).map(com.aacv.system.crawl.domain.CrawlWindow::scope).orElse(task.scope());
         if (run.triggerType() == CrawlTriggerType.RETRY_FAILURES) {
             retryFailures = ingestionRepository.findRetryableFailures(
                     run.parentRunId(), Math.min(MAX_RETRY_FAILURES, scope.maxRecords()));
@@ -141,11 +142,10 @@ class OpenAlexPageItemReader implements ItemStreamReader<CrawlPageItem> {
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("来源返回了无效的total-results", exception);
         }
-        if (currentTotal < 0 || (expectedTotalResults != null && expectedTotalResults != currentTotal)) {
-            throw new IllegalStateException("游标链期间Crossref total-results发生变化");
-        }
-        if (committedRecords + page.records().size() > currentTotal) {
-            throw new IllegalStateException("Crossref页面记录数超过total-results");
+        if (currentTotal < 0) throw new IllegalArgumentException("Crossref total-results不能为负数");
+        if (expectedTotalResults != null && expectedTotalResults != currentTotal) {
+            LOGGER.warn("Crossref结果数量变化，继续按游标与幂等入库处理，runId={}，previousTotal={}，currentTotal={}",
+                    runId, expectedTotalResults, currentTotal);
         }
         expectedTotalResults = currentTotal;
     }

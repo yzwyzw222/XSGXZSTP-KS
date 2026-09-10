@@ -76,6 +76,19 @@ class OpenAlexPageItemReaderTests {
     }
 
     @Test
+    void restartUsesPersistedWindowInsteadOfTaskSeedRange() {
+        CrawlScope windowScope = new CrawlScope(null, null, "frozen-window", List.of(), List.of(), List.of(),
+                List.of(), List.of(), Instant.parse("2026-09-01T00:00:00Z"), Instant.parse("2026-09-02T00:00:00Z"), 5, 500);
+        when(crawlRepository.findRunWindow(1)).thenReturn(Optional.of(new com.aacv.system.crawl.domain.CrawlWindow(
+                "CLOSED_INDEX_DATE_WINDOW", windowScope.updatedFrom(), windowScope.updatedUntil(), windowScope)));
+        when(adapter.fetchPage(any(), any(), any())).thenReturn(new SourcePage(List.of(), null, 1, Map.of()));
+        reader.open(new ExecutionContext());
+        reader.read();
+        verify(adapter).fetchPage(any(), org.mockito.ArgumentMatchers.eq(windowScope),
+                org.mockito.ArgumentMatchers.eq(new OpaqueCursor("cursor-2")));
+    }
+
+    @Test
     void resumesFromLastCommittedOpaqueCursor() {
         when(adapter.fetchPage(any(), any(), any())).thenReturn(
                 new SourcePage(List.of(), null, 1, Map.of()));
@@ -103,7 +116,7 @@ class OpenAlexPageItemReaderTests {
     }
 
     @Test
-    void rejectsChangedCrossrefTotalDuringCursorChain() {
+    void changingCrossrefTotalDoesNotBreakValidCursorChain() {
         RawSourceRecord firstRecord = new RawSourceRecord(
                 SourceType.CROSSREF,
                 "10.1000/first",
@@ -125,7 +138,7 @@ class OpenAlexPageItemReaderTests {
 
         reader.read();
 
-        assertThrows(IllegalStateException.class, reader::read);
+        assertEquals(com.aacv.system.crawl.domain.CrawlCompletionReason.SOURCE_EXHAUSTED, reader.read().completionReason());
     }
 
     @Test

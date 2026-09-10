@@ -126,5 +126,27 @@ class SourceCrawlPersistenceTests {
         assertTrue(crawlRepository.hasActiveConflict(source.id(), task.parameterHash()));
         assertEquals(ZoneId.of("Asia/Shanghai"), schedule.timeZone());
         assertEquals(schedule, crawlRepository.findScheduleByTaskId(task.id()).orElseThrow());
+        assertTrue(crawlRepository.findRecoveryCandidates().stream().anyMatch(candidate -> candidate.runId() == run.id()));
+        var window = new com.aacv.system.crawl.domain.CrawlWindow("ROLLING_PUBLICATION_DATE_WINDOW",
+                NOW, NOW.plusSeconds(86400), scope);
+        crawlRepository.insertRunWindow(run.id(), window);
+        assertEquals(window, crawlRepository.findRunWindow(run.id()).orElseThrow());
+        assertEquals(run.id(), crawlRepository.findLatestWindowRun(task.id(), window.mode()).orElseThrow());
+        assertEquals(run.id(), crawlRepository.findRunPage(task.id(), 0, 20).items().getFirst().id());
+        assertEquals(1, crawlRepository.findRunPage(task.id(), 0, 20).totalElements());
+        var disabled = crawlRepository.saveSchedule(new CrawlSchedule(schedule.id(), task.id(), schedule.scheduleKey(),
+                schedule.localTime(), schedule.timeZone(), schedule.incrementalMode(), null, false, schedule.version()),
+                schedule.version()).orElseThrow();
+        assertTrue(crawlRepository.findEnabledSchedules().stream().noneMatch(item -> item.taskId() == task.id()));
+        assertTrue(!crawlRepository.deleteSchedule(task.id(), schedule.version()));
+        assertTrue(crawlRepository.deleteSchedule(task.id(), disabled.version()));
+        assertTrue(crawlRepository.findScheduleByTaskId(task.id()).isEmpty());
+        jdbcTemplate.update("INSERT INTO BATCH_JOB_INSTANCE (JOB_INSTANCE_ID, VERSION, JOB_NAME, JOB_KEY) VALUES (123, 0, 'retry-test', 'retry-test')");
+        jdbcTemplate.update("INSERT INTO BATCH_JOB_EXECUTION (JOB_EXECUTION_ID, VERSION, JOB_INSTANCE_ID, CREATE_TIME, STATUS) VALUES (123, 0, 123, UTC_TIMESTAMP(6), 'FAILED')");
+        jdbcTemplate.update("UPDATE crawl_run SET status = 'FAILED', batch_job_execution_id = 123, finished_at = UTC_TIMESTAMP(6) WHERE id = ?", run.id());
+        CrawlRun retry = crawlRepository.transitionRun(run.id(), CrawlRunStatus.FAILED, CrawlRunStatus.RUNNING,
+                null, null, false, false).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertNull(retry.batchJobExecutionId());
+        org.junit.jupiter.api.Assertions.assertNull(retry.finishedAt());
     }
 }

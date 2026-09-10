@@ -130,9 +130,11 @@
         UPDATE crawl_run
         SET status = #{targetStatus},
             control_intent = #{controlIntent},
-            batch_job_execution_id = COALESCE(#{batchJobExecutionId}, batch_job_execution_id),
+            batch_job_execution_id = CASE WHEN #{targetStatus} = 'RUNNING' THEN #{batchJobExecutionId}
+                ELSE COALESCE(#{batchJobExecutionId}, batch_job_execution_id) END,
             started_at = CASE WHEN #{setStartedAt} THEN COALESCE(started_at, UTC_TIMESTAMP(6)) ELSE started_at END,
-            finished_at = CASE WHEN #{setFinishedAt} THEN UTC_TIMESTAMP(6) ELSE finished_at END,
+            finished_at = CASE WHEN #{setFinishedAt} THEN UTC_TIMESTAMP(6)
+                WHEN #{targetStatus} = 'RUNNING' THEN NULL ELSE finished_at END,
             version = version + 1,
             updated_at = UTC_TIMESTAMP(6)
         WHERE id = #{runId} AND status = #{expectedStatus}
@@ -140,6 +142,7 @@
     <update id="attachBatchExecution">
         UPDATE crawl_run
         SET batch_job_execution_id = #{batchJobExecutionId},
+            started_at = COALESCE(started_at, UTC_TIMESTAMP(6)),
             updated_at = UTC_TIMESTAMP(6)
         WHERE id = #{runId} AND status = #{expectedStatus}
     </update>
@@ -154,7 +157,7 @@
             next_fire_at, enabled, version, created_at, updated_at
         ) VALUES (
             #{taskId}, #{scheduleKey}, #{localTime}, #{timeZone}, #{incrementalMode},
-            #{nextFireAt}, TRUE, 0, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
+            #{nextFireAt}, #{enabled}, 0, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6)
         )
     </insert>
     <update id="updateSchedule">
@@ -180,7 +183,37 @@
                EXISTS(SELECT 1 FROM crawl_checkpoint c WHERE c.run_id = r.id) AS checkpoint_present
         FROM crawl_run r
         LEFT JOIN BATCH_JOB_EXECUTION b ON b.JOB_EXECUTION_ID = r.batch_job_execution_id
-        WHERE r.status IN ('RUNNING', 'PAUSING', 'CANCELLING')
+        WHERE r.status IN ('PENDING', 'RUNNING', 'PAUSING', 'CANCELLING')
         ORDER BY r.id
     </select>
+    <insert id="insertLaunchFailure">
+        INSERT INTO crawl_failure (run_id, failure_stage, error_category, safe_message, retryable, attempt_count)
+        VALUES (#{runId}, 'SYSTEM', #{category}, #{message}, FALSE, 1)
+    </insert>
+    <select id="countRuns" resultType="long">
+        SELECT COUNT(*) FROM crawl_run WHERE task_id = #{taskId}
+    </select>
+    <select id="findRunPage" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlRunRow">
+        SELECT <include refid="runColumns"/> FROM crawl_run r WHERE r.task_id = #{taskId}
+        ORDER BY r.id DESC LIMIT #{size} OFFSET #{offset}
+    </select>
+    <insert id="insertExecutionFailure">
+        INSERT INTO crawl_failure (run_id, failure_stage, error_category, safe_message, retryable, attempt_count)
+        VALUES (#{runId}, #{failure.stage}, #{failure.category}, #{failure.message}, FALSE, 1)
+    </insert>
+    <select id="findRunWindow" resultType="com.aacv.system.crawl.infrastructure.persistence.CrawlWindowRow">
+        SELECT mode, window_start, window_end, CAST(parameters_json AS CHAR CHARACTER SET utf8mb4) AS parameters_json
+        FROM crawl_run_window WHERE run_id = #{runId}
+    </select>
+    <select id="findLatestWindowRun" resultType="long">
+        SELECT r.id FROM crawl_run r JOIN crawl_run_window w ON w.run_id = r.id
+        WHERE r.task_id = #{taskId} AND w.mode = #{mode} ORDER BY r.id DESC LIMIT 1
+    </select>
+    <insert id="insertRunWindow">
+        INSERT INTO crawl_run_window (run_id, mode, window_start, window_end, parameters_json)
+        VALUES (#{runId}, #{window.mode}, #{window.windowStart}, #{window.windowEnd}, #{window.parametersJson})
+    </insert>
+    <delete id="deleteSchedule">
+        DELETE FROM crawl_schedule WHERE task_id = #{taskId} AND version = #{version}
+    </delete>
 </mapper>

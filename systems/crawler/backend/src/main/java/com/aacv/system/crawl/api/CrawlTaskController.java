@@ -71,7 +71,40 @@ public class CrawlTaskController {
             @PathVariable @Min(1) long taskId,
             @Valid @RequestBody DailyScheduleRequest request) {
         return CrawlScheduleResponse.from(service.configureDailySchedule(
-                taskId, LocalTime.parse(request.localTime()), ZoneId.of(request.timeZone()), request.version()));
+                taskId, LocalTime.parse(request.localTime()), ZoneId.of(request.timeZone()), request.version(),
+                request.incrementalMode(), request.enabled()));
+    }
+
+    @GetMapping("/tasks/{taskId}/schedule")
+    public CrawlScheduleResponse findSchedule(@PathVariable @Min(1) long taskId) {
+        return service.findSchedule(taskId).map(CrawlScheduleResponse::from).orElse(null);
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/tasks/{taskId}/schedule")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteSchedule(@PathVariable @Min(1) long taskId, @RequestParam @Min(0) long version) {
+        service.deleteSchedule(taskId, version);
+    }
+
+    @GetMapping("/tasks/{taskId}/runs")
+    public com.aacv.system.shared.domain.PageResult<CrawlRunResponse> findRuns(
+            @PathVariable @Min(1) long taskId,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        var result = service.findRuns(taskId, page, size);
+        return com.aacv.system.shared.domain.PageResult.of(result.items().stream()
+                .map(CrawlTaskPageResponse::toRunResponse).toList(), page, size, result.totalElements());
+    }
+
+    @GetMapping("/runs/{runId}/window")
+    public com.aacv.system.crawl.domain.CrawlWindow findWindow(@PathVariable @Min(1) long runId) {
+        return service.findRunWindow(runId).orElse(null);
+    }
+
+    @PostMapping("/runs/{runId}/retry-run")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public CrawlRunResponse retryRun(@PathVariable @Min(1) long runId) {
+        return CrawlTaskPageResponse.toRunResponse(runService.retryRun(runId));
     }
 
     @GetMapping("/runs/{runId}")

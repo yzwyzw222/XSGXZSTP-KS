@@ -43,6 +43,12 @@ public class CrawlRecoveryService {
     }
 
     void reconcile(CrawlRecoveryCandidate candidate) {
+        // 当前部署限定单实例，应用就绪时旧线程池已经退出，可补发尚未开始的运行。
+        if (candidate.businessStatus() == CrawlRunStatus.PENDING
+                && (candidate.batchStatus() == null || INTERRUPTED_BATCH_STATUSES.contains(candidate.batchStatus()))) {
+            launchPort.launchAfterCommit(candidate.runId());
+            return;
+        }
         if (candidate.businessStatus() == CrawlRunStatus.PAUSING) {
             runService.completeBatch(candidate.runId(), true);
             return;
@@ -52,8 +58,8 @@ public class CrawlRecoveryService {
             return;
         }
         if (candidate.businessStatus() == CrawlRunStatus.RUNNING
-                && candidate.batchStatus() != null
-                && INTERRUPTED_BATCH_STATUSES.contains(candidate.batchStatus())) {
+                && (candidate.batchJobExecutionId() == null
+                    || candidate.batchStatus() != null && INTERRUPTED_BATCH_STATUSES.contains(candidate.batchStatus()))) {
             LOGGER.warn(
                     "检测到可恢复的中断采集运行，runId={}，checkpointPresent={}",
                     candidate.runId(),
@@ -61,11 +67,16 @@ public class CrawlRecoveryService {
             launchPort.launchAfterCommit(candidate.runId());
             return;
         }
+        if ("COMPLETED".equals(candidate.batchStatus()) && candidate.businessStatus() == CrawlRunStatus.RUNNING) {
+            runService.completeBatch(candidate.runId(), true);
+            return;
+        }
         LOGGER.error(
                 "Batch元数据与业务运行状态不一致，停止自动推进，runId={}，businessStatus={}，batchStatus={}",
                 candidate.runId(),
                 candidate.businessStatus(),
                 candidate.batchStatus());
-        runService.completeBatch(candidate.runId(), false);
+        if (candidate.businessStatus() == CrawlRunStatus.PENDING) runService.failLaunch(candidate.runId());
+        else runService.completeBatch(candidate.runId(), "COMPLETED".equals(candidate.batchStatus()));
     }
 }

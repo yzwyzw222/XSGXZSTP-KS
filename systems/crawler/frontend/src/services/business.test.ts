@@ -1,11 +1,46 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { analyticsApi, exportApi, operationsApi } from '@/services/business'
+import { analyticsApi, crawlApi, exportApi, operationsApi, sourceApi } from '@/services/business'
 import { clearCsrfToken, resetUnauthorizedLatch, setUnauthorizedHandler } from '@/services/api'
 import { blob, installHttpStub, json, type HttpStub } from '@/test/http-stub'
 import type { AlertEvent, ExportTask } from '@/types/api'
 
 const csrfBody = { headerName: 'X-CSRF-TOKEN', parameterName: '_csrf', token: 'token-value' }
+
+describe('采集计划与运行接口', () => {
+  let stub: HttpStub | undefined
+  beforeEach(() => { clearCsrfToken(); resetUnauthorizedLatch() })
+  afterEach(() => { stub?.restore() })
+  it('来源名称搜索编码查询文本，旧标识批量回显使用只读接口', async () => {
+    stub = installHttpStub(() => json([]))
+    await sourceApi.entities(31, 'authors', '张三 & Smith+')
+    await sourceApi.resolveEntities(31, 'institutions', ['I1', 'I2'])
+    expect(stub.requests[0]).toMatchObject({ method: 'GET' })
+    const query = new URL(stub.requests[0]!.url, 'http://localhost')
+    expect(query.pathname).toBe('/api/v1/sources/31/entities/authors')
+    expect(query.searchParams.get('query')).toBe('张三 & Smith+')
+    expect(stub.requests[1]).toMatchObject({ method: 'GET', url: '/api/v1/sources/31/entities/institutions/resolve?ids=I1%2CI2' })
+    expect(stub.requests).toHaveLength(2)
+  })
+  it('读取已有计划并携带版本更新和删除，提供历史与窗口及续跑入口', async () => {
+    stub = installHttpStub((config) => json(config.url === '/api/v1/auth/csrf' ? csrfBody : {}))
+    await crawlApi.getSchedule(7)
+    await crawlApi.schedule(7, '08:30', 'Asia/Shanghai', 3, 'CLOSED_INDEX_DATE_WINDOW', false)
+    await crawlApi.deleteSchedule(7, 4)
+    await crawlApi.runs(7, 1, 20)
+    await crawlApi.window(8)
+    await crawlApi.control(8, 'retry-run')
+    const requests = stub.requests.filter((item) => !item.url.includes('/auth/csrf'))
+    expect(requests[0]?.url).toBe('/api/v1/crawl/tasks/7/schedule')
+    expect(JSON.parse(requests[1]!.data as string)).toEqual({ localTime: '08:30', timeZone: 'Asia/Shanghai',
+      version: 3, incrementalMode: 'CLOSED_INDEX_DATE_WINDOW', enabled: false })
+    expect(requests[2]).toMatchObject({ url: '/api/v1/crawl/tasks/7/schedule?version=4', method: 'DELETE' })
+    expect(requests[2]?.headers['X-CSRF-TOKEN']).toBe(csrfBody.token)
+    expect(requests[3]?.url).toBe('/api/v1/crawl/tasks/7/runs?page=1&size=20')
+    expect(requests[4]?.url).toBe('/api/v1/crawl/runs/8/window')
+    expect(requests[5]).toMatchObject({ url: '/api/v1/crawl/runs/8/retry-run', method: 'POST' })
+  })
+})
 
 describe('统计接口', () => {
   let stub: HttpStub | undefined

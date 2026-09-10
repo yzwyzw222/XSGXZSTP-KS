@@ -2,7 +2,7 @@
 import { ElButton, ElOption, ElSelect } from 'element-plus'
 import type { EChartsCoreOption } from 'echarts/core'
 import { Building2, FileText, Layers3, RefreshCw, Users } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import DashboardPanel from '@/components/business/DashboardPanel.vue'
 import ChartFrame from '@/components/business/ChartFrame.vue'
@@ -10,12 +10,15 @@ import ModuleNavigation from '@/components/business/ModuleNavigation.vue'
 import { navItems } from '@/config/nav'
 import { useChartTheme } from '@/composables/useChartTheme'
 import { useDashboard } from '@/composables/useDashboard'
+import { useDataSources } from '@/composables/useDataSources'
 import { useSessionStore } from '@/stores/session'
 import { auditActionLabel } from '@/utils/audit'
 import { formatDateTime } from '@/utils/format'
 
 const { state, loading, yearRange, topicId, refresh } = useDashboard()
 const session = useSessionStore()
+const { sourceName, sourceError, sourceLoading, loadSources } = useDataSources()
+onMounted(() => { if (session.hasPermission('SOURCE_READ')) void loadSources() })
 const { palette } = useChartTheme()
 const showingTrendData = ref(false)
 const overview = computed(() => state.overview.data)
@@ -103,9 +106,10 @@ function number(value: number | undefined): string { return value === undefined 
             </div>
           </DashboardPanel>
           <DashboardPanel title="采集任务概况" to="/crawl" :region="state.tasks" :empty="!state.tasks.data?.items.length">
+            <p v-if="sourceError">{{ sourceError }} <ElButton link :loading="sourceLoading" @click="loadSources">重试读取数据源</ElButton></p>
             <ul class="dashboard-task-list"><li v-for="task in state.tasks.data?.items.slice(0, 3)" :key="task.id">
               <RouterLink to="/crawl"><strong>{{ task.name }}</strong><span :class="task.enabled ? 'text-success' : 'text-muted-foreground'">{{ task.enabled ? '已启用' : '已停用' }}</span></RouterLink>
-              <p>来源 #{{ task.sourceId }} · {{ task.parameters?.keyword || '自定义范围' }} · 上限 {{ task.parameters?.maxPages ?? '—' }} 页 / {{ number(task.parameters?.maxRecords) }} 条</p>
+              <p>{{ sourceName(task.sourceId) }} · {{ task.parameters?.keyword || '自定义范围' }} · 上限 {{ task.parameters?.maxPages ?? '—' }} 页 / {{ number(task.parameters?.maxRecords) }} 条</p>
             </li></ul>
           </DashboardPanel>
           <DashboardPanel title="研究领域分布" to="/analytics/research" :region="state.distributions" :empty="!topics.length">

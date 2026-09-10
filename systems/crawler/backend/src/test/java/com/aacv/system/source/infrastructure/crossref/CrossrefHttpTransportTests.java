@@ -83,6 +83,21 @@ class CrossrefHttpTransportTests {
     }
 
     @Test
+    void multipleValuesRepeatFilterNamesInsteadOfUsingPipes() {
+        CrossrefHttpTransport transport = new CrossrefHttpTransport(
+                new CrossrefRestClientFactory(""), new CrossrefRequestGate());
+        CrawlScope scope = new CrawlScope(null, null, null, List.of(), List.of(),
+                List.of("10.1000/one", "10.1000/two"),
+                List.of("0000-0003-1613-5981", "0000-0002-1825-0097"),
+                List.of("https://ror.org/03yrm5c26", "https://ror.org/05dxps055"), null, null, 1, 100);
+        String filter = query(transport.buildWorksUri(scope, OpaqueCursor.first())).get("filter");
+        assertTrue(filter.contains("doi:10.1000/one,doi:10.1000/two"));
+        assertTrue(filter.contains("orcid:0000-0003-1613-5981,orcid:0000-0002-1825-0097"));
+        assertTrue(filter.contains("ror-id:https://ror.org/03yrm5c26,ror-id:https://ror.org/05dxps055"));
+        assertFalse(filter.contains("|"));
+    }
+
+    @Test
     void invalidEnvironmentEmailIsNotSent() {
         CrossrefHttpTransport transport = new CrossrefHttpTransport(
                 new CrossrefRestClientFactory("not-an-email"), new CrossrefRequestGate());

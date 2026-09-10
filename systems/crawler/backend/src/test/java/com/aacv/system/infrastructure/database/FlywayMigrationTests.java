@@ -50,7 +50,7 @@ class FlywayMigrationTests {
         }
         Flyway upgraded = Flyway.configure().dataSource(PROFILE_MYSQL.getJdbcUrl(), PROFILE_MYSQL.getUsername(),
                 PROFILE_MYSQL.getPassword()).locations("classpath:db/migration").load();
-        assertEquals(2, upgraded.migrate().migrationsExecuted);
+        assertEquals(3, upgraded.migrate().migrationsExecuted);
         assertTrue(upgraded.validateWithResult().validationSuccessful);
         try (Connection connection = PROFILE_MYSQL.createConnection(""); Statement statement = connection.createStatement()) {
             assertEquals(1, scalarCount(statement, "SELECT COUNT(*) FROM sys_user WHERE id=99 AND username='legacy-user' AND version=7 AND security_version=0 AND real_name IS NULL AND email IS NULL"));
@@ -66,7 +66,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(15, flyway.migrate().migrationsExecuted);
+        assertEquals(16, flyway.migrate().migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
 
         try (Connection connection = MYSQL.createConnection("");
@@ -190,7 +190,7 @@ class FlywayMigrationTests {
                 .dataSource(UPGRADE_MYSQL.getJdbcUrl(), UPGRADE_MYSQL.getUsername(), UPGRADE_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(12, stageThree.migrate().migrationsExecuted);
+        assertEquals(13, stageThree.migrate().migrationsExecuted);
         assertTrue(stageThree.validateWithResult().validationSuccessful);
     }
 
@@ -251,7 +251,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(8, stageFour.migrate().migrationsExecuted);
+        assertEquals(9, stageFour.migrate().migrationsExecuted);
         assertTrue(stageFour.validateWithResult().validationSuccessful);
         try (Connection connection = STAGE_THREE_MYSQL.createConnection("");
                 Statement statement = connection.createStatement()) {
@@ -294,7 +294,7 @@ class FlywayMigrationTests {
                         STAGE_FOUR_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(7, stageFive.migrate().migrationsExecuted);
+        assertEquals(8, stageFive.migrate().migrationsExecuted);
         assertTrue(stageFive.validateWithResult().validationSuccessful);
 
         try (Connection connection = STAGE_FOUR_MYSQL.createConnection("");

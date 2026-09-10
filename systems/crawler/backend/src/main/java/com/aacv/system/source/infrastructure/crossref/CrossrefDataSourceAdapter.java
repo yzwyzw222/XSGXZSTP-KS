@@ -82,6 +82,9 @@ public class CrossrefDataSourceAdapter implements DataSourceAdapter {
             return SourceValidationResult.invalid(List.of("Crossref连接配置和采集范围不能为空"));
         }
         List<String> errors = new ArrayList<>();
+        if (!scope.authorIds().isEmpty() || !scope.institutionIds().isEmpty()) {
+            errors.add("Crossref不支持OpenAlex作者或机构ID，请使用ORCID或ROR筛选");
+        }
         if (settings.maxConcurrency() != 1) {
             errors.add("Crossref单来源并发数必须为1");
         }

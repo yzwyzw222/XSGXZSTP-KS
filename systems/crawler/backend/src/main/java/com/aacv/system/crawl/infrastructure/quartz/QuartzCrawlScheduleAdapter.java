@@ -44,6 +44,14 @@ class QuartzCrawlScheduleAdapter implements CrawlSchedulePort {
     private void synchronize(CrawlSchedule schedule) {
         JobKey jobKey = JobKey.jobKey(schedule.scheduleKey(), GROUP);
         TriggerKey triggerKey = TriggerKey.triggerKey(schedule.scheduleKey(), GROUP);
+        if (!schedule.enabled()) {
+            try {
+                scheduler.deleteJob(jobKey);
+                return;
+            } catch (SchedulerException exception) {
+                throw new IllegalStateException("Quartz采集计划停用失败", exception);
+            }
+        }
         JobDetail job = JobBuilder.newJob(QuartzCrawlTriggerJob.class)
                 .withIdentity(jobKey)
                 .usingJobData("taskId", schedule.taskId())
