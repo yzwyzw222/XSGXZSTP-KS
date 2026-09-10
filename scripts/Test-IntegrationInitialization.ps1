@@ -26,8 +26,15 @@ try {
     $initialize = Join-Path $fixtureScripts 'Initialize-Integration.ps1'
     & $initialize | Out-Null
     $runtime = Join-Path $fixtureRoot '.local/integration-runtime'
+    $compose = Get-Content -LiteralPath (Join-Path $runtime 'compose.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $serviceNames = @($compose.services.PSObject.Properties.Name | Sort-Object)
+    Assert-Initialization (($serviceNames -join ',') -eq 'crawler-mysql,crawler-neo4j,relation-mysql,relation-neo4j') '初始化必须只创建两个系统的数据库和图服务。'
+    Assert-Initialization (@($compose.volumes.PSObject.Properties).Count -eq 4) '初始化必须只声明四个有效数据卷。'
+    foreach ($removed in @('extraction', 'scholar')) {
+        Assert-Initialization (-not (Test-Path -LiteralPath (Join-Path $runtime $removed))) '初始化不能生成已删除系统的运行配置。'
+    }
     $before = @{}
-    foreach ($id in @('relation', 'extraction', 'crawler', 'scholar')) {
+    foreach ($id in @('relation', 'crawler')) {
         $application = Join-Path $runtime "$id/application.properties"
         $properties = Get-Content -LiteralPath $application -Raw -Encoding UTF8
         Assert-Initialization ($properties -match '(?m)^integration.bootstrap-admin.enabled=false\r?$') "$id 未默认关闭账号引导。"

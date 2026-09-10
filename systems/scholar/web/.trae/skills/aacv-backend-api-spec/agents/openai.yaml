@@ -1,4 +1,0 @@
-interface:
-  display_name: "AACV 后端接口规范"
-  short_description: "AACV REST 接口、安全、错误处理与契约实现规范"
-  default_prompt: "Use $aacv-backend-api-spec to implement or review an AACV backend API change."

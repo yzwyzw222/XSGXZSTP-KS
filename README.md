@@ -1,6 +1,6 @@
 # 学术系统统一门户（XSGXZSTP-KS）
 
-本项目将四套学术应用接入同一个门户，提供学术成果采集、实体抽取、关系分析、知识图谱和学者画像等功能。用户在统一入口登录后，可以进入各子系统开展检索、分析与数据管理，并从任一入口统一退出。
+本项目将两套学术应用接入同一个门户，提供学术成果信息采集、数据治理、实体抽取、关系分析与知识图谱可视化等功能。用户在统一入口登录后，可以进入各子系统开展检索、分析与数据管理，并从任一入口统一退出。
 
 当前集成分支为 `dev`，本地入口为 [http://127.0.0.1:18000/](http://127.0.0.1:18000/)。门户统一入口和身份，各子系统保留自己的前后端工程与业务数据库。系统间尚未建立自动数据同步或跨系统联合检索。
 
@@ -9,11 +9,11 @@
 | 子系统 | 主要功能 | 入口与代码目录 |
 | --- | --- | --- |
 | 学术关系知识图谱构建平台（relation） | 论文、作者、机构与关键词查询；合作网络、机构关系、引用影响、研究领域与时间线分析；数据导入及实体抽取 | `/relation/`；`systems/relation/` |
-| 学术多源实体抽取与学术知识图谱构建（extraction） | 学术论文与作者检索；通过 Semantic Scholar 获取数据；调用兼容 OpenAI 协议的模型抽取实体与关系；论文详情、作者详情、图谱与统计展示 | `/extraction/`；`systems/extraction/` |
-| 学术成果爬虫及可视化系统（crawler） | OpenAlex、Crossref 采集与任务调度；成果检索、数据治理、统计与图谱分析；CSV/JSON 异步导出；统一账号、角色和审计管理 | `/crawler/`；`systems/crawler/` |
-| 学术成果知识图谱构建平台（scholar） | 论文、作者、机构、关键词检索；学者画像、成果关系图谱、科研分析与 AI 选题入口 | `/scholar/`；`systems/scholar/web/` |
+| 学术成果信息采集及可视化系统（crawler） | OpenAlex、Crossref 采集与任务调度；成果检索、数据治理、统计与图谱分析；CSV/JSON 异步导出；统一账号、角色和审计管理 | `/crawler/`；`systems/crawler/` |
 
-门户提供四个系统入口、入口搜索、统一登录、账号菜单与返回导航。入口搜索只筛选系统名称和功能；门户的趋势、研究方向等统计面板标注为演示数据，不能作为实际业务统计使用。
+2026-09-10 起仅保留 relation 和 crawler；extraction、scholar 已从源码、入口和集成脚本移除。信息采集系统继续使用 `/crawler/`、`systems/crawler/` 和原数据库名，以兼容现有数据与接口。既有数据库卷不会随源码删除。
+
+门户提供两个系统入口、入口搜索、统一登录、账号菜单与返回导航。入口搜索只筛选系统名称和功能；门户的趋势、研究方向等统计面板标注为演示数据，不能作为实际业务统计使用。
 
 **初始数据状态：**新环境没有预置用户、历史论文或演示业务数据。首次启动会创建各系统表结构，以及角色、字典等运行所需的基础记录；这些基础记录不代表已存在可登录账号。业务页面显示空列表或空图谱属于正常状态，后续由开发者按需导入或采集数据。外部采集与模型功能需要各自的服务配置。
 
@@ -23,9 +23,7 @@
 | --- | --- | --- |
 | 统一门户 | Vue 3.5、Vite 8 | Node.js 网关；统一 Session 转发、子路径代理与本地启停脚本 |
 | relation | Vue 3、TypeScript、Vite 8、Element Plus、ECharts、Cytoscape.js | Java 17 编译目标、Spring Boot 3.5.16、Spring Security、Spring Data JPA、MySQL、Neo4j |
-| extraction | Vue 3、Vite 6、Element Plus、Sass、ECharts、Cytoscape.js | Java 21、Spring Boot 4.1.1、Spring Security、Spring Data JPA / Neo4j、Flyway、MySQL、Neo4j |
 | crawler | Vue 3、TypeScript、Vite 8、Element Plus、Tailwind CSS、Pinia、ECharts、vis-network、Cytoscape.js | Java 21、Spring Boot 4.1.1、MyBatis、Spring Security / Session JDBC、Spring Batch、Quartz、Flyway、MySQL、Neo4j |
-| scholar | Vue 3、Vite 6、Element Plus、ECharts、Cytoscape.js / fcose | Java 21、Spring Boot 3.4.4、Spring Security、Spring Data JPA、MySQL；当前图谱由 MySQL 数据组装 |
 
 统一运行使用 **JDK 21**。各系统独立维护 Maven Wrapper、POM、`package.json` 和锁文件，具体依赖版本以这些文件为准。没有统一父 POM 或 npm workspace。
 
@@ -41,23 +39,14 @@
 │   ├── relation/
 │   │   ├── backend/              # 关系分析后端
 │   │   └── frontend/             # 关系分析前端
-│   ├── extraction/
-│   │   ├── src/                  # 实体抽取后端，POM 位于该系统根目录
-│   │   └── frontend/             # 实体抽取前端
-│   ├── crawler/
-│   │   ├── backend/              # 采集、治理、统一账号与权限后端
-│   │   └── frontend/             # 采集与可视化前端
-│   └── scholar/
-│       └── web/
-│           ├── backend/          # 学者画像与成果图谱后端
-│           └── src/              # 学者画像与成果图谱前端
+│   └── crawler/
+│       ├── backend/              # 采集、治理、统一账号与权限后端
+│       └── frontend/             # 采集与可视化前端
 ├── deploy/systems.json           # 系统入口、运行目录、端口与健康检查配置
 ├── scripts/                     # 初始化、构建、启停与验证脚本
 ├── docs/                        # 开发说明、认证契约、来源记录与验收文档
 └── .local/                      # 本机生成的配置、凭据、日志与产物，Git 忽略
 ```
-
-`systems/scholar/` 根目录还保留来源分支的旧 Servlet 练习工程。集成脚本实际构建 `systems/scholar/web/backend` 和 `systems/scholar/web`。
 
 ## clone 或拉取分支后的首次启动
 
@@ -75,7 +64,7 @@
 | Docker Desktop | 已启动 Linux Engine，能运行 Docker Compose V2 |
 | 数据库客户端 | 可连接 MySQL 8 的本地客户端，用于首次手动创建管理员 |
 
-无需另装 Maven，构建脚本使用各项目已有 Maven Wrapper。首次恢复依赖、下载 Maven 或 Docker 镜像需要网络；本地会运行四个 JVM、四个 MySQL 和三个 Neo4j，请为 Docker 和应用预留资源。
+无需另装 Maven，构建脚本使用各项目已有 Maven Wrapper。首次恢复依赖、下载 Maven 或 Docker 镜像需要网络；本地会运行两个 JVM、两个 MySQL 和两个 Neo4j，请为 Docker 和应用预留资源。
 
 ```powershell
 $PSVersionTable.PSVersion
@@ -128,15 +117,15 @@ git pull --ff-only origin dev
 .\scripts\Start-Integration.ps1 -System all -Mode Demo
 ```
 
-`-Restore` 按五个前端工程的锁文件执行 `npm ci`，随后构建前端并打包四个后端。后端打包使用 `-DskipTests`，构建成功不代表单元测试已经通过。
+`-Restore` 按三个前端工程的锁文件执行 `npm ci`，随后构建前端并打包两个后端。后端打包使用 `-DskipTests`，构建成功不代表单元测试已经通过。
 
-启动完成后，门户和四个后端应显示就绪。此时可以打开 [统一登录页](http://127.0.0.1:18000/login)，但新环境必须先完成下一步手动建号才能登录。
+启动完成后，门户和两个后端应显示就绪。此时可以打开 [统一登录页](http://127.0.0.1:18000/login)，但新环境必须先完成下一步手动建号才能登录。
 
 ### 5. 在 crawler 数据库手动创建统一管理员
 
 统一管理员用户名为 **`admin`**，密码沿用 crawler 系统。已有本机初始化密码位于 `.local/integration-runtime/crawler/credentials.json` 的 **`admin`** 字段；全新 clone 初始化也会在该字段生成仅供本机使用的密码，**生成密码文件不等于创建数据库账号**。请在自己的本地编辑器中查看，勿提交或分享该文件。
 
-四个系统的统一登录只读取 crawler 的账号库。只需在 `course_crawler` 创建账号，不需要向其他三个系统复制用户或密码。已有可登录的 `admin` 可直接沿用；如果之前在账号管理中修改过密码，以数据库保存的新密码为准，凭据文件不会自动更新。
+两个系统的统一登录只读取 crawler 的账号库。只需在 `course_crawler` 创建账号，不需要向另一个系统复制用户或密码。已有可登录的 `admin` 可直接沿用；如果之前在账号管理中修改过密码，以数据库保存的新密码为准，凭据文件不会自动更新。
 
 **连接数据库：**
 
@@ -229,11 +218,11 @@ JOIN sys_role r ON r.id = ur.role_id
 WHERE u.username = 'admin';
 ```
 
-确认结果包含 `admin / ACTIVE / ADMIN` 后，即可使用原始密码登录门户，无需重启服务。后续用户可通过门户账号菜单的“管理平台账号”（`/crawler/users`）维护。
+确认结果包含 `admin / ACTIVE / ADMIN` 后，即可使用原始密码登录门户，无需重启服务。后续用户可通过门户顶部“用户管理”（`/management/users`）维护，这些账号对两个子系统共同生效。“日志管理”统一查询整个项目的请求及原有采集后台审计；“全屏”作用于门户和其内的全部子系统。各子系统左上角返回统一门户，切换时保持全屏。详见 [平台管理说明](docs/platform-management.md)。
 
 ### 6. 验证访问与开始使用
 
-登录后依次打开四个系统，确认能读取空列表、返回门户，并能统一退出。需要业务数据时，在相应系统导入或采集；relation、extraction 的模型功能需配置该系统的外部服务，初始化不会自动发起付费模型请求或数据采集。
+登录后依次打开两个系统，确认能读取空列表、返回门户，并能统一退出。需要业务数据时，在相应系统导入或采集；relation 的模型功能需配置该系统的外部服务，初始化不会自动发起付费模型请求或数据采集。
 
 常用检查：
 
@@ -258,16 +247,16 @@ node scripts/Test-IntegratedSystems.mjs
 .\scripts\Start-Integration.ps1 -System all -Mode Demo
 ```
 
-首次拉取此集成分支、缺少依赖或锁文件变化时使用 `Build-Integration.ps1 -Restore`。`Demo` 提供构建后的页面；前端开发使用下面的模式，四个 Vite 服务提供 HMR，访问仍通过门户的 18000 端口：
+首次拉取此集成分支、缺少依赖或锁文件变化时使用 `Build-Integration.ps1 -Restore`。`Demo` 提供构建后的页面；前端开发使用下面的模式，两个 Vite 服务提供 HMR，访问仍通过门户的 18000 端口：
 
 ```powershell
 .\scripts\Stop-Integration.ps1 -System all
 .\scripts\Start-Integration.ps1 -System all -Mode Development
 ```
 
-Java 后端仍运行 jar，后端代码修改后需要停止、重新构建并启动。两个模式互斥。单个子系统可以用 `-System relation`、`extraction`、`crawler` 或 `scholar` 启停；crawler 停止期间其他系统无法确认统一身份。
+Java 后端仍运行 jar，后端代码修改后需要停止、重新构建并启动。两个模式互斥。单个子系统可以用 `-System relation` 或 `-System crawler` 启停；crawler 停止期间其他系统无法确认统一身份。
 
-**已有旧版运行配置的开发者：**初始化不会覆盖你的配置。若 `.local/integration-runtime/crawler/application.properties` 仍为 `aacv.bootstrap-admin.enabled=true`，将其改为 `false` 后重启 crawler，使空用户表也不会自动建号。relation、scholar 的旧 `integration.admin-password` 字段不再单独触发引导，新版本默认停用它们的管理员引导。此更新不会删除已有账号或重置密码。
+**已有旧版运行配置的开发者：**初始化不会覆盖你的配置。若 `.local/integration-runtime/crawler/application.properties` 仍为 `aacv.bootstrap-admin.enabled=true`，将其改为 `false` 后重启 crawler，使空用户表也不会自动建号。relation 的旧 `integration.admin-password` 字段不再单独触发引导，新版本默认停用它们的管理员引导。此更新不会删除已有账号或重置密码。
 
 应用停止不影响数据库卷。暂时停用数据库可执行：
 
@@ -283,9 +272,7 @@ docker compose -f .local/integration-runtime/compose.json stop
 | --- | --- | --- | --- | --- |
 | 门户 | 18000 | 18000 | — | — |
 | relation | 5174 | 18081 | 23361 / `course_relation` | 27471 / 27681 |
-| extraction | 5175 | 18082 | 23362 / `course_extraction` | 27472 / 27682 |
 | crawler | 5176 | 18083 | 23363 / `course_crawler` | 27473 / 27683 |
-| scholar | 5177 | 18084 | 23364 / `course_scholar` | — |
 
 | 现象 | 检查方法 |
 | --- | --- |

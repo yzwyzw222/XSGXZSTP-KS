@@ -5,8 +5,8 @@ import PortalChart from './components/PortalChart.vue'
 import { fields, metrics, researchTopics, systemVisuals, trend } from './data/overview'
 import { getSystems } from './services/systems'
 
-defineProps({ user: { type: Object, required: true }, signOutPending: Boolean, signOutError: { type: String, default: '' } })
-defineEmits(['sign-out'])
+defineProps({ user: { type: Object, required: true }, signOutPending: Boolean, signOutError: { type: String, default: '' }, fullscreen: Boolean, fullscreenError: { type: String, default: '' } })
+defineEmits(['sign-out', 'open-workspace', 'toggle-fullscreen'])
 
 const systems = ref([])
 const loading = ref(true)
@@ -79,6 +79,9 @@ onUnmounted(() => controller?.abort())
         <input v-model="query" aria-label="搜索系统与研究方向" type="search" placeholder="搜索系统、功能、研究关键词…" autocomplete="off" />
       </form>
       <div class="header-actions">
+        <button type="button" class="platform-action" :aria-pressed="fullscreen" @click="$emit('toggle-fullscreen')">{{ fullscreen ? '退出全屏' : '全屏' }}</button>
+        <a v-if="user.permissions?.includes('AUDIT_READ')" class="platform-action" href="/management/logs" @click.prevent="$emit('open-workspace', '/management/logs')">日志管理</a>
+        <a v-if="user.permissions?.includes('USER_LIST')" class="platform-action" href="/management/users" @click.prevent="$emit('open-workspace', '/management/users')">用户管理</a>
         <details class="header-menu notification-menu">
           <summary aria-label="接入状态通知"><PortalIcon name="bell-fill" /></summary>
           <div class="menu-popover">
@@ -90,18 +93,19 @@ onUnmounted(() => controller?.abort())
         </details>
         <details class="header-menu profile-menu">
           <summary aria-label="账号菜单"><PortalIcon name="person-circle" class="avatar" /><span>{{ user.username }}</span><PortalIcon name="chevron-down" class="chevron" /></summary>
-          <div class="menu-popover"><strong>已登录学术智能平台</strong><p>各子系统共享本次登录状态。</p><p v-if="signOutError" role="alert">{{ signOutError }}</p><p v-if="user.roles.includes('ADMIN')"><a href="/crawler/users">管理平台账号</a></p><button type="button" :disabled="signOutPending" @click="$emit('sign-out')">{{ signOutPending ? '正在退出…' : '退出登录' }}</button></div>
+          <div class="menu-popover"><strong>已登录学术智能平台</strong><p>各子系统共享本次登录状态。</p><p v-if="signOutError" role="alert">{{ signOutError }}</p><p v-if="user.permissions?.includes('USER_LIST')"><a href="/management/users" @click.prevent="$emit('open-workspace', '/management/users')">管理平台账号</a></p><button type="button" :disabled="signOutPending" @click="$emit('sign-out')">{{ signOutPending ? '正在退出…' : '退出登录' }}</button></div>
         </details>
       </div>
     </header>
 
     <main id="home">
+      <p v-if="fullscreenError" class="notice error-notice" role="alert">{{ fullscreenError }}</p>
       <p v-if="signOutError" class="notice error-notice" role="alert">{{ signOutError }}</p>
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-motto hero-motto-left" aria-hidden="true"><span>数据连接知识<br />知识驱动创新</span><small>CONNECTING KNOWLEDGE<br />EMPOWERING RESEARCH</small></div>
         <div class="hero-copy">
           <h1 id="hero-title">学术智能平台统一入口</h1>
-          <p class="hero-description">整合学术关系<span>知识图谱</span>、实体抽取与成果可视化的统一门户</p>
+          <p class="hero-description">整合学术<span>信息采集</span>、成果可视化与关系知识图谱的统一门户</p>
           <p class="hero-tagline">让学术数据更有价值 <span>·</span> 用智能技术推动科研创新</p>
         </div>
         <div class="hero-motto hero-motto-right" aria-hidden="true"><span>全球视野<br />数据智能<br />开放共享<br />智见未来</span><small>GLOBAL VISION<br />DATA INTELLIGENCE<br />OPEN SCIENCE</small></div>
@@ -130,17 +134,16 @@ onUnmounted(() => controller?.abort())
             <div v-if="query.trim() && !loading && !error" class="search-summary" role="status"><span>“{{ query.trim() }}” · 找到 {{ visibleSystems.length }} 个系统</span><button type="button" @click="query = ''">清除筛选</button></div>
             <div v-if="loading" class="notice" role="status"><PortalIcon name="layers" /><p>正在读取系统接入状态…</p></div>
             <div v-else-if="error" class="notice error-notice" role="alert"><PortalIcon name="question-circle-fill" /><p>{{ error }}</p><button class="entry-button" type="button" @click="loadSystems">重新读取<PortalIcon name="arrow-right" /></button></div>
-            <div v-else-if="!visibleSystems.length" class="notice" role="status"><PortalIcon name="search" /><p>未找到匹配的系统</p><span>试试“知识图谱”“实体抽取”或“可视化”。</span><button type="button" class="entry-button" @click="query = ''">查看全部系统<PortalIcon name="arrow-right" /></button></div>
+            <div v-else-if="!visibleSystems.length" class="notice" role="status"><PortalIcon name="search" /><p>未找到匹配的系统</p><span>试试“知识图谱”“信息采集”或“可视化”。</span><button type="button" class="entry-button" @click="query = ''">查看全部系统<PortalIcon name="arrow-right" /></button></div>
             <div v-else class="system-list">
               <article v-for="system in visibleSystems" :key="system.id" class="system-card" :class="system.id">
                 <div class="card-top"><span class="system-number">{{ systemVisuals[system.id].number }}</span><span class="status" :class="system.status">{{ system.status === 'enabled' ? '已启用' : '维护中' }}</span></div>
                 <div class="system-art" aria-hidden="true">
                   <img :src="systemVisuals[system.id].image" alt="" width="1536" height="1024" />
                   <span class="art-caption">{{ systemVisuals[system.id].caption }}</span>
-                  <template v-if="system.id === 'extraction'"><div class="entity-tags entity-tags-left"><span>作者</span><span>机构</span><span>关键词</span></div><div class="entity-tags entity-tags-right"><span>实体抽取</span><span>数据融合</span><span>知识图谱</span></div></template>
                 </div>
                 <div class="card-copy"><h3>{{ system.name }}</h3><p class="system-description">{{ systemVisuals[system.id].description }}</p></div>
-                <div class="card-bottom"><a class="entry-button" :href="system.path" :aria-label="system.name + '：' + (system.status === 'enabled' ? '进入系统' : '查看维护说明')" :title="system.status === 'enabled' ? system.description : system.message">{{ system.status === 'enabled' ? '进入平台' : '查看维护说明' }}<PortalIcon name="arrow-right" /></a></div>
+                <div class="card-bottom"><a class="entry-button" :href="system.path" @click.prevent="$emit('open-workspace', system.path)" :aria-label="system.name + '：' + (system.status === 'enabled' ? '进入系统' : '查看维护说明')" :title="system.status === 'enabled' ? system.description : system.message">{{ system.status === 'enabled' ? '进入平台' : '查看维护说明' }}<PortalIcon name="arrow-right" /></a></div>
               </article>
             </div>
           </section>
@@ -172,11 +175,11 @@ onUnmounted(() => controller?.abort())
       <div class="dialog-heading"><h2 id="about-title">{{ dialogTitle }}</h2><button type="button" aria-label="关闭说明" @click="aboutDialog.close()"><PortalIcon name="x-lg" /></button></div>
       <p class="dialog-intro">连接学术关系、实体抽取与成果可视化，为研究探索提供统一入口。</p>
       <h3>每个系统，按就绪状态开放。</h3>
-      <p>门户汇集四个系统的功能与接入状态。点击已启用系统的卡片进入平台；标记为“维护中”的系统可查看维护说明。</p>
+      <p>门户汇集两个系统的功能与接入状态。点击已启用系统的卡片进入平台；标记为“维护中”的系统可查看维护说明。</p>
       <h3>从研究方向，找到合适的工具。</h3>
       <p>顶部搜索框可按系统名称、功能或研究关键词筛选入口。点击热门关键词也可筛选，清除搜索即可显示全部系统。</p>
       <h3>账号与数据</h3>
-      <p>统一登录后可直接进入四个子系统。账号由平台管理员统一管理，业务数据仍由各系统独立存储；退出登录会同时结束所有系统的访问。</p>
+      <p>统一登录后可直接进入两个子系统。账号由平台管理员统一管理，业务数据仍由各系统独立存储；退出登录会同时结束所有系统的访问。</p>
       <p class="dialog-note">合作网络、研究领域、趋势及数据总览使用演示数据，仅用于展示平台概念；系统接入状态来自当前入口服务。</p>
       <form method="dialog"><button class="entry-button">开始探索<PortalIcon name="arrow-right" /></button></form>
     </dialog>

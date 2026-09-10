@@ -1,5 +1,7 @@
 # 学术关系知识图谱构建平台本地接入验收
 
+> 历史范围说明：本文保留对应阶段的设计或验收记录。2026-09-10 已删除 extraction、scholar，当前仅保留 relation、crawler；原四系统描述、已删除文件和历史命令不代表当前运行范围。当前配置与说明见 `deploy/systems.json`、`docs/development.md`。
+
 核对日期：2026-09-09。来源：`feature/Ye`，SHA：`184f651b223efe9a07ea6d352146e5df34a537da`。运行范围为本机隔离环境，接入路径 `/relation/`。
 
 > 以下为统一登录改造前的接入验收记录。独立登录及退出隔离描述属于历史状态；当前认证与验收见 [统一登录说明](unified-login.md)。

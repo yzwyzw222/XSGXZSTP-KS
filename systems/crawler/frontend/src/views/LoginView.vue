@@ -53,7 +53,7 @@ async function submit(): Promise<void> {
     <div class="login-page__content">
       <header class="login-page__masthead">
         <span class="login-page__motto">探索学术数据 · 赋能科研创新</span>
-        <div class="research-brand"><span><strong>学术成果爬虫及可视化系统</strong><small>ACADEMIC ACHIEVEMENT VISUALIZATION PLATFORM</small></span></div>
+        <div class="research-brand"><span><strong>学术成果信息采集及可视化系统</strong><small>ACADEMIC ACHIEVEMENT VISUALIZATION PLATFORM</small></span></div>
         <span class="login-page__motto">数据连接世界 · 知识创造未来</span>
       </header>
 
@@ -77,7 +77,7 @@ async function submit(): Promise<void> {
         <section class="login-panel__form-section">
           <div class="mb-8 flex items-center gap-3 lg:hidden">
             <GraduationCap class="size-9 text-primary" aria-hidden="true" />
-            <span class="text-sm font-semibold text-foreground">学术成果爬虫及可视化系统</span>
+            <span class="text-sm font-semibold text-foreground">学术成果信息采集及可视化系统</span>
           </div>
           <h1 class="text-2xl font-semibold tracking-tight text-foreground">登录 AACV System</h1>
           <p class="mt-3 text-sm leading-relaxed text-muted-foreground">使用管理员分配的内部账号继续</p>

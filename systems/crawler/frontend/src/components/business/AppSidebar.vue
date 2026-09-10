@@ -39,7 +39,7 @@ function activeChild(item: NavItem): string | undefined {
   <div class="flex h-full flex-col bg-sidebar text-sidebar-foreground">
     <!-- 品牌区 -->
     <div class="sidebar-brand shrink-0">
-      <RouterLink to="/" class="flex min-w-0 items-center gap-2.5" aria-label="学术成果爬虫及可视化系统 工作台">
+      <RouterLink to="/" class="flex min-w-0 items-center gap-2.5" aria-label="学术成果信息采集及可视化系统 工作台">
         <span class="grid size-8 shrink-0 place-items-center">
           <img :src="brandLogo" alt="" class="size-8" />
         </span>

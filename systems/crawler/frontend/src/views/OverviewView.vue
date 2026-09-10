@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { integrated } from '@/services/portal-auth'
 import { ElButton, ElOption, ElSelect } from 'element-plus'
 import type { EChartsCoreOption } from 'echarts/core'
 import { Building2, FileText, Layers3, RefreshCw, Users } from 'lucide-vue-next'
@@ -143,7 +144,7 @@ function number(value: number | undefined): string { return value === undefined 
           <DashboardPanel title="字段覆盖率" to="/analytics/coverage" :region="state.overview" :empty="!coverage.length">
             <div class="dashboard-bars"><RouterLink v-for="item in coverage" :key="item.label" to="/analytics/coverage" class="dashboard-bar dashboard-bar--coverage"><span>{{ item.label }}</span><i><b :style="{ width: `${item.percentage ?? 0}%` }" /></i><strong>{{ item.percentage === null ? '—' : `${item.percentage.toFixed(1)}%` }}</strong></RouterLink></div>
           </DashboardPanel>
-          <DashboardPanel title="近期操作" to="/logs" :region="state.audits" :empty="!state.audits.data?.items.length">
+          <DashboardPanel v-if="!integrated" title="近期操作" to="/logs" :region="state.audits" :empty="!state.audits.data?.items.length">
             <ul class="dashboard-audits"><li v-for="log in state.audits.data?.items" :key="log.id"><span :class="log.result === 'SUCCESS' ? 'text-success' : 'text-destructive'">{{ log.result === 'SUCCESS' ? '成功' : '失败' }}</span><RouterLink to="/logs">{{ auditActionLabel(log) }}</RouterLink><time :title="formatDateTime(log.createdAt)">{{ new Date(log.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) }}</time></li></ul>
             <p class="dashboard-read-time">读取于 {{ formatDateTime(state.audits.loadedAt) }}</p>
           </DashboardPanel>

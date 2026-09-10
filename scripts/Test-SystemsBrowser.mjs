@@ -13,9 +13,7 @@ const browser = await chromium.launch({ channel: 'msedge', headless: true })
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
 const destinations = {
   relation: ['relations/overview', 'data'],
-  extraction: ['papers', 'statistics'],
   crawler: ['', 'graph'],
-  scholar: ['dashboard', 'scholar-graph'],
 }
 try {
   const loginPage = await context.newPage()
@@ -40,7 +38,7 @@ try {
       }
     })
     await page.goto(`${base}/${system.id}/login`)
-    await page.waitForURL(url => url.pathname.startsWith(`/${system.id}/`) && !url.pathname.endsWith('/login'))
+    await page.waitForURL(url => url.searchParams.get('workspace')?.startsWith(`/${system.id}/`))
     for (const destination of destinations[system.id]) {
       const response = await page.goto(`${base}/${system.id}/${destination}`)
       assert.equal(response.status(), 200, `${system.id} 深链接可直接打开`)
@@ -52,19 +50,6 @@ try {
       assert.equal((await page.request.get(`${base}/${system.id}/api/v1/auth/me`)).status(), 200)
     }
     await page.screenshot({ path: fileURLToPath(new URL(`${system.id}-desktop.png`, screenshots)), fullPage: true, animations: 'disabled' })
-    if (system.id === 'scholar') {
-      // 此夹具只验证非空图的前端布局；前面的真实接口与空库验证保持独立。
-      const graphUrl = `${base}/scholar/api/v1/scholar-graph/initial`
-      await page.route(graphUrl, route => route.fulfill({ json: {
-        nodes: [{ id: 'paper:layout-test', label: '布局验证论文', type: 'paper', degree: 1 }, { id: 'author:layout-test', label: '布局验证作者', type: 'author', degree: 1 }],
-        edges: [{ id: 'layout-test', source: 'paper:layout-test', target: 'author:layout-test', type: 'authoredBy' }], totalNodes: 2, totalEdges: 1,
-      } }))
-      await page.reload()
-      await page.getByText(/节点\s*×\s*2/).waitFor()
-      await page.waitForLoadState('networkidle')
-      assert.deepEqual(await page.locator('.el-message--error:visible').allTextContents(), [], 'fcose 非空图布局必须可用')
-      await page.unroute(graphUrl)
-    }
     assert.deepEqual(errors, [], `${system.id} 页面脚本或后端响应异常`)
     if (development) assert.ok(hmrConnected, `${system.id} HMR 必须通过统一入口建立连接`)
     await page.locator('.integration-return').click()

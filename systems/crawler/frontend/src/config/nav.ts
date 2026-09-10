@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-vue-next'
 
+import { integrated } from '@/services/portal-auth'
 import type { Permission } from '@/types/api'
 
 export interface NavItem {
@@ -43,7 +44,7 @@ export function groupNavigation(items: readonly NavItem[]) {
     .filter((group) => group.items.length > 0)
 }
 
-export const navItems: NavItem[] = [
+const allNavItems: NavItem[] = [
   { group: 'visualization', label: '可视化大屏', caption: 'Dashboard', to: '/', icon: LayoutDashboard, keywords: ['dashboard', 'overview', 'home'] },
   { group: 'visualization', label: '成果目录', caption: 'Catalog', to: '/catalog', icon: Library, permission: 'CATALOG_READ', keywords: ['catalog', 'achievement'], children: [
     { label: '全部成果', to: '/catalog' },
@@ -69,12 +70,14 @@ export const navItems: NavItem[] = [
     { label: '合作分析', to: '/analytics/collaboration' },
   ] },
   { group: 'crawler', label: '数据源', caption: 'Sources', to: '/sources', icon: Database, permission: 'SOURCE_READ', keywords: ['source', 'openalex', 'crossref'] },
-  { group: 'crawler', label: '采集任务', caption: 'Crawler', to: '/crawl', icon: Workflow, permission: 'CRAWL_TASK_READ', keywords: ['crawl', 'task', 'run'] },
+  { group: 'crawler', label: '采集任务', caption: 'Collection', to: '/crawl', icon: Workflow, permission: 'CRAWL_TASK_READ', keywords: ['crawl', 'collection', 'task', 'run'] },
   { group: 'crawler', label: '数据治理', caption: 'Governance', to: '/governance', icon: ShieldCheck, permission: 'GOVERNANCE_READ', keywords: ['governance', 'duplicate', 'merge'] },
   { group: 'crawler', label: '质量指标', caption: 'Quality', to: '/quality', icon: Activity, permission: 'GOVERNANCE_READ', keywords: ['quality', 'metric'] },
   { group: 'status', label: '日志管理', caption: 'Logs', to: '/logs', icon: ShieldCheck, permission: 'AUDIT_READ', keywords: ['logs', 'audit', 'login'] },
   { group: 'status', label: '账号管理', caption: 'Accounts', to: '/users', icon: Users, permission: 'USER_LIST', keywords: ['user', 'account', 'role', '用户管理'] },
 ]
+
+export const navItems = integrated ? allNavItems.filter(item => item.to !== '/logs' && item.to !== '/users') : allNavItems
 
 /** 优先匹配更具体的模块路径，避免实体编目被成果目录前缀覆盖。 */
 export function activeNavigation(path: string, items: readonly NavItem[] = navItems): NavItem | undefined {

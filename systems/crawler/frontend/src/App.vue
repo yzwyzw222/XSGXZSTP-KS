@@ -25,11 +25,5 @@ watch(expired, (value) => {
   <!-- 通过 ConfigProvider 下发中文语言包，避免全量注册 Element Plus 带来的体积增长。 -->
   <ElConfigProvider :locale="zhCn">
     <RouterView />
-  <a class="integration-return" href="/">← 统一门户</a>
   </ElConfigProvider>
 </template>
-
-<style scoped>
-.integration-return { position: fixed; right: 16px; bottom: 16px; z-index: 999; padding: 8px 14px; border: 1px solid #507eac; border-radius: 6px; background: #102943; color: #e7f3ff; font-size: 13px; text-decoration: none; }
-.integration-return:focus-visible { outline: 2px solid #90c9ff; outline-offset: 3px; }
-</style>

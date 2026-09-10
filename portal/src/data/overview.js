@@ -25,24 +25,14 @@ export const trend = [
 export const researchTopics = ['人工智能', '大语言模型', '知识图谱', '深度学习', '数据挖掘', '科学计算', '生物信息学', '区块链', '碳中和', '智能制造', '精准医疗', '教育信息化', '学术合作', '实体抽取', '可视化']
 
 export const systemVisuals = {
-  scholar: {
-    number: '04', image: '/assets/portal/images/relation-network.webp', caption: 'SCHOLAR\nPROFILE\nACHIEVEMENT\nGRAPH',
-    description: '结合学者画像、学术成果与科研指标，查询作者、机构、论文及其知识关联',
-    keywords: ['学者画像', '成果图谱', '论文检索', '科研分析'],
-  },
   relation: {
     number: '01', image: '/assets/portal/images/relation-network.webp', caption: 'KNOWLEDGE\nGRAPH\nRELATIONSHIP\nNETWORK',
     description: '构建学者、论文、机构等多维学术关系网络，挖掘学术合作与知识演化脉络',
     keywords: ['人工智能', '知识图谱', '数据挖掘', '科学计算', '生物信息学', '碳中和', '学术合作'],
   },
-  extraction: {
-    number: '02', image: '/assets/portal/images/extraction-nlp.webp', caption: 'MULTI-SOURCE\nENTITY\nEXTRACTION',
-    description: '基于多源学术数据的实体识别与抽取，构建高质量、领域化的学术知识图谱',
-    keywords: ['人工智能', '大语言模型', '知识图谱', '深度学习', '生物信息学', '精准医疗', '教育信息化', '实体抽取'],
-  },
   crawler: {
-    number: '03', image: '/assets/portal/images/crawler-analytics.webp', caption: 'CRAWLER\nANALYTICS\nVISUALIZATION',
-    description: '面向多平台的学术成果爬取、数据整合与可视化分析，助力科研态势洞察',
+    number: '02', image: '/assets/portal/images/crawler-analytics.webp', caption: 'INFORMATION\nCOLLECTION\nANALYTICS\nVISUALIZATION',
+    description: '面向多平台的学术成果信息采集、数据整合与可视化分析，助力科研态势洞察',
     keywords: ['人工智能', '数据挖掘', '科学计算', '区块链', '碳中和', '智能制造', '教育信息化', '可视化'],
   },
 }

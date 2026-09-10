@@ -1,5 +1,7 @@
 # 四系统本地运行验收
 
+> 历史范围说明：本文保留对应阶段的设计或验收记录。2026-09-10 已删除 extraction、scholar，当前仅保留 relation、crawler；原四系统描述、已删除文件和历史命令不代表当前运行范围。当前配置与说明见 `deploy/systems.json`、`docs/development.md`。
+
 > 本文保留统一登录改造前的运行验收。当前已改为 crawler 统一账号和跨系统统一退出，最新认证行为及命令结果见 [统一登录说明](unified-login.md)，不再采用以下历史记录中的独立登录流程。
 
 > 后续提交整理已将系统及门户改动分主题提交并推送至 `origin/dev`；下文的分支、HEAD 和未提交状态属于接入阶段的历史记录，当前状态以 [集成基线](integration-baseline.md) 和 Git 记录为准。

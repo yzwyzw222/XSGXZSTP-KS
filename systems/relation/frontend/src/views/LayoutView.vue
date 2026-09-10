@@ -29,13 +29,14 @@
     <div class="main">
       <header class="topbar">
         <div class="left-box">
+          <a class="integration-return" href="/" target="_top">← 统一门户</a>
           <!-- ≤680px 时显示汉堡按钮，点击开合侧栏抽屉 -->
           <el-button v-if="narrow" class="menu-btn" text @click="mobileOpen = !mobileOpen">☰</el-button>
           <span class="page-title">{{ title }}</span>
           <!-- 顶栏快捷入口：数据管理（五实体 CRUD，课程设计要求）与权限管理（ADMIN 可见）。
                侧栏只放五个分析板块，系统类功能收在这里 -->
           <el-button size="small" text @click="router.push({ name: 'data' })">数据管理</el-button>
-          <el-button v-if="isAdmin" size="small" text @click="router.push({ name: 'admin' })">权限管理</el-button>
+          <el-button v-if="isAdmin && !integrated" size="small" text @click="router.push({ name: 'admin' })">权限管理</el-button>
         </div>
         <div class="user-box">
           <span class="username">{{ user?.displayName ?? '' }}</span>
@@ -105,6 +106,7 @@ async function onLogout() {
 </script>
 
 <style scoped>
+.integration-return { color: #70d8ff; white-space: nowrap; text-decoration: none; }
 .layout {
   display: flex;
   height: 100%;

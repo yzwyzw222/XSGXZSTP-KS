@@ -32,7 +32,7 @@ try {
   await page.getByRole('button', { name: '关闭说明' }).click()
   await page.getByRole('link', { name: '数据资源', exact: true }).click()
   assert.ok(page.url().endsWith('#data-overview'))
-  await page.getByRole('searchbox', { name: '搜索系统与研究方向' }).fill('爬虫')
+  await page.getByRole('searchbox', { name: '搜索系统与研究方向' }).fill('信息采集')
   assert.equal(await page.locator('.system-card').count(), 1)
   assert.ok(await page.locator('.system-card.crawler').isVisible())
   await page.getByRole('searchbox', { name: '搜索系统与研究方向' }).fill('不存在的研究系统')
@@ -47,8 +47,8 @@ try {
     if (system.status === 'enabled') {
       const response = await page.goto(`${base}/${system.id}/login`)
       assert.equal(response.status(), 200)
-      await page.waitForURL(url => url.pathname.startsWith(`/${system.id}/`) && !url.pathname.endsWith('/login'))
-      await page.locator('.integration-return').click()
+      await page.waitForURL(url => url.searchParams.get('workspace')?.startsWith(`/${system.id}/`))
+      await page.frameLocator('iframe.platform-workspace').locator('.integration-return').click()
       await page.locator('.system-card').last().waitFor()
       continue
     }
@@ -86,5 +86,5 @@ try {
     await withoutJavaScript.close()
   }
   await logoutPortal(page.request, base)
-  process.stdout.write('门户浏览器验收通过：桌面、390px 窄屏、四系统入口与返回、搜索、帮助、配置失败与重试。\n')
+  process.stdout.write('门户浏览器验收通过：桌面、390px 窄屏、两系统入口与返回、搜索、帮助、配置失败与重试。\n')
 } finally { await browser.close() }

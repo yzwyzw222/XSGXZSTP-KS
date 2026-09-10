@@ -1,4 +1,0 @@
-interface:
-  display_name: "AACV 前端样式规范"
-  short_description: "AACV Vue 界面的视觉令牌、布局、状态与可访问性规范"
-  default_prompt: "Use $aacv-frontend-style-spec to implement or review an AACV frontend UI change."

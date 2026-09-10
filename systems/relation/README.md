@@ -10,9 +10,7 @@
 |------|--------|----------|
 | main | 整合负责人 | 主分支，整合所有系统，保持可运行 |
 | feature/yeziwei/relation-graph | 叶紫薇 | 学术关系知识图谱构建平台 |
-| feature/duyunhao/entity-extraction | 杜运昊 | 学术多源实体抽取与学术知识图谱构建 |
-| feature/liyu/achievement-graph | 李宇 | 学术成果知识图谱构建平台 |
-| feature/luozhen/crawler-visualization | 罗振 | 学术成果爬虫与可视化系统 |
+| feature/luozhen/crawler-visualization | 罗振 | 学术成果信息采集及可视化系统 |
 
 ## 分支保护规则
 

@@ -10,7 +10,6 @@ const checkOnly = process.argv.includes('--check')
 assert.ok(process.argv.slice(2).every(argument => argument === '--check'), '仅支持 --check 参数')
 const stamp = new Date().toISOString().slice(0, 23).replace('T', ' ')
 const numericId = id => 910000 + id
-const textId = (kind, id) => `course-demo-${kind}-${id}`
 const marked = text => `[试用] ${text}`
 const doi = id => `10.9999/course-demo.${id}`
 const quote = value => value === null ? 'NULL' : typeof value === 'number' ? String(value) : `'${String(value).replaceAll('\\', '\\\\').replaceAll("'", "''")}'`
@@ -66,8 +65,6 @@ function readSample() {
 
 const sample = readSample()
 const inRange = column => `${identifier(column)} BETWEEN 910100 AND 910999`
-const textRange = column => `${identifier(column)} LIKE 'course-demo-%'`
-const audit = { created_at: stamp, updated_at: stamp }
 const builders = {}
 
 builders.relation = () => {
@@ -97,53 +94,6 @@ builders.relation = () => {
     for (const row of rows[table]) statements.push(insert('graph_sync_event', { entity_type: type, entity_id: row.id, event_type: 'UPSERT', status: 'PENDING', attempts: 0, created_at: stamp }))
   }
   return { statements, queries, marker: "SELECT COUNT(*) FROM paper WHERE doi LIKE '10.9999/course-demo.%' AND title LIKE '[试用] %'", markerCount: 30 }
-}
-
-builders.extraction = () => {
-  const authors = sample.author.map(author => {
-    const papers = sample.paper_author.filter(row => row.author_id === author.id).map(row => sample.paper.find(paper => paper.id === row.paper_id))
-    const affiliations = [...new Set(sample.paper_author.filter(row => row.author_id === author.id).map(row => sample.institution.find(institution => institution.id === row.institution_id).display_name))]
-    const citations = papers.map(paper => paper.citation_count).sort((left, right) => right - left)
-    return { id: numericId(author.id), semantic_scholar_id: textId('author', author.id), name: marked(author.display_name), affiliation: affiliations.map(marked).join('；'), paper_count: papers.length, citation_count: citations.reduce((total, count) => total + count, 0), h_index: citations.filter((count, index) => count >= index + 1).length }
-  })
-  const venues = sample.venue.map(row => ({ id: numericId(row.id), name: marked(row.display_name), type: row.venue_type === 'conference' ? 'CONFERENCE' : 'JOURNAL' }))
-  const papers = sample.paper.map(row => ({ id: numericId(row.id), semantic_scholar_id: textId('paper', row.id), title: marked(row.title), abstract_text: `本记录为虚构试用数据。${row.abstract_text}`, year: Number(row.publication_date.slice(0, 4)), doi: doi(row.id), citation_count: row.citation_count, reference_count: sample.paper_reference.filter(reference => reference.citing_paper_id === row.id).length, venue_id: numericId(row.venue_id), extraction_status: row.id <= 105 ? 'COMPLETED' : 'PENDING' }))
-  const topics = sample.keyword.map(row => ({ id: numericId(row.id), name: marked(row.name), description: `试用研究主题：${row.field_name}` }))
-  const entities = sample.paper.slice(0, 5).flatMap((row, index) => [
-    { id: 910501 + index * 2, paper_id: numericId(row.id), entity_name: '图神经网络', entity_type: 'METHOD', properties: JSON.stringify({ fixture: 'course-demo', note: '人工编写的展示结果，未经模型调用' }) },
-    { id: 910502 + index * 2, paper_id: numericId(row.id), entity_name: '学术知识图谱', entity_type: 'TOPIC', properties: JSON.stringify({ fixture: 'course-demo' }) },
-  ])
-  const relationships = sample.paper.slice(0, 5).map((row, index) => ({ id: 910501 + index, paper_id: numericId(row.id), source_entity_id: 910501 + index * 2, target_entity_id: 910502 + index * 2, relationship_type: 'APPLIED_TO', evidence_text: '[试用] 人工编写的实体关系，仅供界面操作测试。', confidence: 0.92 }))
-  const rows = { authors, venues, papers, research_topics: topics,
-    paper_authors: sample.paper_author.map(row => ({ paper_id: numericId(row.paper_id), author_id: numericId(row.author_id), author_position: row.author_position })),
-    paper_topics: sample.paper_keyword.map(row => ({ paper_id: numericId(row.paper_id), topic_id: numericId(row.keyword_id), confidence: 0.95 })),
-    paper_citations: sample.paper_reference.map(row => ({ citing_paper_id: numericId(row.citing_paper_id), cited_paper_id: numericId(row.cited_paper_id) })),
-    extracted_entities: entities, entity_relationships: relationships }
-  const statements = Object.entries(rows).flatMap(([table, values]) => values.map(row => insert(table, row)))
-  const event = (type, aggregate, id, payload) => statements.push(insert('outbox_events', { event_type: type, aggregate_type: aggregate, aggregate_id: id, payload: JSON.stringify(payload) }))
-  for (const paper of papers) event('PAPER_CREATED', 'PAPER', paper.id, { id: paper.id, title: paper.title })
-  for (const author of authors) event('AUTHOR_CREATED', 'AUTHOR', author.id, { id: author.id, name: author.name })
-  for (const entity of entities) event('ENTITY_CREATED', 'ENTITY', entity.id, { id: entity.id, name: entity.entity_name, type: entity.entity_type, paperId: entity.paper_id })
-  for (const relation of relationships) event('RELATIONSHIP_CREATED', 'RELATIONSHIP', relation.id, { sourceId: relation.source_entity_id, targetId: relation.target_entity_id, relType: relation.relationship_type })
-  for (const reference of rows.paper_citations) event('CITATION_CREATED', 'PAPER', reference.citing_paper_id, { citingId: reference.citing_paper_id, citedId: reference.cited_paper_id })
-  const queries = Object.entries(rows).map(([table, values]) => ({ table, where: inRange(table === 'paper_citations' ? 'citing_paper_id' : table.startsWith('paper_') ? 'paper_id' : 'id'), expected: values.length }))
-  return { statements, queries, marker: "SELECT COUNT(*) FROM papers WHERE semantic_scholar_id LIKE 'course-demo-paper-%' AND title LIKE '[试用] %'", markerCount: 30 }
-}
-
-builders.scholar = () => {
-  const rows = {
-    institution: sample.institution.map(row => ({ institution_id: textId('institution', row.id), name: marked(row.display_name), normalized_name: marked(row.display_name).toLowerCase(), country: row.country_code })),
-    author: sample.author.map(row => ({ author_id: textId('author', row.id), name: marked(row.display_name), normalized_name: marked(row.display_name).toLowerCase() })),
-    venue: sample.venue.map(row => ({ venue_id: textId('venue', row.id), name: marked(row.display_name), normalized_name: marked(row.display_name).toLowerCase(), type: row.venue_type })),
-    topic: sample.keyword.map(row => ({ topic_id: textId('topic', row.id), name: marked(row.name), normalized_name: marked(row.name), description: row.field_name })),
-    paper: sample.paper.map(row => ({ paper_id: textId('paper', row.id), title: marked(row.title), abstract: `本记录为虚构试用数据。${row.abstract_text}`, doi: doi(row.id), publication_date: row.publication_date, year: Number(row.publication_date.slice(0, 4)), paper_type: row.paper_type, venue_id: textId('venue', row.venue_id) })),
-    authorship: sample.paper_author.map(row => ({ authorship_id: textId('authorship', `${row.paper_id}-${row.author_id}`), author_id: textId('author', row.author_id), paper_id: textId('paper', row.paper_id), institution_id: textId('institution', row.institution_id), author_order: row.author_position, is_corresponding: row.author_position === 1 ? 1 : 0, source: 'COURSE_DEMO' })),
-    paper_topic: sample.paper_keyword.map(row => ({ paper_id: textId('paper', row.paper_id), topic_id: textId('topic', row.keyword_id), version: 0 })),
-    paper_reference: sample.paper_reference.map(row => ({ citing_paper_id: textId('paper', row.citing_paper_id), cited_paper_id: textId('paper', row.cited_paper_id), version: 0 })),
-  }
-  const statements = Object.entries(rows).flatMap(([table, values]) => values.map(row => insert(table, { ...row, ...audit })))
-  const queries = Object.entries(rows).map(([table, values]) => ({ table, where: textRange(table === 'paper_reference' ? 'citing_paper_id' : table === 'paper_topic' ? 'paper_id' : `${table}_id`), expected: values.length }))
-  return { statements, queries, marker: "SELECT COUNT(*) FROM paper WHERE paper_id LIKE 'course-demo-paper-%' AND title LIKE '[试用] %'", markerCount: 30 }
 }
 
 builders.crawler = () => {
@@ -177,7 +127,7 @@ try {
   // 文件锁只协调本工作区的导入脚本；失败时保留数据库已有内容，不清库重试。
   lock = openSync(lockPath, 'wx')
   const plans = {}
-  for (const system of ['relation', 'extraction', 'crawler', 'scholar']) {
+  for (const system of ['relation', 'crawler']) {
     verifyOwner(system)
     const plan = builders[system]()
     const existing = counts(system, plan)

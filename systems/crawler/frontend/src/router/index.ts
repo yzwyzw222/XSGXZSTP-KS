@@ -58,7 +58,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '工作台', workspace: 'overview' },
         children: [
           { path: 'research', name: 'overview-research', redirect: '/analytics/collaboration', meta: { title: '研究关系' } },
-          { path: 'activity', name: 'overview-activity', redirect: '/logs', meta: { title: '活动与采集' } },
+          { path: 'activity', name: 'overview-activity', redirect: integrated ? '/crawl' : '/logs', meta: { title: '活动与采集' } },
         ],
       },
       {
@@ -177,7 +177,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'operations',
         redirect: '/logs',
       },
-    ],
+    ].filter(route => !integrated || !['users', 'logs', 'operations/:section(overview|alerts|events|maintenance|audits)?'].includes(route.path)) as RouteRecordRaw[],
   },
   {
     path: '/:pathMatch(.*)*',
@@ -195,6 +195,9 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
 
   // 跨模块导航取消旧读取与轮询；同模块子页复用实例，保留其在途请求。
   router.afterEach((to, from, failure) => {
+    if (integrated && !failure && window.parent !== window) {
+      window.parent.postMessage({ type: 'portal-location', path: import.meta.env.BASE_URL.slice(0, -1) + to.fullPath }, window.location.origin)
+    }
     if (!failure && (!to.meta.workspace || to.meta.workspace !== from.meta.workspace)) cancelSessionRequests()
   })
 

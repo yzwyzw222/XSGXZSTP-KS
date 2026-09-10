@@ -211,7 +211,7 @@ public class DataImportService {
                     pk.setKeywordPosition(keywordPosition++);
                     paperKeywordRepository.save(pk);
                 }
-                // 外部引用线索（爬虫的 OpenAlex URL / 导入文件的 DOI）：被引文献不在库内时
+                // 外部引用线索（信息采集的 OpenAlex URL / 导入文件的 DOI）：被引文献不在库内时
                 // cited_paper_id 留空，只记 external_cited_doi，图谱投影据此画"外部引用"边。
                 // 同一篇论文内按线索去重，避免撞上 uk_paper_reference 唯一约束导致整条 FAILED
                 if (item.references() != null) {

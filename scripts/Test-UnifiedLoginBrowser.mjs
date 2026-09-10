@@ -43,29 +43,27 @@ try {
   await page.waitForURL(url => url.pathname === '/login')
   assert.equal(new URL(page.url()).searchParams.get('redirect'), destination)
   await loginPortalPage(page, base, false)
-  await page.locator('.integration-return').waitFor()
-  assert.equal(new URL(page.url()).pathname + new URL(page.url()).search, destination, '登录后准确返回原深链接')
+  await page.frameLocator('iframe.platform-workspace').locator('.integration-return').waitFor()
+  assert.equal(new URL(page.url()).searchParams.get('workspace'), destination, '登录后在门户容器内准确返回原深链接')
   await logoutPortal(page.request, base)
 
-  for (const [id, route] of [['relation', 'relations/overview'], ['extraction', 'papers'], ['crawler', ''], ['scholar', 'dashboard']]) {
+  for (const [id, route] of [['relation', 'relations/overview'], ['crawler', '']]) {
     await loginPortal(context.request, base)
     await page.goto(`${base}/${id}/${route}`)
     await page.locator('.integration-return').waitFor()
+    await page.waitForLoadState('networkidle')
     if (id === 'crawler') {
       await page.getByRole('button', { name: '账户菜单', exact: true }).click()
       await page.getByRole('menuitem', { name: '退出登录' }).click()
-    } else if (id === 'scholar') {
-      await page.locator('.topbar-user').click()
-      await page.getByRole('menuitem', { name: '退出登录' }).click()
     } else {
-      await page.getByRole('button', { name: id === 'extraction' ? '退出' : '退出登录', exact: true }).click()
+      await page.getByRole('button', { name: '退出登录', exact: true }).click()
     }
     await page.waitForURL(url => url.pathname === '/login')
     await page.getByRole('heading', { name: '登录学术智能平台' }).waitFor()
     for (const system of config.systems) {
       assert.ok([401, 403].includes((await page.request.get(`${base}/${system.id}/api/v1/auth/me`)).status()), `${id} 退出后 ${system.id} 失效`)
     }
-    process.stdout.write(`${id}：子系统退出返回统一登录，四系统会话同时失效。\n`)
+    process.stdout.write(`${id}：子系统退出返回统一登录，两系统会话同时失效。\n`)
   }
   await page.goto(`${base}/login?redirect=${encodeURIComponent('//example.com')}`)
   await loginPortalPage(page, base, false)
@@ -75,7 +73,7 @@ try {
   await page.getByRole('button', { name: '退出登录', exact: true }).click()
   await page.getByRole('heading', { name: '登录学术智能平台' }).waitFor()
   assert.deepEqual(errors, [], '登录与退出没有浏览器脚本异常')
-  process.stdout.write('统一登录浏览器验收通过：三种宽度、错误密码、密码可见性、深链接回跳、四系统统一退出与外站回跳拦截。\n')
+  process.stdout.write('统一登录浏览器验收通过：三种宽度、错误密码、密码可见性、深链接回跳、两系统统一退出与外站回跳拦截。\n')
 } finally {
   try { await logoutPortal(context.request, base) }
   catch { process.stderr.write('浏览器验收会话清理未完成，请检查统一认证服务。\n') }

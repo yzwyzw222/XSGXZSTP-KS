@@ -7,6 +7,9 @@ const git = (...args) => execFileSync('git', args, { cwd: rootDirectory, encodin
 const records = JSON.parse(readFileSync(new URL('../docs/import-records.json', import.meta.url), 'utf8'))
 const config = loadConfig()
 const adaptations = JSON.parse(readFileSync(new URL('../docs/source-adaptations.json', import.meta.url), 'utf8'))
+const activeIds = config.systems.map(system => system.id).sort()
+assert.deepEqual(records.imports.filter(record => !record.retired).map(record => record.id).sort(), activeIds, '有效来源记录必须与当前子系统一致')
+assert.deepEqual(Object.keys(adaptations).sort(), activeIds, '适配记录必须只覆盖当前子系统')
 assert.equal(git('rev-parse', `${records.main}^{tree}`), records.mainTree)
 git('merge-base', '--is-ancestor', records.main, 'HEAD')
 for (const record of records.imports) {
@@ -17,7 +20,12 @@ for (const record of records.imports) {
     git('merge-base', '--is-ancestor', record.source, record.commit)
     git('merge-base', '--is-ancestor', record.source, 'HEAD')
   } else {
-    assert.equal(record.id, 'scholar', '仅新导入的 Li 使用未提交的 archive 导入记录')
+    assert.equal(record.id, 'scholar', '仅历史 Li 来源使用 archive 导入记录')
+  }
+  // 已删除系统保留不可变导入证据；有效系统仍逐文件核对来源与适配。
+  if (record.retired) {
+    assert.ok(!config.systems.some(system => system.id === record.id), `${record.id} 已移除但仍有运行配置`)
+    continue
   }
   assert.equal(config.systems.find(system => system.id === record.id).sourceSha, record.source)
   const sourceFiles = new Map(git('ls-tree', '-r', record.source).split('\n').map(line => {

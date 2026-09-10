@@ -1,46 +1,48 @@
 # 统一登录说明与验收
 
-核对日期：2026-09-09。本文记录统一登录改造；仓库指定项目记忆仍为 `integration-baseline.md` 和 `development.md`。此前的 `local-runtime-acceptance.md` 及四份系统接入验收保留为改造前的历史证据。
+当前范围核对日期：2026-09-10。本文记录统一登录改造；仓库指定项目记忆仍为 `integration-baseline.md` 和 `development.md`。此前的 `local-runtime-acceptance.md` 及保留系统的接入验收保留为改造前的历史证据。
 
 ## 使用方式与范围
 
-打开 http://127.0.0.1:18000/login ，使用现有 crawler 账号登录。登录后从门户访问四个子系统，业务深链接和刷新也使用同一身份。管理员从门户账号菜单的“管理平台账号”进入 `/crawler/users`；忘记密码或需要账号时联系管理员。
+打开 http://127.0.0.1:18000/login ，使用现有 crawler 账号登录。登录后从门户访问两个子系统，业务深链接和刷新也使用同一身份。管理员从门户顶部“用户管理”或账号菜单的“管理平台账号”进入 `/management/users`；忘记密码或需要账号时联系管理员。2026-09-10 起，门户以同源工作区承载子系统以保持全屏，登录后的回跳地址编码在 `/?workspace=...`，子系统内部路由同步到该地址。平台日志与管理接入详见 [平台管理说明](platform-management.md)。
 
 统一管理员用户名为 `admin`，密码沿用 crawler。新 clone 初始化默认没有应用用户；完成后端首次建表后，由开发者手动向 `course_crawler` 写入管理员的 `{bcrypt}` 密码哈希、`ACTIVE` 状态及 `ADMIN` 角色关联。本机初始密码在 `.local/integration-runtime/crawler/credentials.json` 的 `admin` 字段，文件生成不会自动创建账号，其他子系统无需重复建号。完整步骤见 [README](../README.md)。已有账号保留；旧 crawler 外部配置需将 `aacv.bootstrap-admin.enabled` 改为 false 后重启，重复初始化不会覆盖该配置。
 
-统一认证只在当前集成模式启用：前端构建 BASE_URL 为各自的 `/<id>/`，三个接入后端使用 `integration` profile。独立运行时保留原系统认证代码和路由。没有合并数据库、迁移旧账号、修改依赖或创建提交。其他三套系统的旧账号不能用于统一入口。
+统一认证只在当前集成模式启用：前端构建 BASE_URL 为各自的 `/<id>/`，relation 后端使用 `integration` profile。独立运行时保留原系统认证代码和路由。没有合并数据库、迁移旧账号、修改依赖或创建提交。relation 的旧账号不能用于统一入口。
 
 ## 认证契约
 
 - 门户 `/__integration/auth/csrf`、`me` 使用 GET，`login`、`logout` 使用 POST；转发到 crawler 现有认证服务。登录与退出保留 CSRF 校验，并检查同源 Origin。
 - 浏览器只将 `PORTAL_SESSION` 作为统一身份，Cookie 使用 `Path=/`、HttpOnly、SameSite=Lax。网关在内部转换为 crawler 的 `CRAWLER_SESSION`；重复或异常格式的门户 Cookie 被拒绝，旧子系统 Cookie 不能绕过统一身份校验。
-- relation、extraction、scholar 的 `PortalAuthenticationFilter` 在已有安全链中逐请求向门户确认身份，覆盖当前请求的 SecurityContext；不创建本地账号、不保存跨系统授权缓存，原业务 CSRF 和权限检查继续生效。
+- relation 的 `PortalAuthenticationFilter` 在已有安全链中逐请求向门户确认身份，覆盖当前请求的 SecurityContext；不创建本地账号、不保存跨系统授权缓存，原业务 CSRF 和权限检查继续生效。
 - 旧的子系统登录、注册、会话过期页面跳转统一入口；集成网关的旧认证写接口返回 410。relation 旧账号管理接口也返回 410，账号统一在 crawler 管理。
-- 回跳只接受四个系统的业务地址或门户，拒绝外站、编码分隔符、路径越界、认证接口及重复登录地址。API 的 401 导向统一登录；初始化时服务不可用会返回门户并显示可重试提示。
-- 在门户或任一子系统退出都会销毁同一 crawler 服务端会话，并清除门户 Cookie。退出前的 Cookie 无法再次访问四个后端；已打开页面的本地显示由后续请求或刷新更新。
-- 三个接入后端通过启动计划获得 `--integration.portal-url=http://127.0.0.1:<portalPort>`，仅允许本机 HTTP 地址，不跟随身份服务重定向。连接/读取超时为 2/4 秒，网关认证转发超时为 6 秒，前端单次认证请求超时为 8 秒。
+- 回跳只接受两个系统的业务地址或门户，拒绝外站、编码分隔符、路径越界、认证接口及重复登录地址。API 的 401 导向统一登录；初始化时服务不可用会返回门户并显示可重试提示。
+- 在门户或任一子系统退出都会销毁同一 crawler 服务端会话，并清除门户 Cookie。退出前的 Cookie 无法再次访问两个后端；已打开页面的本地显示由后续请求或刷新更新。
+- relation 后端通过启动计划获得 `--integration.portal-url=http://127.0.0.1:<portalPort>`，仅允许本机 HTTP 地址，不跟随身份服务重定向。连接/读取超时为 2/4 秒，网关认证转发超时为 6 秒，前端单次认证请求超时为 8 秒。
 
-| crawler 角色 | relation 身份 | extraction 身份 | scholar 身份 |
-| --- | --- | --- | --- |
-| ADMIN | ADMIN，原管理员权限 | ADMIN | ADMIN |
-| DATA_OPERATOR | ANALYST，原分析员权限 | OPERATOR | OPERATOR |
-| RESEARCHER | RESEARCHER，data:read / analytics:read | RESEARCHER | VIEWER |
-
-多角色取管理员、数据操作员、研究人员的顺序。三个接入后端额外限制 RESEARCHER 仅能使用 GET、HEAD、OPTIONS；没有把研究人员提升为写入用户。crawler 继续使用自身角色与实时账号状态校验。
+| crawler 角色 | relation 身份 |
+| --- | --- |
+| ADMIN | ADMIN，原管理员权限 |
+| DATA_OPERATOR | ANALYST，原分析员权限 |
+| RESEARCHER | RESEARCHER，data:read / analytics:read |
+多角色取管理员、数据操作员、研究人员的顺序。relation 后端额外限制 RESEARCHER 仅能使用 GET、HEAD、OPTIONS；没有把研究人员提升为写入用户。crawler 继续使用自身角色与实时账号状态校验。
 
 ## 登录界面约定
 
-登录页以完成统一登录并进入四个研究系统为目标（Operate），视觉依据为既有门户。以下约定以 `portal/src/components/PortalLogin.vue`、`portal/src/PortalRoot.vue` 的当前实现为准。
+登录页以完成统一登录并进入两个研究系统为目标（Operate），视觉依据为既有门户。以下约定以 `portal/src/components/PortalLogin.vue`、`portal/src/PortalRoot.vue` 的当前实现为准。
 
 - **沿用门户主题**：复用深蓝科技背景、品牌标识、青蓝主按钮和 `PortalIcon`，不增加图片、字体或组件库。色彩与中文字体沿用 `tokens.css`、`style.css`：默认正文使用 `--ink`，辅助说明使用 `--muted`，标题重点与工具图标使用 `--cyan`，字体继承 `--font-ui`。主标题、表单标题、正文与标签保持清晰层级，辅助说明不抢占登录操作。
-- **先介绍，再登录**：桌面左侧为主标题和四类研究工具，右侧为登录表单；表单面板最大宽度为 440px。900px 及以下改为单列，保留简短主标题并隐藏介绍段落和工具列表；480px 及以下进一步收起页眉辅助文案并缩减面板内边距，保留完整的账号、密码与提交操作。
+- **先介绍，再登录**：桌面左侧为主标题和两类研究工具，右侧为登录表单；表单面板最大宽度为 440px。900px 及以下改为单列，保留简短主标题并隐藏介绍段落和工具列表；480px 及以下进一步收起页眉辅助文案并缩减面板内边距，保留完整的账号、密码与提交操作。
 - **控件边界与焦点清晰**：面板使用深色底与圆角（16px），输入框和提交按钮采用一致圆角（7px）及最小高度（50px）。面板与输入框使用同一蓝色边线（`#367cb5`）；输入区域获得焦点时边线和轮廓切换为 `--cyan`，按钮和链接保留全局 `--focus` 键盘焦点提示。主按钮沿用门户青蓝底色、浅色描边与悬停高亮。
 - **表单含义明确**：账号和密码都保留显式关联标签，分别提供 `username`、`current-password` 自动填充标识；占位文字只作输入提示。密码显示按钮使用可读的“显示／隐藏”文字，并同步无障碍名称与按下状态。账号为空或仅含空白、密码为空时禁用提交。
 - **反馈跟随操作**：首次进入先以 `role="status"` 显示“正在确认登录状态…”，确认会话后再展示门户或登录页。提交时表单标记忙碌、输入只读、按钮显示“正在登录…”并禁用，同时由根组件阻止重复请求。失败信息以 `role="alert"` 就近展示并关联两个输入框；账号申请与密码找回通过提示说明需联系平台管理员。
 
 登录页已检查 1440、390、320px 三种宽度，均无横向溢出。独立终检提出的输入框边线对比度问题已采用现有面板边线 `#367cb5` 修正，并重新构建、截图及验证。截图保存在忽略目录 `.local/unified-login/screenshots/`，不包含登录凭据。
 
-## 实际验证
+## 历史验证与变更记录
+
+> 下列命令、结果及文件清单来自删除前的统一登录改造，包含现已删除的系统与路径，不作为当前运行或验证指引。当前仅保留 relation、crawler。
+
 
 所有命令均在本工作区执行。下列命令使用已有依赖与本机基础服务，没有安装或升级依赖。
 

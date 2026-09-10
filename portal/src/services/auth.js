@@ -1,11 +1,11 @@
 const BASE = '/__integration/auth'
 
-/** 回跳限定为门户或四套业务页面，拒绝外站、编码分隔符与重复登录地址。 */
+/** 回跳限定为门户、两套业务页面和平台管理，拒绝外站、编码分隔符与重复登录地址。 */
 export function safeReturnPath(value) {
-  if (typeof value !== 'string' || !/^\/(?:$|(?:relation|extraction|crawler|scholar)(?:\/|\?|$))/.test(value) ||
+  if (typeof value !== 'string' || !/^\/(?:$|(?:relation|crawler|management)(?:\/|\?|$))/.test(value) ||
     /[\\\s\u0000-\u001f]|%2f|%5c|%0[0-9a-f]|%25/i.test(value)) return '/'
   const url = new URL(value, 'http://portal.local')
-  if (url.origin !== 'http://portal.local' || !/^\/(?:$|(?:relation|extraction|crawler|scholar)(?:\/|$))/.test(url.pathname) ||
+  if (url.origin !== 'http://portal.local' || !/^\/(?:$|(?:relation|crawler)(?:\/|$)|management\/(?:users(?:\/overview)?|logs|audits)$)/.test(url.pathname) ||
     /\/(?:login|register|session-expired)(?:\/|$)/.test(url.pathname) || /\/api(?:\/|$)/i.test(url.pathname)) return '/'
   return `${url.pathname}${url.search}${url.hash}`
 }

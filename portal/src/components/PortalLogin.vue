@@ -31,9 +31,7 @@ onUnmounted(() => { password.value = '' })
         <p class="login-intro-copy">从学术数据到知识发现，<br />在同一工作空间，连接每一步研究。</p>
         <ul class="login-capabilities" aria-label="登录后可访问的研究工具">
           <li><PortalIcon name="share" /><span>学术关系<span>发现合作与引用网络</span></span></li>
-          <li><PortalIcon name="file-earmark-text" /><span>实体抽取<span>从多源文本构建知识</span></span></li>
-          <li><PortalIcon name="graph-up-arrow" /><span>成果采集<span>汇集数据与可视化分析</span></span></li>
-          <li><PortalIcon name="person" /><span>学者图谱<span>探索学者与科研成果</span></span></li>
+          <li><PortalIcon name="graph-up-arrow" /><span>信息采集<span>汇集学术成果与可视化分析</span></span></li>
         </ul>
       </section>
 

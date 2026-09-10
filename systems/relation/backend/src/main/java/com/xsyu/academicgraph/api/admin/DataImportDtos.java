@@ -72,7 +72,7 @@ public final class DataImportDtos {
 
     /**
      * 外部引用线索：被引文献不在库内时只记一条线索（DOI 或 OpenAlex id URL）。
-     * 爬虫导入时 OpenAlex 的 referenced_works 是 id URL 而非 DOI，统一放进 externalDoi。
+     * 信息采集导入时 OpenAlex 的 referenced_works 是 id URL 而非 DOI，统一放进 externalDoi。
      */
     public record ImportReferenceItem(
             @NotBlank(message = "引用线索不能为空") @Size(max = 255, message = "引用线索最长 255 字符") String externalDoi

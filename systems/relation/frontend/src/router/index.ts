@@ -51,12 +51,17 @@ const router = createRouter({
 
 // 前置守卫：登录/注册直接放行；受保护页面依赖内存会话状态（由登录流程或刷新时 /auth/me 恢复）
 router.beforeEach((to) => {
-  if (integrated && to.path === '/admin') { window.location.assign('/crawler/users'); return false }
+  if (integrated && to.path === '/admin') { window.location.assign('/?workspace=%2Fmanagement%2Fusers'); return false }
   if (integrated && getCurrentUser() === null) { redirectToPortal(to.fullPath); return false }
   if (to.meta.public) {
     return true
   }
   return getCurrentUser() !== null ? true : { name: 'login', query: { redirect: to.fullPath } }
+})
+
+// 同源门户同步业务地址，使刷新仍能回到当前子页面。
+router.afterEach((to, _from, failure) => {
+  if (integrated && !failure && window.parent !== window) window.parent.postMessage({ type: 'portal-location', path: import.meta.env.BASE_URL.slice(0, -1) + to.fullPath }, window.location.origin)
 })
 
 export default router

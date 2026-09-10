@@ -21,9 +21,17 @@ export function enable(system) {
   return system
 }
 
-test('当前配置包含四个完整系统；公开配置不泄漏运行命令', () => {
+test('当前配置包含两个完整系统；公开配置不泄漏运行命令', () => {
   const config = loadConfig()
-  assert.equal(config.systems.length, 4)
+  assert.equal(config.systems.length, 2)
+  assert.deepEqual(config.systems.map(system => system.id), ['relation', 'crawler'])
+  assert.equal(config.systems[1].name, '学术成果信息采集及可视化系统')
+  for (const removed of ['extraction', 'scholar']) {
+    assert.throws(() => startupPlan(config, removed), /未知启动对象/)
+    const invalid = structuredClone(config)
+    invalid.systems[0].id = removed
+    assert.throws(() => validateConfig(invalid), /接入配置错误/)
+  }
   assert.ok(config.systems.every(system => system.name.length > 8))
   assert.ok(publicConfig(config).systems.every(system => !('runtime' in system) && !('sourceSha' in system)))
   assert.equal(startupPlan(config).processes.length, config.systems.filter(system => system.status === 'enabled').length)
@@ -46,7 +54,7 @@ test('启用要求验收 SHA、隔离端口及直接进程配置', () => {
   assert.equal(validateConfig(config), config)
   assert.equal(startupPlan(config, 'all', 'Demo').processes.length, 1)
   assert.equal(startupPlan(config, 'relation', 'Development').processes.length, 2)
-  assert.equal(startupPlan(config, 'extraction', 'Development').processes.length, 0)
+  assert.equal(startupPlan(config, 'crawler', 'Development').processes.length, 0)
   assert.equal(startupPlan(config, 'portal').processes.length, 0)
   for (const mutate of [runtime => { runtime.acceptanceSha = '0'.repeat(40) },
     runtime => { runtime.backendPort = 18000 }, runtime => { runtime.frontend.executable = 'cmd' },
@@ -63,17 +71,17 @@ test('路径遍历和绝对路径被拒绝', () => {
     assert.throws(() => workspacePath(rootDirectory, relative, 'systems'))
   }
   assert.throws(() => startupPlan(fixture(), 'unknown'))
-  assert.ok(workspacePath(rootDirectory, 'systems/extraction', 'systems/extraction', true).endsWith('extraction'))
-  const extraction = fixture()
-  enable(extraction.systems[1]).runtime.backend.cwd = 'systems/extraction'
-  assert.equal(validateConfig(extraction), extraction)
+  assert.ok(workspacePath(rootDirectory, 'systems/relation', 'systems/relation', true).endsWith('relation'))
+  const boundary = fixture()
+  enable(boundary.systems[0]).runtime.backend.cwd = 'systems/relation'
+  assert.equal(validateConfig(boundary), boundary)
 })
 
 test('维护 Nginx 配置没有上游，API 匹配先于页面，保留查询参数', () => {
   const nginx = renderNginx(fixture(), rootDirectory)
   assert.ok(!nginx.includes('proxy_pass'))
-  assert.equal((nginx.match(/SYSTEM_MAINTENANCE/g) ?? []).length, 4)
-  for (const id of ['relation', 'extraction', 'crawler', 'scholar']) {
+  assert.equal((nginx.match(/SYSTEM_MAINTENANCE/g) ?? []).length, 2)
+  for (const id of ['relation', 'crawler']) {
     assert.ok(nginx.indexOf(`^/${id}/(?:api|actuator)`) < nginx.indexOf(`location /${id}/`))
     assert.ok(nginx.includes(`/${id}/$is_args$args`))
   }

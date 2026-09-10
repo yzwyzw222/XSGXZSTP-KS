@@ -13,7 +13,7 @@
     {
       "path": "frontend/src/App.vue",
       "sourceBlob": "cd9578a26318d7bd8e4cee2f940bde95772fce17",
-      "adaptedBlob": "e5373f074ac71d48dbcad0927f3cb6c71f4d2150"
+      "adaptedBlob": "6bf49e699397754db6e45d3395b91f27d17b4428"
     },
     {
       "path": "frontend/src/api/http.ts",
@@ -28,7 +28,7 @@
     {
       "path": "frontend/src/router/index.ts",
       "sourceBlob": "2e25d7a14e76115e6738614102c418fac19b5f65",
-      "adaptedBlob": "fe9b186516b76a7d623f136113e3d6fa8c45f3fa"
+      "adaptedBlob": "1941120f506bfaff76d44133af97d265aacffff8"
     },
     {
       "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationAdminBootstrap.java",
@@ -73,126 +73,39 @@
     {
       "path": "frontend/src/views/LayoutView.vue",
       "sourceBlob": "bc53289490f70568d793b52c0c5854364e8020e3",
-      "adaptedBlob": "5b666b1a4dd409b945bc3428edb0d7b122eb8e91"
-    }
-  ],
-  "extraction": [
-    {
-      "path": "frontend/src/App.vue",
-      "sourceBlob": "98240aef8109abb6b658cd4d7c5cd21106cb354e",
-      "adaptedBlob": "65dd9456acb51547c513307186413bd7eb1a1cae"
+      "adaptedBlob": "548a1e7d7a0adf6c4c31417f368ea0e9538c909b"
     },
     {
-      "path": "frontend/src/api/client.js",
-      "sourceBlob": "4daa7ca367a908a1df5e9de6e9097a552ddd2a0e",
-      "adaptedBlob": "aad2027cd34f21820e4740beeae94ffd516ce408"
+      "path": "README.md",
+      "sourceBlob": "c62509f53dc848a1f069078153f4ed8a841378fd",
+      "adaptedBlob": "60bc9537a8b21ed5841b922014d4764e13439984"
     },
     {
-      "path": "frontend/src/main.js",
-      "sourceBlob": "cf9a64be7b81f14fcfebe12e1dcc4a3534110c18",
-      "adaptedBlob": "6fe37e9177f1855662153042830860ce2e2812fb"
+      "path": "backend/src/main/java/com/xsyu/academicgraph/api/admin/DataImportDtos.java",
+      "sourceBlob": "7472abaca4fd41e704982c0cd8a2e32209763216",
+      "adaptedBlob": "97d99ff185bca7cecb6451a1d560a272d010ec6a"
     },
     {
-      "path": "frontend/src/router/index.js",
-      "sourceBlob": "92bef7273e21f351dc6eb63a14d7c2891561e065",
-      "adaptedBlob": "263cba81481d43879ada5f2fce5212ef842a2542"
+      "path": "backend/src/main/java/com/xsyu/academicgraph/application/admin/DataImportService.java",
+      "sourceBlob": "1d5a283a7c6a56918831e7d0f8d5ca4b47c757dd",
+      "adaptedBlob": "ed4607b8248fba10e2f27fbc6e841fac1c52775a"
     },
     {
-      "path": "pom.xml",
-      "sourceBlob": "ac60c061ab28b59887b050fae5113e1cab974d16",
-      "adaptedBlob": "bc2ece006aeb1950331985087205688d46997f8d"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/config/SecurityConfig.java",
-      "sourceBlob": "45e0ecbcccf24e12a783d45de82ee1e0f36b65fe",
-      "adaptedBlob": "98c63a6dc5301023910166d467019241cca70b47"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/exception/GlobalExceptionHandler.java",
-      "sourceBlob": "dfc4d60dd0cf7434ba4aef8e5f2843951e265086",
-      "adaptedBlob": "6013fa7d31179eb74c115296a5d74132f02fcd4c"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/IntegrationHealthController.java",
-      "sourceBlob": null,
-      "adaptedBlob": "10f84a78b4f101e754692d3987d9fd164936f28c"
-    },
-    {
-      "path": "frontend/src/services/portal-auth.js",
-      "sourceBlob": null,
-      "adaptedBlob": "95159d30e47aa5aac4f011896458706252e82c9e"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/PortalAuthenticationFilter.java",
-      "sourceBlob": null,
-      "adaptedBlob": "b4f222ebb5e74c679bf9fe24a6ea1ad6d3204d81"
-    },
-    {
-      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/infrastructure/integration/PortalAuthenticationFilterTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "7c59a6fcd7af4186aeec0163f254854c233febc7"
-    },
-    {
-      "path": "frontend/src/composables/useAuth.js",
-      "sourceBlob": "bf8a2ef70ffd7bfc5d7c4e3ee1da303fb69a6374",
-      "adaptedBlob": "535718e683f9eaf0b5955dc57ce31603452b10b2"
-    },
-    {
-      "path": "frontend/src/layout/Topbar.vue",
-      "sourceBlob": "0b2af972390e3f2c825dd9393f8d0c2375b51d8b",
-      "adaptedBlob": "5fd87ff6f43c4d15bd6f65462c793843c9619e1f"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/api/controller/SessionController.java",
-      "sourceBlob": "f08c79f457035cc626be8450a993c4acc940f821",
-      "adaptedBlob": "521b7855277f689b8eae6a8d3d17c550fc3f2d65"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/api/controller/GraphController.java",
-      "sourceBlob": "3b0b49cf523336cd1b71a1af9c47ee1ff8eb057b",
-      "adaptedBlob": "a09a61f93743b9313019ae035ed82b45348d0fe9"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/application/service/PaperService.java",
-      "sourceBlob": "03d98176e58548ceabb4e581cc606d0cd9751087",
-      "adaptedBlob": "499e63c385386403d1cd4f14c8851816f157690b"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/sync/OutboxPollingScheduler.java",
-      "sourceBlob": "8626c51e85239a5d39718e7ad4923806d1566cd3",
-      "adaptedBlob": "5316e9fdc48ca63355750e0703c8c4e977000980"
-    },
-    {
-      "path": "src/main/java/com/example/academic_entity_extract_kg_construction/infrastructure/exception/GraphUnavailableException.java",
-      "sourceBlob": null,
-      "adaptedBlob": "3eb8b2968377ad0010372fd3148a3138d9e5d23b"
-    },
-    {
-      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/api/controller/GraphControllerTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "3810f345e5dfe4c2c795091223a5cbf98077cffe"
-    },
-    {
-      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/application/service/PaperServiceTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "8c51cfeca3797c720149a407ba6eaafd23da710b"
-    },
-    {
-      "path": "src/test/java/com/example/academic_entity_extract_kg_construction/infrastructure/sync/OutboxPollingSchedulerTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "7bb3efde61bd2244eb451fb61e7cdd349dff3326"
+      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/openalex/OpenAlexClientException.java",
+      "sourceBlob": "dbf6d9f48f4ffc48c5a961db63704a951fe724d6",
+      "adaptedBlob": "a025e12085bd71833e2a56b0acf24f6490a5bcbd"
     }
   ],
   "crawler": [
     {
       "path": "frontend/src/App.vue",
       "sourceBlob": "7cc481014f93672306cb218531e6821f74b6aa7d",
-      "adaptedBlob": "292a4e69af037e4bb00b45fefd8a3365af072e80"
+      "adaptedBlob": "18142b5f8d8aeadb8cc2e5bbc5a92cc17c299ad7"
     },
     {
       "path": "frontend/src/router/index.ts",
       "sourceBlob": "6e81f23792a79d624fb5d46158a205f330881e65",
-      "adaptedBlob": "6f2b512db9b0a23f61c21e1390c976b2a24dda2c"
+      "adaptedBlob": "1666fca85c55fab70ff5ac1eb5ef9fe7f493c2a3"
     },
     {
       "path": "frontend/src/services/http.ts",
@@ -255,6 +168,16 @@
       "adaptedBlob": "385167ac27d7de513b22f9b07d0f97e0c2a0944e"
     },
     {
+      "path": "frontend/src/components/business/AppTopbar.vue",
+      "sourceBlob": "64f150c2313f1485558aaa743f4dec31dd5c0b16",
+      "adaptedBlob": "d3179fce5470e98e3c7d149fc9b4299d95e16295"
+    },
+    {
+      "path": "frontend/src/config/nav.ts",
+      "sourceBlob": "c42cfc23f3ba624741f245f2af12ec67b3d3a395",
+      "adaptedBlob": "ca37f05ff2abe0a37c4dc085433b7536fd07fe10"
+    },
+    {
       "path": "frontend/src/views/CrawlTasksView.vue",
       "sourceBlob": "0f397bc66a57edb40476aaebf797a1fb0537e6a0",
       "adaptedBlob": "6de06f574cf6cf2e49efcba5c43b31d36965cfe4"
@@ -262,7 +185,12 @@
     {
       "path": "frontend/src/views/OverviewView.vue",
       "sourceBlob": "734f1ba445bd6ef020a0a66e3f6d96a424798f0e",
-      "adaptedBlob": "572ec5bc7558630d9eaaebdad6bb245f62f347bc"
+      "adaptedBlob": "f7b54017fcb3226d5049c20ff8f619697f97e11c"
+    },
+    {
+      "path": "frontend/vite.config.ts",
+      "sourceBlob": "58cc9ff6a28ae279d30432ad9fa06706296e64b7",
+      "adaptedBlob": "c0169672c3e6fe54587ef348a73f1cf9cac0aaa4"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlLaunchFailure.java",
@@ -275,9 +203,49 @@
       "adaptedBlob": "f4a8c25ec2b04c79bbed189107a067e487ef59d2"
     },
     {
+      "path": "frontend/management.html",
+      "sourceBlob": null,
+      "adaptedBlob": "afc872bf730ec4245513214960af8e7d2b86ad82"
+    },
+    {
+      "path": "frontend/src/management/ManagementApp.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "06adcde992a33a5f0bf8e46df3ff39457bd50ada"
+    },
+    {
+      "path": "frontend/src/management/PlatformLogsView.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "66aa22f1ee0f474ac57a50af439b05f58826f3bc"
+    },
+    {
+      "path": "frontend/src/management/logs.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "ce6fb69611e0da9ca786bfdb6c5cf126298181b1"
+    },
+    {
+      "path": "frontend/src/management/main.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "1fb60dd384e672fce63234ffdb4e91c4c27f51e9"
+    },
+    {
+      "path": "frontend/src/views/UsersView.vue",
+      "sourceBlob": "f36e251b270564b5f08a6955284eeb767c47c43e",
+      "adaptedBlob": "5c0e67c8a5c0593fb1307fa78a477daefa3fece7"
+    },
+    {
       "path": "README.md",
       "sourceBlob": "792c7df542e2ff8dd185d52406793b040a37907b",
-      "adaptedBlob": "daa75f2cee2b16c536429cf3707f178597e19487"
+      "adaptedBlob": "8c9279f987e921f88834207fea8d055abc9c091b"
+    },
+    {
+      "path": "frontend/src/components/business/AppSidebar.vue",
+      "sourceBlob": "92dd84e9b93e3a70cc3e4c25a310497a23c6bbbc",
+      "adaptedBlob": "a61b1604d6b98a3f4512f761a862265cd5c56f8b"
+    },
+    {
+      "path": "frontend/src/views/LoginView.vue",
+      "sourceBlob": "dab84e7c82b2cca27e87519f955e8f0a38ef8c41",
+      "adaptedBlob": "23f5f077e0e892c90c6e70528c96d5a3c9533bc3"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlScheduleResponse.java",
@@ -533,93 +501,6 @@
       "path": "frontend/src/components/business/SourceEntitySelect.vue",
       "sourceBlob": null,
       "adaptedBlob": "8a3ab4249a65134c5e5433c47777fa1a11abf33f"
-    }
-  ],
-  "scholar": [
-    {
-      "path": "web/backend/src/main/java/com/aacv/api/auth/AuthController.java",
-      "sourceBlob": "4ecc100db561b8379e86687102e4a2866924c511",
-      "adaptedBlob": "ff979a9aaae009ce35aff65c02546fa138ac5cb2"
-    },
-    {
-      "path": "web/backend/src/main/java/com/aacv/config/DataInitializer.java",
-      "sourceBlob": "ebd4a74698ecf8323618788a17587a0a99ec142a",
-      "adaptedBlob": "460dbde4706dd3d4c4a8bc3f47d485f00b01f811"
-    },
-    {
-      "path": "web/src/App.vue",
-      "sourceBlob": "95bdf78632e24957abe6c248109a6b32a6aa189f",
-      "adaptedBlob": "4747ced6b9cdb89a7635b804f2aef7ed2c6f0bd0"
-    },
-    {
-      "path": "web/src/api/request.js",
-      "sourceBlob": "ea1eb6c9059c62734765c34d9c419400ac6a8445",
-      "adaptedBlob": "7deaceb9bed84a35ed0b139f354b2f6179648f2c"
-    },
-    {
-      "path": "web/src/components/layout/AppLayout.vue",
-      "sourceBlob": "d7214c548738595d49b6e4713e6c8abcbf9e45b9",
-      "adaptedBlob": "6d729c5cc504fa68e7ab1101d33bb23d61c11177"
-    },
-    {
-      "path": "web/src/router/index.js",
-      "sourceBlob": "60625b370a0ffc87263ef592072cdef703be0db1",
-      "adaptedBlob": "17d96cd66af14e6d6758f3877a15cfd41f2bc0ab"
-    },
-    {
-      "path": "web/src/views/ScholarGraph.vue",
-      "sourceBlob": "c66238cefc0a11a84ccac308953a6099506e8f30",
-      "adaptedBlob": "085ccd5c2fc4f69a93a56451150e7eb7086b9710"
-    },
-    {
-      "path": "web/backend/src/main/java/com/aacv/config/IntegrationAdminBootstrap.java",
-      "sourceBlob": null,
-      "adaptedBlob": "587972fab91d7696626df2502e729f4646c3a6f2"
-    },
-    {
-      "path": "web/backend/src/test/java/com/aacv/config/IntegrationAdminBootstrapTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "9d6b1455f30023fa6fddb3aa8c01baeb43d03939"
-    },
-    {
-      "path": "web/backend/src/main/java/com/aacv/config/IntegrationHealthController.java",
-      "sourceBlob": null,
-      "adaptedBlob": "158eb23d321bf49d89070741b44489832c01af79"
-    },
-    {
-      "path": "web/backend/src/main/java/com/aacv/config/SecurityConfig.java",
-      "sourceBlob": "4b2fbe4e20fc8c85b79de4f6dd062afe15299d53",
-      "adaptedBlob": "f7112bd5ec072fa6a62917d0699d84a60148e5ff"
-    },
-    {
-      "path": "web/backend/src/main/java/com/aacv/infrastructure/integration/PortalAuthenticationFilter.java",
-      "sourceBlob": null,
-      "adaptedBlob": "3ab352d7e92d4cb85b14ece4739c5c3284fae147"
-    },
-    {
-      "path": "web/backend/src/main/java/com/aacv/infrastructure/security/SessionUser.java",
-      "sourceBlob": "2356c65e269b4e4210981bdb557f4f3a8173a391",
-      "adaptedBlob": "77db7e02623acb25edf9ee42da918b251dd685a3"
-    },
-    {
-      "path": "web/backend/src/test/java/com/aacv/infrastructure/integration/PortalAuthenticationFilterTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "a30fb8e1c5e57984a93d5af3e7a80869e018842a"
-    },
-    {
-      "path": "web/src/components/layout/AppTopbar.vue",
-      "sourceBlob": "be85d54e77dc0211b1471b119c497d7bcc0b80c5",
-      "adaptedBlob": "7c36cebc6b13f2d89e40ef845a75cb4239461f4e"
-    },
-    {
-      "path": "web/src/composables/useSession.js",
-      "sourceBlob": "e9075625a9c176f27221e5d469296ad4a593a9c3",
-      "adaptedBlob": "a626f1b6d72bab231ab8663261e7071adc444075"
-    },
-    {
-      "path": "web/src/services/portal-auth.js",
-      "sourceBlob": null,
-      "adaptedBlob": "d28938c2a8d0d3a389d6090215ca8302c262de5e"
     }
   ]
 }

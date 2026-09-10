@@ -12,6 +12,7 @@ import ErrorState from '@/components/business/ErrorState.vue'
 import { profileForm, validateProfile } from '@/utils/user-profile'
 import { getAudits } from '@/services/audits'
 import { useSessionStore } from '@/stores/session'
+import { integrated } from '@/services/portal-auth'
 
 import { ConfirmDialog, DataTable, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import { ApiError, toErrorMessage } from '@/services/api'
@@ -309,7 +310,7 @@ onBeforeUnmount(() => {
       <PanelSection title="最近登录日志" subtitle="最近 10 条登录、失败及退出记录" class="workspace-panel min-w-0 xl:col-span-2">
         <template #actions>
           <ElButton size="small" :disabled="logsLoading" @click="loadLogs" text>刷新</ElButton>
-          <ElButton as-child size="small" plain><RouterLink to="/logs?category=LOGIN">查看全部</RouterLink></ElButton>
+          <ElButton as-child size="small" plain><RouterLink :to="integrated ? '/audits?category=LOGIN' : '/logs?category=LOGIN'">查看全部</RouterLink></ElButton>
         </template>
         <ErrorState v-if="logsError" :message="logsError" retryable @retry="loadLogs" />
         <AuditLogTable v-else :items="recentLogs" :loading="logsLoading" compact fill />

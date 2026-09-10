@@ -89,7 +89,6 @@ button, a, summary { touch-action: manipulation; }
 .system-card::before { top: 5px; left: 5px; border-top: 3px solid; border-left: 3px solid; border-top-left-radius: 11px; }
 .system-card::after { right: 5px; bottom: 5px; border-right: 3px solid; border-bottom: 3px solid; border-bottom-right-radius: 11px; }
 .system-card:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 4px #5cbeff2e, inset 0 0 34px #36b3ff8a, 0 0 16px var(--card-glow), 0 12px 30px #006fe359; }
-.system-card.extraction { --card-glow: #667dff; --card-edge: #a4b0ff; --card-bg: #142878e0; --button-bg: #2a4fed; }
 .system-card.crawler { --card-glow: #43eae9; --card-edge: #97ffef; --card-bg: #054452d9; --button-bg: #087fae; }
 .card-top { position: absolute; z-index: 2; top: 18px; right: 18px; left: 23px; display: flex; justify-content: space-between; align-items: center; }
 .system-number { color: var(--card-glow); opacity: .53; font-family: 'Bahnschrift', var(--font-ui); font-size: 35px; line-height: 1; font-weight: 600; }
@@ -97,16 +96,9 @@ button, a, summary { touch-action: manipulation; }
 .status.enabled { color: #a2f8ce; border-color: #69dca1; }
 .system-art { position: relative; height: clamp(187px, 12.25vw, 230px); margin: 3px -7px 6px; }
 .system-art > img { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: lighten; }
-.extraction .system-art > img { transform: scale(1.08); }
 .art-caption { position: absolute; top: 45px; right: 3px; color: #7cbded; font-size: 8px; line-height: 1.5; white-space: pre-line; letter-spacing: .8px; }
-.extraction .art-caption { display: none; }
-.entity-tags { position: absolute; top: 64px; display: flex; flex-direction: column; gap: 13px; }
-.entity-tags-left { left: 4px; }
-.entity-tags-right { right: 3px; }
-.entity-tags span { padding: 4px 9px; border: 1px solid #708aff; border-radius: 5px; background: #1739978c; color: #d7e9ff; box-shadow: inset 0 0 9px #345bea; font-size: 11px; text-align: center; }
 .card-copy { flex: 1; text-align: center; }
 .card-copy h3 { margin: 0 0 10px; color: #f4f9ff; font-size: clamp(17px, 1.38vw, 26px); font-weight: 700; line-height: 1.45; text-shadow: 0 2px 5px #011b55; }
-.extraction .card-copy h3 { font-size: clamp(15px, 1.12vw, 22px); line-height: 1.78; white-space: nowrap; }
 .system-description { margin: 0 auto; color: #c6e2ff; font-size: clamp(12px, .91vw, 17px); line-height: 1.8; text-wrap: pretty; }
 .card-bottom { display: flex; justify-content: center; margin-top: 15px; }
 .entry-button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-width: 196px; min-height: 43px; padding: 7px 23px; border: 1px solid #a1e5ff; border-radius: 28px; background: var(--button-bg, #1266be); box-shadow: inset 0 3px 10px #b1f4ffa3, inset 0 -3px 6px #58b8ff85, 0 0 13px #1bafff9c; color: #f7fcff; font-size: 16px; font-weight: 600; letter-spacing: 1px; transition: filter .2s, box-shadow .2s; }
@@ -184,7 +176,6 @@ button, a, summary { touch-action: manipulation; }
   .system-list { gap: 15px; }
   .system-card { padding-inline: 13px; }
   .card-copy h3 { display: flex; align-items: center; justify-content: center; min-height: 54px; }
-  .extraction .card-copy h3 { font-size: 17px; line-height: 1.6; white-space: normal; text-wrap: balance; }
   .metric { gap: 7px; padding-left: 12px; }
   .metric > .portal-icon { width: 24px; height: 28px; }
   .overview-panel { padding-inline: 16px; }
@@ -214,7 +205,6 @@ button, a, summary { touch-action: manipulation; }
   .system-card { min-height: 392px; }
   .system-art { height: 199px; }
   .card-copy h3 { font-size: 20px; }
-  .extraction .card-copy h3 { font-size: 16px; }
   .system-description { font-size: 14px; }
   .panel-heading h2 { font-size: 14px; }
   .cooperation-map { height: 150px; }
@@ -252,7 +242,7 @@ button, a, summary { touch-action: manipulation; }
   .system-card { min-height: 405px; padding: 16px 25px 26px; }
   .system-art { height: 220px; max-width: 385px; width: 100%; margin: 0 auto 12px; }
   .card-top { top: 22px; right: 23px; left: 26px; }
-  .card-copy h3, .extraction .card-copy h3 { font-size: clamp(18px, 3.6vw, 23px); line-height: 1.6; white-space: normal; }
+  .card-copy h3 { font-size: clamp(18px, 3.6vw, 23px); line-height: 1.6; white-space: normal; }
   .card-copy h3 { min-height: 0; }
   .system-description { max-width: 420px; font-size: 14px; }
   .entry-button { min-width: 220px; min-height: 46px; font-size: 16px; }
@@ -284,7 +274,6 @@ button, a, summary { touch-action: manipulation; }
   .system-card { padding-inline: 17px; }
   .system-art { height: 202px; }
   .card-copy h3 { font-size: 21px; }
-  .extraction .card-copy h3 { font-size: 20px; padding-inline: 12px; }
   .system-description { padding-inline: 8px; font-size: 13px; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 0; }
   .metric { padding-left: 18px; }
@@ -313,7 +302,7 @@ button, a, summary { touch-action: manipulation; }
   .brand-mark { width: 32px; }
   .brand-copy small { letter-spacing: 1px; }
   .profile-menu .chevron { display: none; }
-  .card-copy h3, .extraction .card-copy h3 { font-size: 18px; }
+  .card-copy h3 { font-size: 18px; }
   .metric > .portal-icon { display: none; }
   .metric dd { font-size: 19px; }
   .header-actions { gap: 8px; }
@@ -324,3 +313,6 @@ button, a, summary { touch-action: manipulation; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+.platform-action { color: var(--cyan); background: transparent; border: 1px solid #367cb5; border-radius: 5px; padding: 7px 10px; font: inherit; font-size: 13px; white-space: nowrap; text-decoration: none; cursor: pointer; }
+@media (max-width: 1200px) { .site-header { flex-wrap: wrap; } .header-actions { flex-wrap: wrap; } }

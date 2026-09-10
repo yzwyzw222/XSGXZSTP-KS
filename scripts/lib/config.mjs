@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const rootDirectory = fileURLToPath(new URL('../../', import.meta.url))
-export const systemIds = ['relation', 'extraction', 'crawler', 'scholar']
+export const systemIds = ['relation', 'crawler']
 const statuses = ['maintenance', 'enabled']
 
 function requireValue(condition, message) {
@@ -35,7 +35,7 @@ export function validateConfig(config) {
     ports.add(value)
   }
   port(config.portalPort)
-  requireValue(Array.isArray(config.systems) && config.systems.length === systemIds.length, '必须配置四个系统')
+  requireValue(Array.isArray(config.systems) && config.systems.length === systemIds.length, '必须配置两个系统')
   for (const id of systemIds) {
     const matches = config.systems.filter(system => system?.id === id)
     requireValue(matches.length === 1, `${id} 缺失或重复`)
@@ -52,7 +52,7 @@ export function validateConfig(config) {
     requireValue(runtime && typeof runtime === 'object', `${id} 缺少接入运行配置`)
     requireValue(runtime.acceptanceSha === system.sourceSha, `${id} 验收来源与同步来源不一致`)
     requireValue(typeof runtime.acceptance === 'string' && /^docs\/[\w/-]+\.md$/.test(runtime.acceptance), `${id} 缺少验收记录路径`)
-    requireValue(runtime.dist === `systems/${id}/${id === 'scholar' ? 'web' : 'frontend'}/dist`, `${id} 构建目录无效`)
+    requireValue(runtime.dist === `systems/${id}/frontend/dist`, `${id} 构建目录无效`)
     requireValue(runtime.contextPath === undefined || runtime.contextPath === `/${id}`, `${id} 后端上下文路径无效`)
     requireValue(typeof runtime.readinessPath === 'string' && /^\/[\w/-]+$/.test(runtime.readinessPath), `${id} 就绪路径无效`)
     port(runtime.backendPort)

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('all', 'portal', 'relation', 'extraction', 'crawler', 'scholar')][string]$System = 'all',
+    [ValidateSet('all', 'portal', 'relation', 'crawler')][string]$System = 'all',
     [ValidateSet('Development', 'Demo')][string]$Mode = 'Demo'
 )
 . (Join-Path $PSScriptRoot 'Integration.Common.ps1')

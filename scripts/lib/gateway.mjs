@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadConfig, publicConfig, workspacePath } from './config.mjs'
 import { handlePortalAuth, identityCookies, portalCookies, readPortalSession } from './auth.mjs'
+import { auditTarget, createPlatformAudit, platformIdentity } from './platform-audit.mjs'
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character])
@@ -25,8 +26,8 @@ const unavailable = (system, code) => JSON.stringify({ status: 503, code,
   system: system?.id ?? null, message: '系统暂不可用，请返回门户查看接入状态。' })
 
 /** 此中间件先于代理和 SPA 回退，配置失效时默认拒绝所有业务入口。 */
-export function createGateway({ root, initialConfig, development = false, readConfig = () => loadConfig(root) }) {
-  return (request, response, next) => {
+export function createGateway({ root, initialConfig, development = false, readConfig = () => loadConfig(root), audit = createPlatformAudit(root) }) {
+  return async (request, response, next) => {
     let url
     let pathname
     try {
@@ -53,6 +54,41 @@ export function createGateway({ root, initialConfig, development = false, readCo
     if (pathname === '/integration.json') {
       if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
       return send(request, response, 200, 'application/json', JSON.stringify(publicConfig(config)))
+    }
+    const target = auditTarget(pathname)
+    if (target && !configurationFailure) audit.observe(request, response, target, platformIdentity(request, config))
+    if (pathname === '/__integration/platform/logs') {
+      if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
+      if (request.method !== 'GET') return send(request, response, 405, 'application/json', '{"detail":"仅支持 GET。"}')
+      try {
+        const user = await platformIdentity(request, config)
+        if (!user) return send(request, response, 401, 'application/json', '{"detail":"请先登录。"}')
+        if (!user.permissions.includes('AUDIT_READ')) return send(request, response, 403, 'application/json', '{"detail":"无权查看平台日志。"}')
+        return send(request, response, 200, 'application/json', JSON.stringify(audit.query(url.searchParams)))
+      } catch (failure) {
+        return send(request, response, failure instanceof RangeError ? 400 : 503, 'application/json', JSON.stringify({ detail: failure instanceof RangeError ? failure.message : '平台日志暂不可用，请稍后重试。' }))
+      }
+    }
+    if (/^\/management\/(users(?:\/overview)?|logs|audits)$/.test(pathname)) {
+      if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
+      if (!['GET', 'HEAD'].includes(request.method)) return send(request, response, 405, 'application/json', '{"status":405}')
+      try {
+        const user = await platformIdentity(request, config)
+        if (!user) {
+          response.writeHead(302, { Location: `/login?redirect=${encodeURIComponent(pathname)}`, 'Cache-Control': 'no-store' })
+          return response.end()
+        }
+        const permission = pathname.startsWith('/management/users') ? 'USER_LIST' : 'AUDIT_READ'
+        if (!user.permissions.includes(permission)) return send(request, response, 403, 'text/html', '<html lang="zh-CN"><meta charset="utf-8"><p>无权访问平台管理。</p><a class="integration-return" href="/">返回门户</a></html>')
+        if (development) { request.url = '/crawler/management.html'; return next() }
+        const system = config.systems.find(entry => entry.id === 'crawler')
+        return send(request, response, 200, 'text/html', readFileSync(path.join(workspacePath(root, system.runtime.dist, 'systems/crawler'), 'management.html')))
+      } catch { return send(request, response, 503, 'text/html', maintenanceHtml({ name: '平台管理' }, '统一管理暂不可用，请返回门户后稍后重试。')) }
+    }
+    if (/^\/crawler\/(users(?:\/overview)?|logs|operations(?:\/.*)?)\/?$/.test(pathname) || pathname === '/relation/admin') {
+      const destination = pathname.includes('users') || pathname === '/relation/admin' ? '/management/users' : '/management/logs'
+      response.writeHead(302, { Location: `/?workspace=${encodeURIComponent(destination)}`, 'Cache-Control': 'no-store' })
+      return response.end()
     }
     if (pathname.startsWith('/__integration/auth/')) {
       if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))

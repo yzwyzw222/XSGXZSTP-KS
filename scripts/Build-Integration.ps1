@@ -9,9 +9,7 @@ foreach ($record in @(Read-IntegrationState)) {
 
 $builds = @(
     @{ id='relation'; frontend='systems/relation/frontend'; backend='systems/relation/backend'; wrapper='systems/relation/backend/mvnw.cmd'; pom='pom.xml' },
-    @{ id='extraction'; frontend='systems/extraction/frontend'; backend='systems/extraction'; wrapper='systems/extraction/mvnw.cmd'; pom='pom.xml' },
-    @{ id='crawler'; frontend='systems/crawler/frontend'; backend='systems/crawler'; wrapper='systems/crawler/mvnw.cmd'; pom='backend/pom.xml' },
-    @{ id='scholar'; frontend='systems/scholar/web'; backend='systems/scholar/web/backend'; wrapper='systems/scholar/web/backend/mvnw.cmd'; pom='pom.xml' }
+    @{ id='crawler'; frontend='systems/crawler/frontend'; backend='systems/crawler'; wrapper='systems/crawler/mvnw.cmd'; pom='backend/pom.xml' }
 )
 $logDirectory = Join-Path $script:IntegrationRoot '.local/integration-build'
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
@@ -36,4 +34,4 @@ if ($Restore) {
 }
 & npm.cmd --prefix (Join-Path $script:IntegrationRoot 'portal') run build
 if ($LASTEXITCODE -ne 0) { throw '门户构建失败。' }
-Write-Output '四套子系统与门户构建完成。'
+Write-Output '两套子系统与门户构建完成。'

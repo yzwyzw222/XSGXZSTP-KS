@@ -15,8 +15,11 @@ test('统一 Cookie 隔离旧会话，拒绝重复值和异常字符', () => {
 })
 
 test('回跳允许业务深链接，拒绝外站、路径逃逸、认证接口与登录循环', () => {
-  assert.equal(safeReturnPath('/scholar/scholar-profile?id=1#papers'), '/scholar/scholar-profile?id=1#papers')
+  assert.equal(safeReturnPath('/relation/relations/overview?year=2025#papers'), '/relation/relations/overview?year=2025#papers')
   assert.equal(safeReturnPath('/crawler/graph?query=%E5%AD%A6%E6%9C%AF'), '/crawler/graph?query=%E5%AD%A6%E6%9C%AF')
+  for (const removed of ['/extraction/', '/extraction/papers?id=1', '/scholar/', '/scholar/dashboard']) {
+    assert.equal(safeReturnPath(removed), '/', '已删除系统不能作为登录回跳或工作区地址')
+  }
   for (const path of [null, '//evil.test', 'https://evil.test', '/crawler/../../evil', '/crawler/%2f/evil',
     '/crawler/\\evil', '/crawler/login', '/relation/register', '/scholar/api/v1/auth/logout', '/login', '/other/']) {
     assert.equal(safeReturnPath(path), '/', String(path))

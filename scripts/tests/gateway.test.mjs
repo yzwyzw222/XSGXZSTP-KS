@@ -34,7 +34,7 @@ test('维护页面、深链接、API 各方法和规范路径不会访问下游'
   const upstreamUrl = await listen(upstream)
   t.after(() => { upstream.closeAllConnections(); upstream.close() })
   let current = config
-  const middleware = createGateway({ root: rootDirectory, initialConfig: config, readConfig: () => {
+  const middleware = createGateway({ root: rootDirectory, initialConfig: config, audit: { observe: (_request, _response, _target, identity) => { identity.catch(() => {}) } }, readConfig: () => {
     if (current instanceof Error) throw current
     return current
   } })
@@ -72,7 +72,7 @@ test('维护页面、深链接、API 各方法和规范路径不会访问下游'
     assert.equal((await request(url, route)).status, 400)
   }
   assert.equal((await request(url, '/__integration/health')).status, 200)
-  assert.equal(JSON.parse((await request(url, '/integration.json')).body).systems.length, 4)
+  assert.equal(JSON.parse((await request(url, '/integration.json')).body).systems.length, 2)
   current = { ...config, revision: 'changed' }
   assert.equal((await request(url, '/integration.json')).status, 503)
   assert.equal(JSON.parse((await request(url, '/relation/api/v1/test')).body).code, 'CONFIG_CHANGED')
@@ -90,7 +90,8 @@ test('维护说明中的 HTML 被转义', () => {
 
 test('已启用系统的匿名深链接和旧登录页统一回跳，旧认证写接口关闭', async t => {
   const config = loadConfig()
-  const middleware = createGateway({ root: rootDirectory, initialConfig: config, development: true, readConfig: () => config })
+  const middleware = createGateway({ root: rootDirectory, initialConfig: config, development: true,
+    audit: { observe: (_request, _response, _target, identity) => { identity.catch(() => {}) } }, readConfig: () => config })
   const gateway = http.createServer((req, res) => middleware(req, res, () => { res.end('next') }))
   const base = await listen(gateway)
   t.after(() => { gateway.closeAllConnections(); gateway.close() })
@@ -110,6 +111,14 @@ test('已启用系统的匿名深链接和旧登录页统一回跳，旧认证�
     assert.equal((await request(base, `${prefix}/graph`, 'GET', { Cookie: 'PORTAL_SESSION=test' })).body, 'next')
   }
   assert.equal((await request(base, '/login')).body, 'next')
+  for (const removed of ['extraction', 'scholar']) {
+    for (const suffix of ['', '/', '/papers/1', '/api/v1/papers', '/actuator/health', '/assets/app.js']) {
+      for (const method of ['GET', 'POST', 'HEAD']) {
+        assert.equal((await request(base, `/${removed}${suffix}`, method, { Cookie: 'PORTAL_SESSION=test' })).status, 404)
+      }
+    }
+    assert.ok(Object.keys(proxyOptions(config, true)).every(route => !route.includes(removed)))
+  }
 })
 
 test('已启用系统保留查询参数及认证 Cookie，并按后端上下文配置处理前缀', () => {

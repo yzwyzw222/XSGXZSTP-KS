@@ -12,9 +12,7 @@ const portal = `http://127.0.0.1:${config.portalPort}`
 const base = system => `http://127.0.0.1:${direct ? system.runtime.backendPort : config.portalPort}/${system.id}`
 const paths = {
   relation: ['/papers?page=0&size=5', '/authors?page=0&size=5', '/analytics/collaborations'],
-  extraction: ['/papers?page=0&size=5', '/authors?name=integration&page=0&size=5&fetchRemote=false'],
   crawler: ['/catalog/achievements?page=0&size=5', '/analytics/overview', '/graph/overview'],
-  scholar: ['/papers?page=0&size=5', '/authors?page=0&size=5', '/scholars?page=0&size=5', '/scholar-graph/initial', '/scholar-graph/stats'],
 }
 const client = await request.newContext({ timeout: 15000 })
 let authenticated = false
@@ -53,9 +51,6 @@ try {
     assert.equal(rejected.status(), 403, `${system.id} 拒绝缺少 CSRF 的写请求`)
     const unknown = await client.get(`${base(system)}/api/v1/integration-nonexistent`, { headers })
     assert.equal(unknown.status(), 404, `${system.id} 未知 API 不得回退为页面`)
-    if (system.id === 'extraction') {
-      assert.equal((await client.get(`${base(system)}/api/v1/authors`, { headers })).status(), 400, '作者查询缺少参数应返回 400')
-    }
     if (!direct) {
       assert.equal((await client.post(`${base(system)}/api/v1/auth/login`)).status(), 410, '旧登录接口关闭')
     }
