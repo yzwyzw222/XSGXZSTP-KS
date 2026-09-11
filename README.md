@@ -1,6 +1,6 @@
 # 学术系统统一门户（XSGXZSTP-KS）
 
-本项目将两套学术应用接入同一个门户，提供学术成果信息采集、数据治理、实体抽取、关系分析与知识图谱可视化等功能。用户在统一入口登录后，可以进入各子系统开展检索、分析与数据管理，并从任一入口统一退出。
+本项目将两套学术应用接入同一个门户，提供知网学者信息表解析、成果检索、关系分析与知识图谱可视化等功能。用户在统一入口登录后，可以进入各子系统开展检索、分析与数据管理，并从任一入口统一退出。
 
 当前集成分支为 `dev`，本地入口为 [http://127.0.0.1:18000/](http://127.0.0.1:18000/)。门户统一入口和身份，各子系统保留自己的前后端工程与业务数据库。系统间尚未建立自动数据同步或跨系统联合检索。
 
@@ -9,13 +9,13 @@
 | 子系统 | 主要功能 | 入口与代码目录 |
 | --- | --- | --- |
 | 学术关系知识图谱构建平台（relation） | 论文、作者、机构与关键词查询；合作网络、机构关系、引用影响、研究领域与时间线分析；数据导入及实体抽取 | `/relation/`；`systems/relation/` |
-| 学术成果信息采集及可视化系统（crawler） | OpenAlex、Crossref 采集与任务调度；成果检索、数据治理、统计与图谱分析；CSV/JSON 异步导出；统一账号、角色和审计管理 | `/crawler/`；`systems/crawler/` |
+| 学术成果信息采集及可视化系统（crawler） | XLSX/XLS/CSV 作者导入；论文、专利、机构、硕博指导与摘要解析；成果检索、统计、知识图谱及 CSV/JSON 导出；统一账号与审计 | `/crawler/`；`systems/crawler/` |
 
-2026-09-10 起仅保留 relation 和 crawler；extraction、scholar 已从源码、入口和集成脚本移除。信息采集系统继续使用 `/crawler/`、`systems/crawler/` 和原数据库名，以兼容现有数据与接口。既有数据库卷不会随源码删除。
+2026-09-10 起仅保留 relation 和 crawler；extraction、scholar 已从源码、入口和集成脚本移除。信息采集系统继续使用 `/crawler/`、`systems/crawler/` 和原数据库名，以兼容现有数据与接口。既有数据库卷不会随源码删除。信息采集首页现为日常工作台，原可视化大屏位于 `/crawler/dashboard`；2026-09-11 起通过“作者导入”解析学者资料，数据源、采集任务、数据治理和质量指标四个模块已移除，详见 [作者导入说明](docs/author-import.md)。此前体验改动保留为 [历史记录](docs/crawler-ux-improvements.md)。
 
 门户提供两个系统入口、入口搜索、统一登录、账号菜单与返回导航。入口搜索只筛选系统名称和功能；门户的趋势、研究方向等统计面板标注为演示数据，不能作为实际业务统计使用。
 
-**初始数据状态：**新环境没有预置用户、历史论文或演示业务数据。首次启动会创建各系统表结构，以及角色、字典等运行所需的基础记录；这些基础记录不代表已存在可登录账号。业务页面显示空列表或空图谱属于正常状态，后续由开发者按需导入或采集数据。外部采集与模型功能需要各自的服务配置。
+**初始数据状态：**新环境没有预置用户、历史论文或演示业务数据。首次启动会创建各系统表结构，以及角色、字典等运行所需的基础记录；这些基础记录不代表已存在可登录账号。业务页面显示空列表或空图谱属于正常状态，后续可在作者导入模块上传信息表；relation 的模型功能仍需该系统的服务配置。
 
 ## 技术栈
 
@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | 统一门户 | Vue 3.5、Vite 8 | Node.js 网关；统一 Session 转发、子路径代理与本地启停脚本 |
 | relation | Vue 3、TypeScript、Vite 8、Element Plus、ECharts、Cytoscape.js | Java 17 编译目标、Spring Boot 3.5.16、Spring Security、Spring Data JPA、MySQL、Neo4j |
-| crawler | Vue 3、TypeScript、Vite 8、Element Plus、Tailwind CSS、Pinia、ECharts、vis-network、Cytoscape.js | Java 21、Spring Boot 4.1.1、MyBatis、Spring Security / Session JDBC、Spring Batch、Quartz、Flyway、MySQL、Neo4j |
+| crawler | Vue 3、TypeScript、Vite 8、Element Plus、Tailwind CSS、Pinia、ECharts、Cytoscape.js | Java 21、Spring Boot 4.1.1、MyBatis、Spring Security / Session JDBC、Spring Batch、Quartz、Flyway、MySQL、Neo4j |
 
 统一运行使用 **JDK 21**。各系统独立维护 Maven Wrapper、POM、`package.json` 和锁文件，具体依赖版本以这些文件为准。没有统一父 POM 或 npm workspace。
 
@@ -40,8 +40,8 @@
 │   │   ├── backend/              # 关系分析后端
 │   │   └── frontend/             # 关系分析前端
 │   └── crawler/
-│       ├── backend/              # 采集、治理、统一账号与权限后端
-│       └── frontend/             # 采集与可视化前端
+│       ├── backend/              # 作者导入、图谱、统一账号与权限后端
+│       └── frontend/             # 学者资料与图谱可视化前端
 ├── deploy/systems.json           # 系统入口、运行目录、端口与健康检查配置
 ├── scripts/                     # 初始化、构建、启停与验证脚本
 ├── docs/                        # 开发说明、认证契约、来源记录与验收文档
@@ -222,7 +222,7 @@ WHERE u.username = 'admin';
 
 ### 6. 验证访问与开始使用
 
-登录后依次打开两个系统，确认能读取空列表、返回门户，并能统一退出。需要业务数据时，在相应系统导入或采集；relation 的模型功能需配置该系统的外部服务，初始化不会自动发起付费模型请求或数据采集。
+登录后依次打开两个系统，确认能读取空列表、返回门户，并能统一退出。需要业务数据时，在相应系统导入；relation 的模型功能需配置该系统的外部服务，初始化不会自动发起付费模型请求或数据采集。
 
 常用检查：
 
@@ -238,6 +238,15 @@ node scripts/Test-IntegratedSystems.mjs
 来源检查依赖 Git 历史和来源对象，获取代码时不要使用浅克隆、ZIP 下载或 `--single-branch`。
 
 ## 日常开发、更新与启停
+
+完成环境准备和构建后，可直接双击仓库根目录的 `start.bat` 启动整个项目，双击 `stop.bat` 停止应用。启动完成后访问 [统一门户](http://127.0.0.1:18000/)。两个脚本默认保留窗口以便查看结果；命令行调用可使用 `--no-pause`，查看帮助使用 `--help`。
+
+```powershell
+.\start.bat --no-pause
+.\stop.bat --no-pause
+```
+
+`start.bat` 优先使用已有的 `.local/Start-LocalProject.ps1`，适配本机 MySQL80，并按提示安全输入数据库密码；其他工作区调用 `scripts/Start-Integration.ps1 -System all -Mode Demo`。两种入口均使用现有构建产物，不自动安装依赖或重建。脚本查找 PATH、常规安装目录及当前用户已有的 Codex PowerShell 7 运行时；缺失时给出提示。`stop.bat` 通过现有进程记录与归属校验停止门户和两个后端，保留数据库、容器、卷和运行数据。
 
 更新代码或重建后端前先停止应用，以免 Windows 锁定正在运行的 jar：
 
@@ -281,7 +290,7 @@ docker compose -f .local/integration-runtime/compose.json stop
 | 端口占用或组件重复启动 | 按脚本提示确认归属；使用 `Stop-Integration.ps1` 停止当前仓库登记的应用，再启动 |
 | 后端未就绪或返回 503 | 查看 `.local/integration/*.out.log`、`*.err.log` 和 Compose 容器状态；统一登录还依赖 crawler 与门户可用 |
 | admin 无法登录 | 核对 `course_crawler.sys_user` 的用户名、`ACTIVE` 状态、带 `{bcrypt}` 前缀的哈希与 `ADMIN` 角色；修改凭据文件本身不会更新数据库密码 |
-| 论文列表或图谱为空 | 新库无预置业务数据；确认已在当前子系统导入或采集，并检查图投影同步状态 |
+| 论文列表或图谱为空 | 新库无预置业务数据；确认已在当前子系统导入，并检查图投影同步状态 |
 
 更多说明见 [开发与运行配置](docs/development.md)、[统一登录与权限映射](docs/unified-login.md)、[集成基线与来源约束](docs/integration-baseline.md)、[本地运行验收记录](docs/local-runtime-acceptance.md)。验收记录描述对应阶段实际执行的检查，不代表每次拉取后的自动验证结果。
 

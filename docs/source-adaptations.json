@@ -98,154 +98,79 @@
   ],
   "crawler": [
     {
-      "path": "frontend/src/App.vue",
-      "sourceBlob": "7cc481014f93672306cb218531e6821f74b6aa7d",
-      "adaptedBlob": "18142b5f8d8aeadb8cc2e5bbc5a92cc17c299ad7"
-    },
-    {
-      "path": "frontend/src/router/index.ts",
-      "sourceBlob": "6e81f23792a79d624fb5d46158a205f330881e65",
-      "adaptedBlob": "1666fca85c55fab70ff5ac1eb5ef9fe7f493c2a3"
-    },
-    {
-      "path": "frontend/src/services/http.ts",
-      "sourceBlob": "c5b1a1dc033c8ccf2426817ede7e8bbe8db5fc2f",
-      "adaptedBlob": "510dc70cfede57e22c0eaeb399b43e34c80ded48"
-    },
-    {
-      "path": "frontend/src/services/portal-auth.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "75f356b1e56ac94e879b651817c896281037c6e9"
-    },
-    {
-      "path": "frontend/src/layouts/BusinessLayout.vue",
-      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
-      "adaptedBlob": "b0149324cdeb341f0a337bd89e4593ac5d448178"
-    },
-    {
-      "path": "frontend/src/stores/session.ts",
-      "sourceBlob": "ce69310b16953b74a59ebd9c6aa9daede7b19104",
-      "adaptedBlob": "dd154cac97d076604036fc4f38cabe31b25d91dc"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlRunService.java",
-      "sourceBlob": "c9ef3dc65b628af28d8d6585b1e182daf5c433ac",
-      "adaptedBlob": "f34780935f32acfe443302783697b80c590fec48"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/application/port/CrawlRepository.java",
-      "sourceBlob": "90150bbecf0fe6899d7f1bef21f17ff71f4c4856",
-      "adaptedBlob": "19c219bd6e8a3244a704fbac4f78b0572c45938a"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/SpringBatchCrawlRunLauncher.java",
-      "sourceBlob": "70221e8c1863c7bec00ac565e759cc47d92883d9",
-      "adaptedBlob": "2f6b35422fb2512014bd150f4712f8a644bfaa2f"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlMapper.java",
-      "sourceBlob": "67f4d04ad627b3ed9893e2aab752212cedeaa592",
-      "adaptedBlob": "b2b9387965fab05e57cca5c32a4af4555477cb28"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/MyBatisCrawlRepository.java",
-      "sourceBlob": "6ad51c5f75edaba9a4794355cf3f557989d82ca4",
-      "adaptedBlob": "a5940f6f323646eb1d9f425bfb190c6b9ae4b740"
-    },
-    {
-      "path": "backend/src/main/resources/mapper/crawl/CrawlMapper.xml",
-      "sourceBlob": "810a6376a80c76c16901463425277182ef3c325a",
-      "adaptedBlob": "0d0cf1ed1954003a0ab0e3479ecfe8835871ff6d"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlRunServiceTests.java",
-      "sourceBlob": "364435ca287edeea46b17a18f8612c6055e25921",
-      "adaptedBlob": "66c2cd6d336335dec1f4af4b467025c7a29b6636"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexBatchOrchestrationIntegrationTests.java",
-      "sourceBlob": "5497d995fdcf63e62ddf840c331248ef981b1579",
-      "adaptedBlob": "385167ac27d7de513b22f9b07d0f97e0c2a0944e"
-    },
-    {
-      "path": "frontend/src/components/business/AppTopbar.vue",
-      "sourceBlob": "64f150c2313f1485558aaa743f4dec31dd5c0b16",
-      "adaptedBlob": "d3179fce5470e98e3c7d149fc9b4299d95e16295"
-    },
-    {
-      "path": "frontend/src/config/nav.ts",
-      "sourceBlob": "c42cfc23f3ba624741f245f2af12ec67b3d3a395",
-      "adaptedBlob": "ca37f05ff2abe0a37c4dc085433b7536fd07fe10"
-    },
-    {
-      "path": "frontend/src/views/CrawlTasksView.vue",
-      "sourceBlob": "0f397bc66a57edb40476aaebf797a1fb0537e6a0",
-      "adaptedBlob": "6de06f574cf6cf2e49efcba5c43b31d36965cfe4"
-    },
-    {
-      "path": "frontend/src/views/OverviewView.vue",
-      "sourceBlob": "734f1ba445bd6ef020a0a66e3f6d96a424798f0e",
-      "adaptedBlob": "f7b54017fcb3226d5049c20ff8f619697f97e11c"
-    },
-    {
-      "path": "frontend/vite.config.ts",
-      "sourceBlob": "58cc9ff6a28ae279d30432ad9fa06706296e64b7",
-      "adaptedBlob": "c0169672c3e6fe54587ef348a73f1cf9cac0aaa4"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlLaunchFailure.java",
-      "sourceBlob": null,
-      "adaptedBlob": "4e889b0482582598eb61e8658ed56b539cb6c9c6"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/SpringBatchCrawlRunLauncherTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "f4a8c25ec2b04c79bbed189107a067e487ef59d2"
-    },
-    {
-      "path": "frontend/management.html",
-      "sourceBlob": null,
-      "adaptedBlob": "afc872bf730ec4245513214960af8e7d2b86ad82"
-    },
-    {
-      "path": "frontend/src/management/ManagementApp.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "06adcde992a33a5f0bf8e46df3ff39457bd50ada"
-    },
-    {
-      "path": "frontend/src/management/PlatformLogsView.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "66aa22f1ee0f474ac57a50af439b05f58826f3bc"
-    },
-    {
-      "path": "frontend/src/management/logs.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "ce6fb69611e0da9ca786bfdb6c5cf126298181b1"
-    },
-    {
-      "path": "frontend/src/management/main.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "1fb60dd384e672fce63234ffdb4e91c4c27f51e9"
-    },
-    {
-      "path": "frontend/src/views/UsersView.vue",
-      "sourceBlob": "f36e251b270564b5f08a6955284eeb767c47c43e",
-      "adaptedBlob": "5c0e67c8a5c0593fb1307fa78a477daefa3fece7"
-    },
-    {
       "path": "README.md",
       "sourceBlob": "792c7df542e2ff8dd185d52406793b040a37907b",
-      "adaptedBlob": "8c9279f987e921f88834207fea8d055abc9c091b"
+      "adaptedBlob": "29d7e49cf2a815732219af4161571fc52e17795d"
     },
     {
-      "path": "frontend/src/components/business/AppSidebar.vue",
-      "sourceBlob": "92dd84e9b93e3a70cc3e4c25a310497a23c6bbbc",
-      "adaptedBlob": "a61b1604d6b98a3f4512f761a862265cd5c56f8b"
+      "path": "backend/pom.xml",
+      "sourceBlob": "60fc11a67a17c99f975a526a45a414ce5478ac27",
+      "adaptedBlob": "5eb089318818f33cabcf328161128be8ed4e55ca"
     },
     {
-      "path": "frontend/src/views/LoginView.vue",
-      "sourceBlob": "dab84e7c82b2cca27e87519f955e8f0a38ef8c41",
-      "adaptedBlob": "23f5f077e0e892c90c6e70528c96d5a3c9533bc3"
+      "path": "backend/src/main/java/com/aacv/system/authorimport/api/AuthorImportController.java",
+      "sourceBlob": null,
+      "adaptedBlob": "f3a4af4f9509892532cbc75238555d0e8e493f6b"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/application/AuthorImportService.java",
+      "sourceBlob": null,
+      "adaptedBlob": "ab04409e463e5215811d91382995543a4d237dfd"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/application/ScholarImportParser.java",
+      "sourceBlob": null,
+      "adaptedBlob": "8a25826276c1fa5c7e5454ca1d3fc74e48638d88"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportOptions.java",
+      "sourceBlob": null,
+      "adaptedBlob": "b5c07a3aacfefad29d7034fb61c7215f0bd8797b"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportPreview.java",
+      "sourceBlob": null,
+      "adaptedBlob": "d3af718e9eed34328cc30784ade02c751b5e23c9"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportRow.java",
+      "sourceBlob": null,
+      "adaptedBlob": "f691b7747f55f47451ea8d691bf7aee61cc457ea"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportSummary.java",
+      "sourceBlob": null,
+      "adaptedBlob": "4e8a3f7b1688f801b8ae757d61d2cd516144b644"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/infrastructure/AuthorImportMapper.java",
+      "sourceBlob": null,
+      "adaptedBlob": "3f3176b46897204cef9c99b5c0902ffcc1d7d70a"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/infrastructure/ImportId.java",
+      "sourceBlob": null,
+      "adaptedBlob": "ddf23c96c706340d3b16eff30ee95159eba38a33"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/infrastructure/ImportUploadConfiguration.java",
+      "sourceBlob": null,
+      "adaptedBlob": "2382cc93a9087a0359daab9ca46a732b7a2468ff"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/infrastructure/ScholarTableReader.java",
+      "sourceBlob": null,
+      "adaptedBlob": "adce66e24b7fa64d026e6a5ead38e24870f2ec19"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/catalog/api/CatalogController.java",
+      "sourceBlob": "2525699bd74c2de0213130c46b0bb4a43a8a1141",
+      "adaptedBlob": "90a370f0891b6936e01ad12e1cfab610d3348a70"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/catalog/domain/CatalogQuery.java",
+      "sourceBlob": "71ab31fab8235ea5012d81e8bc6cf069d5ba2421",
+      "adaptedBlob": "5c6180a2bdbb3f88f0491aa26085229a744cf32b"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlScheduleResponse.java",
@@ -255,7 +180,7 @@
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlTaskController.java",
       "sourceBlob": "4d5ceb52bc508b695bee9183b026e6e532e5ba8c",
-      "adaptedBlob": "24ce12b24e49e0208f76317295ebd1af1bda1c1e"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/DailyScheduleRequest.java",
@@ -265,12 +190,17 @@
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlRecoveryService.java",
       "sourceBlob": "a41edced8bd2c656224e9f5906378cb14dd2b1c8",
-      "adaptedBlob": "e6e44ff0343967845d38cee60b7cb62711ea8a02"
+      "adaptedBlob": "ebaf7eed020063b232d7d8076a6a2dcde7960585"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlRunService.java",
+      "sourceBlob": "c9ef3dc65b628af28d8d6585b1e182daf5c433ac",
+      "adaptedBlob": "f34780935f32acfe443302783697b80c590fec48"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlTaskService.java",
       "sourceBlob": "cbbdb45b967788356604be007f85b16641ab4956",
-      "adaptedBlob": "9ba5aeceb59df26a4d443e0735b8446ddcd4e139"
+      "adaptedBlob": "db369f02b5579bd207b409293cfd361838d6f255"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlWindowService.java",
@@ -278,14 +208,24 @@
       "adaptedBlob": "aa3b9ef96124e04da53a4cf5230e24b3422e8157"
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlRunStateMachine.java",
-      "sourceBlob": "0e351c371f1ae2a86ad51170f24a5e1a986d686b",
-      "adaptedBlob": "422a172c983ca415e9beafd56a4464aed297a3e4"
+      "path": "backend/src/main/java/com/aacv/system/crawl/application/port/CrawlRepository.java",
+      "sourceBlob": "90150bbecf0fe6899d7f1bef21f17ff71f4c4856",
+      "adaptedBlob": "81d94a7d59b5b35d0b186eb43012f86874699016"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlExecutionFailure.java",
       "sourceBlob": null,
       "adaptedBlob": "f04b02eee3acdbcd6b9b201764b28a394731b898"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlLaunchFailure.java",
+      "sourceBlob": null,
+      "adaptedBlob": "4e889b0482582598eb61e8658ed56b539cb6c9c6"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlRunStateMachine.java",
+      "sourceBlob": "0e351c371f1ae2a86ad51170f24a5e1a986d686b",
+      "adaptedBlob": "422a172c983ca415e9beafd56a4464aed297a3e4"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlWindow.java",
@@ -303,14 +243,109 @@
       "adaptedBlob": "b7ade88df2c32f024bdb89f15a7629ecb4c580ba"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/SpringBatchCrawlRunLauncher.java",
+      "sourceBlob": "70221e8c1863c7bec00ac565e759cc47d92883d9",
+      "adaptedBlob": "2f6b35422fb2512014bd150f4712f8a644bfaa2f"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlMapper.java",
+      "sourceBlob": "67f4d04ad627b3ed9893e2aab752212cedeaa592",
+      "adaptedBlob": "99c9fc0bb026f6baccb6b841e846ddca207aeaa4"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlWindowRow.java",
       "sourceBlob": null,
       "adaptedBlob": "6a3922b591ca67baf317e401e86e4ed511837897"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/MyBatisCrawlRepository.java",
+      "sourceBlob": "6ad51c5f75edaba9a4794355cf3f557989d82ca4",
+      "adaptedBlob": "9e01ba0fce7d8fe56d5be80b811a623e22e02d41"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzCrawlScheduleAdapter.java",
       "sourceBlob": "d82ce492be4463546ccbc213bcd109a68343539d",
       "adaptedBlob": "708961a94a4a8c1683a7cc78f80cfe6fb7816599"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzCrawlTriggerJob.java",
+      "sourceBlob": "ae9de6b3bed7beb8caf92951f2a2c7fa19372b95",
+      "adaptedBlob": "db5d78727847564b60302eb5e925635bf8ad4736"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzQuotaResumeConfiguration.java",
+      "sourceBlob": "ba5ea97ed0e4279dcd219b9a755b5511cf15865b",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzQuotaResumeJob.java",
+      "sourceBlob": "32df7a6fcf95d1e1b6748aa186080a8a1cb94b5a",
+      "adaptedBlob": "d3420cd0cedf5e8f4c06a593d2823b32c419c116"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/export/domain/ExportFilter.java",
+      "sourceBlob": "1a48708b5cd7e867187e97cb7b63e707f8ee111f",
+      "adaptedBlob": "82b06da55a6bc388ace29524be5c76e3e3ede4c5"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/AchievementFieldOverrideController.java",
+      "sourceBlob": "dff2b9baa0da6b5ef02550f4e435cd59224c9d65",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/DuplicateCandidateController.java",
+      "sourceBlob": "7b2a3b05ec6678108c966ed61a38e33ebf71d18f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/MergeDecisionController.java",
+      "sourceBlob": "91fd6c5c261cb6ae6a4ad98b075bac012219b36a",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/application/GraphQueryService.java",
+      "sourceBlob": "f8b77d89c8b592acc83b85ef4b642f079c5e508b",
+      "adaptedBlob": "78e8ad4f29f322bcf14c75d434d49182a9fee8a5"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/domain/GraphAchievementSnapshot.java",
+      "sourceBlob": "8e7297826af32d701dd87f4550d09b81a088e01c",
+      "adaptedBlob": "8a94ee1812c589513d5294e0e84d15c36ff5ac40"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/domain/GraphRelationshipType.java",
+      "sourceBlob": "17c819e057338651f9891005e2edbb3592b6c6b9",
+      "adaptedBlob": "dccb68233644b5d8a7027c47d9260521a3b5fd79"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/neo4j/Neo4jProjectionInspector.java",
+      "sourceBlob": "4bb5bddb68d97b737381eb3babfa7b4adf392467",
+      "adaptedBlob": "0c286c8e25135bb2508b0e3d443c59c436077d87"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/neo4j/Neo4jProjectionTransaction.java",
+      "sourceBlob": "8c3a0c1c54e634e812cd463dce16d266de8644d0",
+      "adaptedBlob": "d9a6f6215024ac7f506abd14d9bcc6b067961658"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/persistence/GraphSnapshotMapper.java",
+      "sourceBlob": "9429a0795e659f38524f44b47ff535248ee73461",
+      "adaptedBlob": "bd3943af94266e7e2a960faf9d2c7b1960ae19a5"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/persistence/MyBatisGraphSnapshotReader.java",
+      "sourceBlob": "dc2e3a14a9978100c0ffc9f3a9785ca5c6125ac9",
+      "adaptedBlob": "c5118973d08911a1e604b8f4e7dfa10ed76e6b87"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/identity/domain/AuthorizationPolicy.java",
+      "sourceBlob": "e53cd9c5029daab0b63f1eb7b4dd3f0488247844",
+      "adaptedBlob": "4df10dc019a97fa47a2e020cedc3f4fbc8276c51"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/identity/domain/Permission.java",
+      "sourceBlob": "4ab5cf7a3b91026795670462e906852d74d40b47",
+      "adaptedBlob": "9ca7cf552238316aadd6e38c2a18907be754c9c5"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/IngestionMapper.java",
@@ -323,109 +358,14 @@
       "adaptedBlob": "4190ac556b1dec737005808c70a6c869bfd5d5ee"
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefDataSourceAdapter.java",
-      "sourceBlob": "e880e8ba65020a6435d42503caf279db197dca2f",
-      "adaptedBlob": "2aa7fbabc0680d48032c105cc714e20d578d3269"
+      "path": "backend/src/main/java/com/aacv/system/operations/domain/AuditAction.java",
+      "sourceBlob": "c36a02369e941228c0c2418a9ea2b6e4f76e7b63",
+      "adaptedBlob": "dc02ee54efb37b73091cee58f790b24d1de5ea9d"
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpTransport.java",
-      "sourceBlob": "c4c2a17352c90fe5a1ce08848266018cb465842c",
-      "adaptedBlob": "bb9d93c121995da36c5b3c85058a21667cf39d4f"
-    },
-    {
-      "path": "backend/src/main/resources/db/migration/V16__persist_crawl_windows.sql",
-      "sourceBlob": null,
-      "adaptedBlob": "7e17b57670836d4acf0f4db9b1c4bf26e1ef88ed"
-    },
-    {
-      "path": "backend/src/main/resources/mapper/ingestion/IngestionMapper.xml",
-      "sourceBlob": "56baafa14fd1bb4a919273359e69106945fb6d9e",
-      "adaptedBlob": "4b72a3c4a5e87535b5b75ab3e17d49acda1aa10e"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlTaskServiceTests.java",
-      "sourceBlob": "7a51c96988b42fee315f90617cb9bd5fd59f486f",
-      "adaptedBlob": "d73f6cdc0129d0407802847ce42c901bd2d33b2a"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlRecoveryServiceTests.java",
-      "sourceBlob": "a66bffe30ff442aba59b8b493600b6d91ccabd06",
-      "adaptedBlob": "c40a147f18eb1a45157a28c649916fcfcb0eb360"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlWindowServiceTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "d1d899e0f808599970e7c443f72678d7f8832850"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/CrawlJobExecutionListenerTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "a1776504b42a40a50b2fca4897b0069da26c30ba"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/OpenAlexPageItemReaderTests.java",
-      "sourceBlob": "7a9c024715e188cb44f80239798f2d7d76db815d",
-      "adaptedBlob": "1665e30e7959b49672eae4a8d672560fcff5d187"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/persistence/SourceCrawlPersistenceTests.java",
-      "sourceBlob": "4caa8a9ac0ac9bb006dfe96f865006c9bd999bfa",
-      "adaptedBlob": "d24a4994d17dd9ae13adcff54949c12b931928fd"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/infrastructure/database/FlywayMigrationTests.java",
-      "sourceBlob": "1b079aab1f3a1fe773a04e2a589ad58a981d5574",
-      "adaptedBlob": "6b1dc519198f00960035f6a82c9b0c576c9b3295"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/ingestion/infrastructure/persistence/IngestionPipelineIntegrationTests.java",
-      "sourceBlob": "32b3223c45d9f12801a9ecd49061a46f509e404a",
-      "adaptedBlob": "da0bd337d66526daedf391fa11fb7307474bbe3c"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefDataSourceAdapterTests.java",
-      "sourceBlob": "46dbf50f9a6446bccaed51249e588d63f791eb52",
-      "adaptedBlob": "0602bebc1e58014cfdb3815a0a7dbe2c1bc98681"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpTransportTests.java",
-      "sourceBlob": "d8dd73048e6046970e70b3bfcb6f6457c2f0f48d",
-      "adaptedBlob": "4c413405ebc54b63288aa060e339c3c773dac8d9"
-    },
-    {
-      "path": "frontend/src/services/business.ts",
-      "sourceBlob": "a5425674bdc5f81c73857392fef7b2e5489cb79c",
-      "adaptedBlob": "aba8b6d85b427c75bf019e816c3b254ffb4b40ce"
-    },
-    {
-      "path": "frontend/src/services/business.test.ts",
-      "sourceBlob": "a7561f6e263ce986924c24b105a2361d1992fdc4",
-      "adaptedBlob": "26af5fe7876aaab6b06ce6429ccb0db195e490b1"
-    },
-    {
-      "path": "frontend/src/types/api.ts",
-      "sourceBlob": "29a2105655f12adb58824a90ccc3e2a2fe73a49e",
-      "adaptedBlob": "38edb0939afaf25d7763d45843e9630db9993167"
-    },
-    {
-      "path": "frontend/src/composables/useDataSources.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "5e97430b5e1eb52c005a8b85ddaafa4689a34264"
-    },
-    {
-      "path": "frontend/src/views/CrawlTasksView.test.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "e95c92b730f267148a255ba4e07745965d1da262"
-    },
-    {
-      "path": "frontend/src/views/GovernanceView.vue",
-      "sourceBlob": "7fd3550642e161a72ccf17aa7fe654004a08a0bd",
-      "adaptedBlob": "b0624ba0782aaafe44b3af3496d51d1bd8890da9"
-    },
-    {
-      "path": "frontend/src/views/QualityView.vue",
-      "sourceBlob": "f2282944ef3473847ee63e5a69c54461266523be",
-      "adaptedBlob": "8085f15fe3d6989fd54f1a5c213fa172d70d71a3"
+      "path": "backend/src/main/java/com/aacv/system/quality/api/QualityMetricController.java",
+      "sourceBlob": "4bcb013cffe7412fdb22f38a2fbdd871b05125eb",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/shared/domain/ErrorCode.java",
@@ -435,12 +375,12 @@
     {
       "path": "backend/src/main/java/com/aacv/system/shared/infrastructure/web/ApiExceptionHandler.java",
       "sourceBlob": "87b32ae361582143e8db4047ec0cf4eae2b6f324",
-      "adaptedBlob": "6603ab6ac8817271d94afbaf01ef8a7e8ccb0619"
+      "adaptedBlob": "067947501c07d89c148b6186e9cc4502bf3f8f26"
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/api/SourceEntityController.java",
-      "sourceBlob": null,
-      "adaptedBlob": "de7bb63a0e3e9862c8eb0f37bb45c52b411bc143"
+      "path": "backend/src/main/java/com/aacv/system/source/api/DataSourceController.java",
+      "sourceBlob": "ba6ddee2e3558f99cc36037252771a0adf43af96",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/source/application/SourceEntityLookupException.java",
@@ -463,6 +403,16 @@
       "adaptedBlob": "2804c776cf1a05e2e1dda6909047e01b2368b10d"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefDataSourceAdapter.java",
+      "sourceBlob": "e880e8ba65020a6435d42503caf279db197dca2f",
+      "adaptedBlob": "2aa7fbabc0680d48032c105cc714e20d578d3269"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpTransport.java",
+      "sourceBlob": "c4c2a17352c90fe5a1ce08848266018cb465842c",
+      "adaptedBlob": "bb9d93c121995da36c5b3c85058a21667cf39d4f"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexEntityLookup.java",
       "sourceBlob": null,
       "adaptedBlob": "0782a27396c7db3decdb75cd43b1cc61e7db1723"
@@ -478,9 +428,164 @@
       "adaptedBlob": "f7fde04f208c698ca6bdbe7be02a5ee82a17a3c3"
     },
     {
-      "path": "backend/src/test/java/com/aacv/system/source/application/SourceEntityServiceTests.java",
+      "path": "backend/src/main/resources/db/migration/V16__persist_crawl_windows.sql",
       "sourceBlob": null,
-      "adaptedBlob": "c80117ca3b52bb7e91ea81a0979e15dfb838b85c"
+      "adaptedBlob": "7e17b57670836d4acf0f4db9b1c4bf26e1ef88ed"
+    },
+    {
+      "path": "backend/src/main/resources/db/migration/V17__author_import.sql",
+      "sourceBlob": null,
+      "adaptedBlob": "ca3557db8684384026c598035c874370bad8c5e9"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/analytics/AnalyticsMapper.xml",
+      "sourceBlob": "1dd4692b52319fef0ccc8fb4543dfdc6ced1b401",
+      "adaptedBlob": "f550965538e5e49010de7d0bb12ebd683e912615"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/authorimport/AuthorImportMapper.xml",
+      "sourceBlob": null,
+      "adaptedBlob": "2c49cccae9532d0d4a3488b9f0896a2011dfcf1f"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/catalog/CatalogMapper.xml",
+      "sourceBlob": "1cb054a54cd3418ea2a614f8c839ba549f2b7cc2",
+      "adaptedBlob": "154712cabcb588cec329957ae535e65141e3c73b"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/crawl/CrawlMapper.xml",
+      "sourceBlob": "810a6376a80c76c16901463425277182ef3c325a",
+      "adaptedBlob": "8bbe4f170031b5a0d380f693b7cf32893c629ff1"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/export/ExportMapper.xml",
+      "sourceBlob": "fc70e87b71d220c002a71a2cec250b3e5ef3786f",
+      "adaptedBlob": "72f158f8721e4124e53ff080a03949c40b4f38fe"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/graph/GraphSnapshotMapper.xml",
+      "sourceBlob": "e1e539b5fd33a162b8678d1d3c06ef90d6e8aa09",
+      "adaptedBlob": "679f42d799fb075091030f0c1bb3c61365af1873"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/ingestion/IngestionMapper.xml",
+      "sourceBlob": "56baafa14fd1bb4a919273359e69106945fb6d9e",
+      "adaptedBlob": "4b72a3c4a5e87535b5b75ab3e17d49acda1aa10e"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/AacvSystemApplicationTests.java",
+      "sourceBlob": "71994ed7cd8727b443eacb42688c0f05add11c26",
+      "adaptedBlob": "f825fc84e9cf1d077b48494ccb0bc2a0fd746175"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/OpenApiDocumentTests.java",
+      "sourceBlob": "69b0ffc6066434c4d53a4882c525ddbef77cdaa7",
+      "adaptedBlob": "b2181295cfddb11428a9aa1454a9803cea0b9a5d"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/authorimport/AuthorImportIntegrationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "96fd143178b1ae644ff1f308a9a91d5d2bb2ec9f"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/authorimport/ScholarImportParserTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "aa90d7914faa093aba05a516232a2a20f301c5fc"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/catalog/infrastructure/persistence/CatalogExportFilterSqlTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "863148bbb50503f50c7aa8f8ba7cb36051b2b3f8"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlActivitySecurityTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "0a915f4e58aaf411b8b82d84360d19f27933492e"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlRecoveryServiceTests.java",
+      "sourceBlob": "a66bffe30ff442aba59b8b493600b6d91ccabd06",
+      "adaptedBlob": "c40a147f18eb1a45157a28c649916fcfcb0eb360"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlRunServiceTests.java",
+      "sourceBlob": "364435ca287edeea46b17a18f8612c6055e25921",
+      "adaptedBlob": "66c2cd6d336335dec1f4af4b467025c7a29b6636"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlTaskServiceTests.java",
+      "sourceBlob": "7a51c96988b42fee315f90617cb9bd5fd59f486f",
+      "adaptedBlob": "0deb4f398a4e5840eedc7bf98933659f44f8c0da"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlWindowServiceTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "d1d899e0f808599970e7c443f72678d7f8832850"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/CrawlJobExecutionListenerTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "a1776504b42a40a50b2fca4897b0069da26c30ba"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/OpenAlexPageItemReaderTests.java",
+      "sourceBlob": "7a9c024715e188cb44f80239798f2d7d76db815d",
+      "adaptedBlob": "1665e30e7959b49672eae4a8d672560fcff5d187"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/SpringBatchCrawlRunLauncherTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "f4a8c25ec2b04c79bbed189107a067e487ef59d2"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/persistence/SourceCrawlPersistenceTests.java",
+      "sourceBlob": "4caa8a9ac0ac9bb006dfe96f865006c9bd999bfa",
+      "adaptedBlob": "d24a4994d17dd9ae13adcff54949c12b931928fd"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/export/domain/ExportFilterTests.java",
+      "sourceBlob": "95a3dfabb33becad8ae5d64fd97ce4ac16e002fa",
+      "adaptedBlob": "6b2efae4acdb8d7e03e5a440b88b05e63c13d71c"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/graph/GraphQueryIntegrationTests.java",
+      "sourceBlob": "5112599d565189258bcc81153595abdabaf7ad99",
+      "adaptedBlob": "d89b853497a519742627acd68a893efc1660e1d1"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/identity/api/SecurityIntegrationTests.java",
+      "sourceBlob": "1c2b9dd2bfa5f6489071ab955437a018dce7e272",
+      "adaptedBlob": "b46b694f1ac8f231152a6c959217dd7e7419073d"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/infrastructure/database/FlywayMigrationTests.java",
+      "sourceBlob": "1b079aab1f3a1fe773a04e2a589ad58a981d5574",
+      "adaptedBlob": "5f5de43b4d0c1f983ce77961ac6591a3a8d6cf02"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/infrastructure/database/RenderingSampleDataSqlTests.java",
+      "sourceBlob": "d4fc515a8df0d4ce424cd23f95e40e7113319c7e",
+      "adaptedBlob": "9e2d4219080d6c24e5c0144766c84d1c0293cfbb"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/ingestion/infrastructure/persistence/IngestionPipelineIntegrationTests.java",
+      "sourceBlob": "32b3223c45d9f12801a9ecd49061a46f509e404a",
+      "adaptedBlob": "da0bd337d66526daedf391fa11fb7307474bbe3c"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefDataSourceAdapterTests.java",
+      "sourceBlob": "46dbf50f9a6446bccaed51249e588d63f791eb52",
+      "adaptedBlob": "0602bebc1e58014cfdb3815a0a7dbe2c1bc98681"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpTransportTests.java",
+      "sourceBlob": "d8dd73048e6046970e70b3bfcb6f6457c2f0f48d",
+      "adaptedBlob": "4c413405ebc54b63288aa060e339c3c773dac8d9"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexBatchOrchestrationIntegrationTests.java",
+      "sourceBlob": "5497d995fdcf63e62ddf840c331248ef981b1579",
+      "adaptedBlob": "de024779170271692e6acaaa9cb6da28a39f6296"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexEntityLookupTests.java",
@@ -488,24 +593,204 @@
       "adaptedBlob": "fc9a52036656c2cf1949c2a648a915e8d5036cc1"
     },
     {
-      "path": "frontend/e2e/crawl-entity-names.spec.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "b494f64bee737644209e15e61875d1a90bb71515"
+      "path": "docs/openapi.yaml",
+      "sourceBlob": "e4b21423e7782ee3ceef20150ace51a019d17dbb",
+      "adaptedBlob": "4f9ef7ae89c0bb31b40fe3c760725e91ac8d592d"
     },
     {
-      "path": "frontend/src/components/business/SourceEntitySelect.test.ts",
+      "path": "frontend/e2e/author-import.spec.ts",
       "sourceBlob": null,
-      "adaptedBlob": "2b68f8c6b444ae57bdb2e67326ffdab06ea69d5e"
+      "adaptedBlob": "bf06cc6d3596f6a56916f0608781d9243d22558c"
     },
     {
-      "path": "frontend/src/components/business/SourceEntitySelect.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "8a3ab4249a65134c5e5433c47777fa1a11abf33f"
+      "path": "frontend/e2e/fixtures/workbench.ts",
+      "sourceBlob": "d4c3831968a47841f642e78937f30cc29364a0af",
+      "adaptedBlob": "e59fe3205cf0a1218c76bf4fcc454c14a294d26c"
     },
     {
-      "path": "frontend/src/composables/useMotion.ts",
-      "sourceBlob": "0866e47f60a03c456051cc49ebaab0e170154dc0",
-      "adaptedBlob": "aa2403cb784542ebe43fac93606648e161646688"
+      "path": "frontend/e2e/graph-overview-vis.spec.ts",
+      "sourceBlob": "e4f3e538b4617d0a91abde16ef737cf412f3d115",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/e2e/graph-overview.spec.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "706e0421af5bd6d429f5313f4956df7d71c31ab9"
+    },
+    {
+      "path": "frontend/e2e/graph-types.spec.ts",
+      "sourceBlob": "60ecb0318e19cda25700398eba40f3420fe040c0",
+      "adaptedBlob": "47ac601966697f1f55db59e35afce0c2fc33d3fe"
+    },
+    {
+      "path": "frontend/e2e/migration-visual.spec.ts",
+      "sourceBlob": "70e407b514eaac5898aef37bc495982d64a09356",
+      "adaptedBlob": "9e45dd566ceb9563edec4ee6694e8d506b0b5427"
+    },
+    {
+      "path": "frontend/e2e/optimization-crawl.spec.ts",
+      "sourceBlob": "364b398569ffc9dc00931e8235fc975bd66fdec8",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/e2e/optimization-governance.spec.ts",
+      "sourceBlob": "6e4314341e50e22d4e0c1497dcc723bf8807e62b",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/e2e/optimization-navigation.spec.ts",
+      "sourceBlob": "3d82d4973a688701b28bfcbe65d1e4a6934e8630",
+      "adaptedBlob": "446ff23dade692f1d0a6f3d877b28c0f8059cd51"
+    },
+    {
+      "path": "frontend/e2e/page-layout.spec.ts",
+      "sourceBlob": "b38746f63ce9916dce76d103cd841a2f1233670d",
+      "adaptedBlob": "0491f1f672fc04e86fa6ec76992a38e226da75d5"
+    },
+    {
+      "path": "frontend/e2e/redesign-interactions.spec.ts",
+      "sourceBlob": "58143f6b41746a71140176f368663f49844128da",
+      "adaptedBlob": "c71de3e23e51623644fc2ebf3008cb9d38cb5b9b"
+    },
+    {
+      "path": "frontend/e2e/research-dashboard.spec.ts",
+      "sourceBlob": "6d2dad5871b6f155e19f6e11ebdb60e184cbf067",
+      "adaptedBlob": "87afaf2fc3c43518097e8a5573146d89034ba2f9"
+    },
+    {
+      "path": "frontend/e2e/research-theme.spec.ts",
+      "sourceBlob": "433672555a41578307f5fa0a10e8ca7b408daa2f",
+      "adaptedBlob": "12b3e871815e8b8f1a9533d4f1e5797ee82f60c3"
+    },
+    {
+      "path": "frontend/e2e/stage6.spec.ts",
+      "sourceBlob": "7757c626ddc6d37c09978c42d6f8c941bf84c46f",
+      "adaptedBlob": "2b64fd6f2826e2ba4254a84253e6516cda7df689"
+    },
+    {
+      "path": "frontend/e2e/stage7-export.spec.ts",
+      "sourceBlob": "c83c3486f46c1cd9c5a8ccddcbdc868d1e8e9a42",
+      "adaptedBlob": "af880e1de8fd490668e8629ce137e806e3bb1a78"
+    },
+    {
+      "path": "frontend/e2e/ux-workflows.spec.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "a63accd74d700b33f640eaa10b400b7e5eb31a0b"
+    },
+    {
+      "path": "frontend/management.html",
+      "sourceBlob": null,
+      "adaptedBlob": "afc872bf730ec4245513214960af8e7d2b86ad82"
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "sourceBlob": "ffa949318260375584b3d423c85e8b5db34aa00e",
+      "adaptedBlob": "6f830cf02cc2c24217532590efea66a4d2e46f5c"
+    },
+    {
+      "path": "frontend/package.json",
+      "sourceBlob": "960f75936b0af138c7dccd5b9fbfb9b06a11fc4a",
+      "adaptedBlob": "6f29e6fbf01902adaa6218f9659b06a501deaf33"
+    },
+    {
+      "path": "frontend/playwright.config.ts",
+      "sourceBlob": "98bdbf055a2e248e8a5ac6c3bda93b5f7736f8e1",
+      "adaptedBlob": "af26af7a1e76de18b1333798623a4e99ec7ac52f"
+    },
+    {
+      "path": "frontend/src/App.vue",
+      "sourceBlob": "7cc481014f93672306cb218531e6821f74b6aa7d",
+      "adaptedBlob": "18142b5f8d8aeadb8cc2e5bbc5a92cc17c299ad7"
+    },
+    {
+      "path": "frontend/src/components/business/AchievementPreview.vue",
+      "sourceBlob": "39f933389f651795ead7257f6dab907650f54787",
+      "adaptedBlob": "41660a26695967f1261b782d0a681be9ab3369df"
+    },
+    {
+      "path": "frontend/src/components/business/AppSidebar.test.ts",
+      "sourceBlob": "1dd60b0b9ba5f562d0e4e4d9b5bdac43ba5e0fe5",
+      "adaptedBlob": "d85417ffe6e250075bfc7878ae6243abb2fe8554"
+    },
+    {
+      "path": "frontend/src/components/business/AppSidebar.vue",
+      "sourceBlob": "92dd84e9b93e3a70cc3e4c25a310497a23c6bbbc",
+      "adaptedBlob": "a61b1604d6b98a3f4512f761a862265cd5c56f8b"
+    },
+    {
+      "path": "frontend/src/components/business/AppTopbar.vue",
+      "sourceBlob": "64f150c2313f1485558aaa743f4dec31dd5c0b16",
+      "adaptedBlob": "8e026bce33fe6a78804b8217ba8c9565e9891c5e"
+    },
+    {
+      "path": "frontend/src/components/business/CandidateComparisonPanel.vue",
+      "sourceBlob": "6eeccea0d38b47649b2581499528e33ff2262383",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/components/business/EntitySuggestInput.vue",
+      "sourceBlob": "cde045fe9a19dd573643c23aa697f5079a47e492",
+      "adaptedBlob": "51161916a711543d6487942a50a05084dfd24de9"
+    },
+    {
+      "path": "frontend/src/components/business/FormField.vue",
+      "sourceBlob": "3e43f9fda993db765b2ba7717a385a1d671517c1",
+      "adaptedBlob": "310faa675b165a933c0ef64124ce1f648ef84eb9"
+    },
+    {
+      "path": "frontend/src/components/business/GraphCanvas.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "6632c04f89163870ba24e2d4408036709fd77c73"
+    },
+    {
+      "path": "frontend/src/components/business/GraphCanvas.vue",
+      "sourceBlob": "57455b37e11bf92215c5d48ec5001a21b16ff4aa",
+      "adaptedBlob": "a087f71f89033462bd2a29070a99d734e233590a"
+    },
+    {
+      "path": "frontend/src/components/business/ImportEvidencePanel.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "d7faa43946fe14b9adffbe12461ba3950f4c7b8e"
+    },
+    {
+      "path": "frontend/src/components/business/ModuleNavigation.vue",
+      "sourceBlob": "10290446d8aae1d581eba58f920e8b62bb9bc33e",
+      "adaptedBlob": "84bbd43f46251f265a97e3cb63a35795c9e4df50"
+    },
+    {
+      "path": "frontend/src/components/business/StatusPill.vue",
+      "sourceBlob": "ae8eaeb22411b8c31b869fdb641abf7a0a86211f",
+      "adaptedBlob": "e9fb3aecd865b97262b570c539b9e68174325a12"
+    },
+    {
+      "path": "frontend/src/components/business/graph-overview/GraphCanvas.test.ts",
+      "sourceBlob": "82b71d493229ed8937a45b12f98f770f551377aa",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/components/business/graph-overview/GraphCanvas.vue",
+      "sourceBlob": "9af5decc6bfc0f4145f8a376db76a45b1977d0c0",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/components/business/graph-overview/NodeDetail.test.ts",
+      "sourceBlob": "8fbf464d8051a915b116d55057169dcfbc2f8e58",
+      "adaptedBlob": "d8da3e6b266863a45a8b33730067e0bcb856cb71"
+    },
+    {
+      "path": "frontend/src/components/business/graph-overview/NodeDetail.vue",
+      "sourceBlob": "ab4add8bced7dd86a32625d017682d732a8e9e4a",
+      "adaptedBlob": "4c50208527d790c4b3763f7d6e3347b7f9855bde"
+    },
+    {
+      "path": "frontend/src/composables/useDashboard.test.ts",
+      "sourceBlob": "4cebe6d416c1b3338dd1a8eec56387337ba633b6",
+      "adaptedBlob": "1341d4e9325bbd9c0394dc57171bcb9946db162b"
+    },
+    {
+      "path": "frontend/src/composables/useDashboard.ts",
+      "sourceBlob": "bb2ef241625c2af85840aa3b6711e71a475a9c3b",
+      "adaptedBlob": "b6be1e943d7ec633589dfe2d3ac6bf2c96607d0b"
     },
     {
       "path": "frontend/src/composables/useMotion.test.ts",
@@ -513,9 +798,284 @@
       "adaptedBlob": "50ea8952c5f8dd09de0c9ad5f6b76e20144c3d7f"
     },
     {
-      "path": "frontend/e2e/graph-overview-vis.spec.ts",
-      "sourceBlob": "e4f3e538b4617d0a91abde16ef737cf412f3d115",
-      "adaptedBlob": "0be62f1879fa678558016693fd82925825f68343"
+      "path": "frontend/src/composables/useMotion.ts",
+      "sourceBlob": "0866e47f60a03c456051cc49ebaab0e170154dc0",
+      "adaptedBlob": "aa2403cb784542ebe43fac93606648e161646688"
+    },
+    {
+      "path": "frontend/src/config/nav.ts",
+      "sourceBlob": "c42cfc23f3ba624741f245f2af12ec67b3d3a395",
+      "adaptedBlob": "10128d536d0bfad4b9a1dd782dd421872f2b34c3"
+    },
+    {
+      "path": "frontend/src/layouts/BusinessLayout.vue",
+      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
+      "adaptedBlob": "b0149324cdeb341f0a337bd89e4593ac5d448178"
+    },
+    {
+      "path": "frontend/src/management/ManagementApp.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "06adcde992a33a5f0bf8e46df3ff39457bd50ada"
+    },
+    {
+      "path": "frontend/src/management/PlatformLogsView.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "66aa22f1ee0f474ac57a50af439b05f58826f3bc"
+    },
+    {
+      "path": "frontend/src/management/logs.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "ce6fb69611e0da9ca786bfdb6c5cf126298181b1"
+    },
+    {
+      "path": "frontend/src/management/main.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "1fb60dd384e672fce63234ffdb4e91c4c27f51e9"
+    },
+    {
+      "path": "frontend/src/router/index.test.ts",
+      "sourceBlob": "5ffeb2ca73c9519a48fdc8bc0b37bb220ca7578c",
+      "adaptedBlob": "49282d08955c59d4c0c795cc7bd7debe535ab54c"
+    },
+    {
+      "path": "frontend/src/router/index.ts",
+      "sourceBlob": "6e81f23792a79d624fb5d46158a205f330881e65",
+      "adaptedBlob": "3d25b1e93e6eda6ccb0bce11cc93615d106ffc02"
+    },
+    {
+      "path": "frontend/src/services/author-import.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "eb76e7c5b5eae0bf41407c3445935e0d9af3aa4a"
+    },
+    {
+      "path": "frontend/src/services/author-import.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "8362daa38ea3db54e35235f1e25950a9f2d9eb5b"
+    },
+    {
+      "path": "frontend/src/services/business.ts",
+      "sourceBlob": "a5425674bdc5f81c73857392fef7b2e5489cb79c",
+      "adaptedBlob": "46c7317c7ebdc472657f6d13568577c54e797a85"
+    },
+    {
+      "path": "frontend/src/services/health.test.ts",
+      "sourceBlob": "9c4cd3e73025c592a62d016b1130ff8d3178934e",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/services/health.ts",
+      "sourceBlob": "c3933abeb380e62f08f45aab5d28641b8eafd8ca",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/services/http.ts",
+      "sourceBlob": "c5b1a1dc033c8ccf2426817ede7e8bbe8db5fc2f",
+      "adaptedBlob": "510dc70cfede57e22c0eaeb399b43e34c80ded48"
+    },
+    {
+      "path": "frontend/src/services/portal-auth.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "75f356b1e56ac94e879b651817c896281037c6e9"
+    },
+    {
+      "path": "frontend/src/stores/graph-overview.test.ts",
+      "sourceBlob": "ff2fcb5594b8334b8f6859423386376090ecee12",
+      "adaptedBlob": "81b3a6210cf8ef7a266cb053a44f12a217851692"
+    },
+    {
+      "path": "frontend/src/stores/graph-overview.ts",
+      "sourceBlob": "f3d8fade6d164f46f65df169440e74a486211bd8",
+      "adaptedBlob": "393d04deea46f6ff4ea983a0031dac8aed5bde0c"
+    },
+    {
+      "path": "frontend/src/stores/preferences.ts",
+      "sourceBlob": "95cc3a5575261381da215424800e08ae840f5ff6",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/stores/session.ts",
+      "sourceBlob": "ce69310b16953b74a59ebd9c6aa9daede7b19104",
+      "adaptedBlob": "dd154cac97d076604036fc4f38cabe31b25d91dc"
+    },
+    {
+      "path": "frontend/src/types/api.ts",
+      "sourceBlob": "29a2105655f12adb58824a90ccc3e2a2fe73a49e",
+      "adaptedBlob": "dcae3e59206baa1b6373cc7a78d4e94723d15c7c"
+    },
+    {
+      "path": "frontend/src/utils/audit.ts",
+      "sourceBlob": "6e2d1ae006462a45dab203be7736a4f4d9ce0ea9",
+      "adaptedBlob": "4c1fa84907ab97b50fa2c4deb6e1fe4f5e8f8f0b"
+    },
+    {
+      "path": "frontend/src/utils/catalog-query.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "3fe8221302e9cde75da9a7bc4daaa534957298ad"
+    },
+    {
+      "path": "frontend/src/utils/export-filter.test.ts",
+      "sourceBlob": "193173803f44254f03ada6903796b84f445edcc0",
+      "adaptedBlob": "b06dd97c76a225461ae0bf85b1beeac54a4a604d"
+    },
+    {
+      "path": "frontend/src/utils/export-filter.ts",
+      "sourceBlob": "05db27ede461c08842b729ab850f72fbceb9b779",
+      "adaptedBlob": "663cbe6c487ad552ea2ae24deb5517e97bf17c95"
+    },
+    {
+      "path": "frontend/src/utils/filter-options.ts",
+      "sourceBlob": "42cacb42615dd13e1fdd137171261a5afba64d65",
+      "adaptedBlob": "f7d5ad0b87eec7de02e5d14caf49f21724ab759a"
+    },
+    {
+      "path": "frontend/src/utils/graph-presentation.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "314299b9856bf5440cdc85cc1a8442d19178af24"
+    },
+    {
+      "path": "frontend/src/utils/graph-presentation.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "72a660a14bf66a7d473f56d8189ae86d179da596"
+    },
+    {
+      "path": "frontend/src/utils/graph-query.ts",
+      "sourceBlob": "521e1fcbc14d1f3ac1431c07e2848703eda38dc5",
+      "adaptedBlob": "597e5ef0621cc78d6d37c1f628839b07080d56fc"
+    },
+    {
+      "path": "frontend/src/utils/graph-vis.test.ts",
+      "sourceBlob": "3a4a810867a9223570f42c25db91fc51d2dff867",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/utils/graph-vis.ts",
+      "sourceBlob": "2f55e85a902da4153a820dff4807ea1f6d0e4a8d",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/utils/graph.ts",
+      "sourceBlob": "e4f28adeb6913f5e4e1df19de7c8d9d452b6de3a",
+      "adaptedBlob": "06ba088fa18fb3fa9dca2870d68601f75867237f"
+    },
+    {
+      "path": "frontend/src/utils/motion.test.ts",
+      "sourceBlob": "f0bf2bf2e8704b0182d88ac80c1773e5ed694778",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/utils/motion.ts",
+      "sourceBlob": "6ea2711ef5f649338b4a2c71c1a1266ab5444e72",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/views/AchievementDetailView.vue",
+      "sourceBlob": "00afe78f3890098be69fb78369ee632b4b569f1e",
+      "adaptedBlob": "ed2d8d44b28bf8ef571c5b0354b8fbd1a9a60e38"
+    },
+    {
+      "path": "frontend/src/views/AnalyticsView.vue",
+      "sourceBlob": "738d447943ce6dc8122836c75c59e51d1d7518cb",
+      "adaptedBlob": "25bc86baaa80cd69bd3862a5ecb4b9bbf2782af8"
+    },
+    {
+      "path": "frontend/src/views/AuthorImportView.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "a71f9885d6548f4be6df2a058071e7570af32ab7"
+    },
+    {
+      "path": "frontend/src/views/AuthorImportView.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "6462d67bc0f981307ea560461192f9bfbec78ca6"
+    },
+    {
+      "path": "frontend/src/views/CatalogView.vue",
+      "sourceBlob": "767969050e6c591d7107961c33895ab15ce6eb00",
+      "adaptedBlob": "4a256c6408871d8e5f5ba1e6ba6887bee9ffda0b"
+    },
+    {
+      "path": "frontend/src/views/CrawlTasksView.vue",
+      "sourceBlob": "0f397bc66a57edb40476aaebf797a1fb0537e6a0",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/views/GovernanceView.vue",
+      "sourceBlob": "7fd3550642e161a72ccf17aa7fe654004a08a0bd",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/views/GraphExploreView.vue",
+      "sourceBlob": "2c0ca904b5f1535958afeb8c56eb7639f2536005",
+      "adaptedBlob": "a537a0a3af8cbfd90cc76d96ea8980ebf1cc07c5"
+    },
+    {
+      "path": "frontend/src/views/GraphTypesView.vue",
+      "sourceBlob": "3111a08647f7853dd24d4e9b2bcaa8549005c531",
+      "adaptedBlob": "41b94199482748e9cd0cc4d04a3094e99273f69a"
+    },
+    {
+      "path": "frontend/src/views/GraphView.vue",
+      "sourceBlob": "2e272eae4c35d548c6fc8b0711f2f073ef83dfd1",
+      "adaptedBlob": "7bbd4ca0d705b0838d876ffbf2fddf96791f7409"
+    },
+    {
+      "path": "frontend/src/views/LoginView.vue",
+      "sourceBlob": "dab84e7c82b2cca27e87519f955e8f0a38ef8c41",
+      "adaptedBlob": "23f5f077e0e892c90c6e70528c96d5a3c9533bc3"
+    },
+    {
+      "path": "frontend/src/views/OperationsView.vue",
+      "sourceBlob": "c1d7389508f0fcbe43ad001cb476bcd622206933",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/views/OverviewView.vue",
+      "sourceBlob": "734f1ba445bd6ef020a0a66e3f6d96a424798f0e",
+      "adaptedBlob": "934feb2c99cce1be60e591f3afc536681c5f92e5"
+    },
+    {
+      "path": "frontend/src/views/QualityView.vue",
+      "sourceBlob": "f2282944ef3473847ee63e5a69c54461266523be",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/views/SourcesView.vue",
+      "sourceBlob": "f7db81d97b3c98a9e16ecb981c5b16eca56fc24f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/views/UsersView.vue",
+      "sourceBlob": "f36e251b270564b5f08a6955284eeb767c47c43e",
+      "adaptedBlob": "5c0e67c8a5c0593fb1307fa78a477daefa3fece7"
+    },
+    {
+      "path": "frontend/src/views/WorkbenchView.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "c58ff91069fd79cd0cb76bc73dfe6f7bfc019268"
+    },
+    {
+      "path": "frontend/vite.config.ts",
+      "sourceBlob": "58cc9ff6a28ae279d30432ad9fa06706296e64b7",
+      "adaptedBlob": "c0169672c3e6fe54587ef348a73f1cf9cac0aaa4"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/application/ScholarBundleParser.java",
+      "sourceBlob": null,
+      "adaptedBlob": "762775c4a4a102cdc3f4fd8911b9f682ec24a791"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportBundle.java",
+      "sourceBlob": null,
+      "adaptedBlob": "0994ee597974db70ce5c46e048ea29ef73326eb4"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/authorimport/ScholarBundleParserTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "274adc9ea6f11d9995df36de073914c086b5202c"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/authorimport/AutomaticAuthorImportIntegrationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "3f3a1c76890de353d95a1cb272acaed5f643f0a4"
     }
   ]
 }

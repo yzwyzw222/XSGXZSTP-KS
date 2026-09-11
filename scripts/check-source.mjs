@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { verifyAdaptations } from './lib/source-adaptations.mjs'
 import { loadConfig, rootDirectory } from './lib/config.mjs'
 
 const git = (...args) => execFileSync('git', args, { cwd: rootDirectory, encoding: 'utf8' }).trim()
@@ -32,24 +34,13 @@ for (const record of records.imports) {
     const [metadata, file] = line.split('\t')
     return [file, metadata.split(' ')[2]]
   }))
-  const approved = new Map(adaptations[record.id].map(change => [change.path, change]))
   const currentFiles = git('ls-files', '--cached', '--others', '--exclude-standard', '--', `systems/${record.id}`)
     .split('\n').filter(Boolean).map(file => file.slice(`systems/${record.id}/`.length))
   const files = [...new Set([...sourceFiles.keys(), ...currentFiles])]
-  const hashes = execFileSync('git', ['hash-object', '--stdin-paths'], {
-    cwd: rootDirectory, encoding: 'utf8', input: files.map(file => `systems/${record.id}/${file}`).join('\n') + '\n',
-  }).trim().split('\n')
-  for (let index = 0; index < files.length; index++) {
-    const file = files[index]
-    const change = approved.get(file)
-    if (change) {
-      assert.equal(change.sourceBlob, sourceFiles.get(file) ?? null, `${record.id}/${file} 来源发生变化`)
-      assert.equal(hashes[index], change.adaptedBlob, `${record.id}/${file} 适配内容未经记录`)
-      approved.delete(file)
-    } else {
-      assert.equal(hashes[index], sourceFiles.get(file), `${record.id}/${file} 出现未经记录的适配`)
-    }
-  }
-  assert.equal(approved.size, 0, `${record.id} 存在过期适配记录`)
+  const existing = files.filter(file => existsSync(join(rootDirectory, `systems/${record.id}/${file}`)))
+  const hashes = existing.length ? execFileSync('git', ['hash-object', '--stdin-paths'], {
+    cwd: rootDirectory, encoding: 'utf8', input: existing.map(file => `systems/${record.id}/${file}`).join('\n') + '\n',
+  }).trim().split('\n') : []
+  verifyAdaptations(sourceFiles, new Map(existing.map((file, index) => [file, hashes[index]])), adaptations[record.id], record.id)
   process.stdout.write(`${record.id}: 原始来源树${record.method === 'archive' ? '（archive 导入）' : '及来源祖先'}、全部文件和已记录适配校验通过\n`)
 }

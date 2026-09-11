@@ -6,6 +6,16 @@
 
 删除前的系统目录及未提交改动保存在本机 Git 忽略的 `.local/subsystem-removal-*/`。源码删除不清理已有数据库、数据卷、本机凭据或历史日志。已有工作区的废弃 Compose 服务不在新初始化范围内，数据仍保留；无需运行删除数据卷的命令。
 
+## 作者信息表导入（2026-09-11）
+
+crawler 使用知网 XLSX/XLS/CSV 文件作为新增学者资料的入口，页面 `/crawler/author-import`，API `/api/v1/author-import`（集成前缀 `/crawler`）。四个旧模块的页面和控制器已删除；历史 SQL 数据与必要的内部模型保留。旧恢复监听不再装配，兼容 Quartz Job 只注销旧采集计划。不要使用历史采集操作说明作为当前入口。
+
+后端新增 POI 与 Commons CSV 依赖，以及 Flyway V17 导入表和 `SUPERVISED`、`PRODUCED_AT` 关系。仍按 MySQL 事务提交业务数据与 Outbox，再同步 Neo4j。文件导入不触发知网网络访问，也不虚构来源采集运行。知网表头、重复判定、身份边界、权限与验证命令见 [作者导入说明](author-import.md)。
+
+作者导入页面现支持同批多文件自动识别：本人署名表的完整作者交集唯一时确定学者，多人时点选候选；硕博按用户确认的导师姓名筛选约定建立指导关系，来源库逐行区分硕士、博士。机构自动提取为成果机构，不据此推断当前所属单位。新增 `/api/v1/author-import/files/preview`、`files/confirm`，一次最多 10 份、合计 10 MB 和 2000 条，在同一 MySQL 事务提交。仅有硕博文件无法识别导师，需附本人署名表；缺少共同成果时不按姓名合并既有身份。单文件 API、V17 和依赖保持原状；构建及测试成功不表示本机正在运行的 JAR 已更新。
+
+首次运行新版本需要应用 V17。它保留历史业务记录，新增结构并允许文件关键词的 source_id 为空；2026-09-11 本机试用启动已备份 `course_crawler`，运行当前 JAR 并确认业务库从 V16 升级至 V17。部署回退前保留新结构，旧应用不负责处理新增指导关系；不能通过删表来回退业务数据。项目记忆已与新路由、控制器及迁移核对，以下历史验收记录保留其日期和适用版本。
+
 ## 构建和入口
 
 先运行 `scripts/Initialize-Integration.ps1` 准备本项目独立基础服务；首次执行 `scripts/Build-Integration.ps1 -Restore` 从各系统原有锁文件恢复依赖并构建，后续使用不带 `-Restore` 的命令。各系统继续独立管理 POM、Maven Wrapper、package.json、锁文件和 node_modules。
@@ -17,6 +27,8 @@
 构建脚本明确检查正在运行的后端，避免 Windows jar 文件锁。构建使用 `-DskipTests package`，测试在验收阶段单独执行，不能把构建成功当作单元测试成功。
 
 启停记录位于 `.local/integration/processes.json`，校验工作目录、PID、创建时间、可执行文件和命令行。总入口重复启动会拒绝；在门户已运行且模式一致时，可以恢复已停止的单个系统。停止不按端口或进程名批量结束，也不操作原项目。
+
+根目录 `start.bat`、`stop.bat` 是 Windows 一键入口，均支持 `--help` 和 `--no-pause`，返回底层脚本的退出码，默认暂停以保留双击窗口。启动优先调用已有 `.local/Start-LocalProject.ps1 -System all`，否则调用 `scripts/Start-Integration.ps1 -System all -Mode Demo`；保留本机入口的密码交互，不传管理员引导参数。停止固定调用 `scripts/Stop-Integration.ps1 -System all`。两者使用 PowerShell 7，依次从 PATH、常规安装目录和当前用户的 Codex 已有运行时查找，不下载依赖、不初始化或重建、不停止数据库及容器。调用前切换到 BAT 所在根目录，结束后恢复调用方目录。
 
 ## 本地功能试用数据
 
@@ -97,7 +109,7 @@ Neo4j 使用既有 5.26 Community 镜像；MySQL 使用既有 8.0.42 镜像。�
 
 原始导入树及来源证据保留在 `docs/import-records.json`。extraction、scholar 的记录标记为 retired，仅验证其历史来源，不再读取已删除源码；有效来源与运行系统列表必须一致。
 
-`scripts/check-source.mjs` 核对历史原始来源树与 subtree 祖先关系，并逐文件验证 relation、crawler 的原始文件、新增文件和 `docs/source-adaptations.json` 中的适配哈希。适配记录只包含两个有效系统；未记录改动、缺失文件或过期记录均失败。适配记录必须与实际 diff 一起审阅。
+`scripts/check-source.mjs` 核对历史原始来源树与 subtree 祖先关系，并逐文件验证 relation、crawler 的原始文件、新增文件和 `docs/source-adaptations.json` 中的适配哈希。适配记录只包含两个有效系统；删除原始文件必须显式记录 `adaptedBlob: null`，未记录改动、未经记录的缺失文件或过期记录均失败。文件核对由 `scripts/lib/source-adaptations.mjs` 执行。适配记录必须与实际 diff 一起审阅。
 
 Ye 的远端回退已由接入阶段的 fetch 再次确认，当前保持本地完整版。后续不得直接将骨架覆盖到系统目录。其他分支同步时也应先核定 SHA 与历史，保留集成路径、会话和运行适配。当前集成版本在 `dev` 分支维护，跟踪 `origin/dev`；当前交付按采集能力、门户及系统整合、图谱修复分批提交，各批同步项目记忆与来源适配记录，再正常推送到 `origin/dev`。验收文档中的未提交说明记录对应实施阶段，实际交付状态以 Git 记录为准。main 合入、PR 与部署仍需对应任务的授权。
 
@@ -115,7 +127,9 @@ Ye 的远端回退已由接入阶段的 fetch 再次确认，当前保持本地�
 
 ## 图谱计数正常但画布空白的排查（2026-09-10）
 
-源码中的 CSS 动效时长可在构建压缩时由 `280ms` 改为等价的 `.28s`。`systems/crawler/frontend/src/composables/useMotion.ts` 必须识别 `ms`、`s` 并统一返回毫秒；禁止只用 `parseFloat` 后直接传给 vis-network、Cytoscape 或 ECharts。零时长和减少动画偏好仍返回零；缺失、非法、负数或溢出的配置使用各类动效原有默认值。
+下列执行记录对应历史版本。原 `graph-overview/GraphCanvas.test.ts` 已随旧画布移除，当前等效交互和清理验证位于 `components/business/GraphCanvas.test.ts` 与 `e2e/graph-overview.spec.ts`。
+
+源码中的 CSS 动效时长可在构建压缩时由 `280ms` 改为等价的 `.28s`。`systems/crawler/frontend/src/composables/useMotion.ts` 必须识别 `ms`、`s` 并统一返回毫秒；禁止只用 `parseFloat` 后直接传给 Cytoscape 或 ECharts。vis-network 已退出当前依赖，下段保留其历史故障证据。零时长和减少动画偏好仍返回零；缺失、非法、负数或溢出的配置使用各类动效原有默认值。
 
 本次故障中 `/crawler/api/v1/graph/overview` 返回 20 个节点、38 条关系，`/crawler/actuator/health/graph` 为 `UP`，画布尺寸正常，但秒值被误作毫秒导致 vis-network 动画后的缩放比例为负、实际绘制像素为零。排查此类问题需区分接口空态与有数据未绘制，无需重建数据库或重放图投影。
 
@@ -166,3 +180,47 @@ OpenAlex 采集表单通过来源名称候选选择作者、机构（各最多50
 前端防抖300毫秒，切换搜索或退出时取消请求并丢弃过期响应。未选中的名称搜索文字、未完成或缺失的名称回显会阻止保存，保留原筛选；用户可明确移除后重选。关键词可选，OpenAlex 传 search 检索标题、摘要及可检索全文，Crossref 传 query 检索成果元数据；整段文本直接交给来源。同类作者/机构多选为或关系，不同筛选维度共同限定作品范围；不保证作者与机构属于同一条署名。
 
 实施前读取本基线、development.md、README 和 crawl-reliability.md，核对源码、既有未提交改动和测试。原记忆与实施前代码一致；本次追加上述交互和接口约定，同步 README 与来源适配哈希。真实外部名称查询与运行中的旧后端替换未执行，测试使用官方格式的模拟响应；验证命令和本轮文件清单见 [采集可靠性说明](crawl-reliability.md#作者机构名称选择补充)。
+
+## 2026-09-10 采集子系统体验与复杂度收敛
+
+本轮默认首页改为工作台，原大屏位于独立 `/dashboard`，集成地址为 `/crawler/dashboard`。目录筛选及分页写入 URL，详情保留返回条件；作者、机构、期刊和主题支持选中 ID 精确匹配或自由文本模糊匹配。导出沿用已显示结果的筛选，后端复用 `CatalogMapper.achievementFilters`，保留旧导出 ID、年份区间与 sourceType 字段。
+
+采集任务列表按创建顺序倒序展示，通过 `/api/v1/crawl/tasks/latest-runs?taskIds=...` 与 `/api/v1/crawl/tasks/schedules?taskIds=...` 批量读取本页状态，每次最多 100 个正整数 ID，分别沿用 CRAWL_RUN_READ 与 CRAWL_SCHEDULE_MANAGE 权限。运行编号统一显示数字 ID，UUID 仅在技术标识中保留。运行详情用处理计数与结束原因表达状态，不再将采集上限当成总量。任务、计划、运行弹窗分别位于 `components/business/crawl/`；高级采集参数默认折叠，数据源校验统一使用 Element Plus。
+
+图谱概览、高级查询、路径分析统一使用 `components/business/GraphCanvas.vue`（Cytoscape）；`utils/graph-presentation.ts` 保留响应验证与类型默认值。关键词和类型筛选不再重复请求，双击进入中心与显式刷新仍受取消、序列校验保护。样式入口改为 `/graph/settings/nodes`、`/graph/settings/edges`，旧地址为兼容别名。删除闲置 OperationsView、health 服务、preferences store、motion 工具和旧 vis 画布，移除 vis-network、vis-data、vee-validate、@vee-validate/zod；后端运维、采集检查点、调度及权限功能保持。
+
+实施前读取本文件与另一份指定项目记忆，核对源码及工作区；根目录 `11` 的既有删除未改动。本轮对首页、画布和筛选语义的变更已同步 README，旧图谱空白修复段落属于历史验收，其动效单位约束继续适用。未改数据库结构、凭据或部署配置，未提交、推送或部署。验证证据与剩余边界见 [采集子系统改进记录](crawler-ux-improvements.md)。
+
+运行控制现在会作废先前轮询，避免迟到状态覆盖暂停或取消结果。本轮在用子系统的来源与适配哈希一致；整仓来源命令仍受本机历史 scholar 原始 Git 对象缺失影响。未修改归档 SHA 或跳过历史验证，具体命令及数据库验收限制见上述改进记录。
+
+## 2026-09-11 本机 MySQL 运行实例
+
+在 `E:\Program\Java\course_design\XSGXZSTP-KS` 按用户选择使用 Windows MySQL80，两个项目库为 `127.0.0.1:3306/course_relation`、`course_crawler`。Neo4j 继续使用 `neo4j:5.26-community`，容器为 `course-integration-relation-neo4j-1`、`course-integration-crawler-neo4j-1`，HTTP/Bolt 端口保持 `27471/27681`、`27473/27683`；数据卷为 `course-integration_relation-neo4j`、`course-integration_crawler-neo4j`，重启策略为 `unless-stopped`。其他工作区仍按上文默认的隔离 MySQL 容器流程初始化。
+
+此实例的辅助脚本、Compose 配置及外部应用配置位于 Git 忽略的 `.local/`。启动使用 `.\.local\Start-LocalProject.ps1`，通过交互提示取得本机数据库密码；停止使用 `.\scripts\Stop-Integration.ps1 -System all`。已创建统一管理员 `admin`，后续启动无需 `-BootstrapAdmin`。应用配置只引用进程环境变量，Neo4j 认证从经归属校验的已有容器读取，未生成明文凭据文件。详细命令见本机 `.local/README-local-runtime.md`；这些本机脚本不会随 Git 克隆迁移。
+
+本机可选样例导入使用 `node .local/Import-LocalDemoData.mjs`，通过当前进程的 `COURSE_MYSQL_PASSWORD` 连接固定项目库。该入口加载原 `scripts/Import-IntegrationDemoData.mjs`，仅替换连接与归属校验边界，保留样例标识、事务、冲突检测、数量核对和重复导入保护。原导入器仍适用于默认容器方案，不能直接用于本实例。两套图数据仍由原 Outbox 逻辑生成。
+
+当前 `GraphCanvas.vue` 使用 Cytoscape 多层画布，仓库 `Test-SystemsBrowser.mjs` 的单个 `canvas` 定位会产生严格模式错误。本机 `.local/Use-LocalTestCredentials.mjs` 在运行验收时将凭据来源替换为进程环境，并将像素检查定位到 `canvas[data-id="layer2-node"]`；登录、权限、连续像素、刷新与适应画布断言保持不变。原验收脚本的通用定位尚未修改；不把未适配脚本的首次失败记录为成功。
+
+## 2026-09-11 本机 Docker 数据盘迁移
+
+本机 Docker Desktop 4.72.0 的 WSL 存储根目录已迁移至 `E:\docker\data`，`%APPDATA%\Docker\settings-store.json` 中的 `CustomWslDistroDir` 指向该目录。数据盘为 `E:\docker\data\disk\docker_data.vhdx`，`docker-desktop` 的系统盘为 `E:\docker\data\main\ext4.vhdx`；WSL 注册路径已通过 `wsl --manage docker-desktop --move E:\docker\data\main` 同步。
+
+两份磁盘在首次启动前均通过 SHA256 校验。迁移前的原始数据盘完整保存在 `E:\docker\backup-20260911\docker_data.vhdx`，其哈希仍与迁移前一致；C 盘原数据盘已移除以释放空间。校验及恢复位置记录在 `E:\docker\migration-20260911.json`，这些本机文件不随 Git 克隆迁移。`E:\docker\DockerDesktopWSL` 中已有的旧盘保持原状。恢复时应先退出 Docker，确保新旧副本不会同时挂载到 WSL；相同磁盘标识会阻止 Docker 选择数据盘。
+
+迁移后曾因 `Page expected to be: 13, but self identifies as 0` 无法启动；迁移前日志已有元数据库的 I/O 错误。现已在经校验的整盘副本上恢复快照元数据库、ext4 结构和受损镜像内容，再切换至原 E 盘运行路径。切换前全部数据卷的文件聚合 SHA256 与修复前一致，原始备份及本次切换前运行盘均保留。Docker Engine 29.4.2 已恢复，两个项目 Neo4j 容器使用原 ID 和卷且健康检查通过；认证只读查询分别返回 relation 68 个节点/262 条关系、crawler 32 个节点/90 条关系。恢复材料、验证命令及后端验收边界见 [Docker 修复与后端验收](backend-acceptance-20260911.md)。
+
+## 2026-09-11 作者导入与验收约定
+
+当前 crawler 以 XLSX/XLS/CSV 作者导入、成果检索、统计和知识图谱为主，数据源、采集任务、数据治理、质量指标的页面和业务 API 已退场。历史基础表和数据保留，新版启动后停止旧采集计划。V17 增加作者导入记录及导师/成果机构关系，图类型共 13 种；知网字段映射、预览确认、原子导入、重复导入与权限约定见 [作者导入说明](author-import.md)。上文 2026-09-10 采集界面和调度说明保留为历史记录，不作为当前入口依据。
+
+后端验收采用隔离数据库。crawler 沿用 Testcontainers；relation 的 `local` 测试依赖样例数据，必须先准备独立 MySQL/Neo4j、执行现有 schema/sample SQL 并完成 Outbox 图同步，再运行 `mvnw.cmd verify`。本机复现入口为 Git 忽略的 `.local/docker-repair-20260911/run_relation_acceptance.py`；凭据只在进程环境流转，测试容器限定回环地址并在结束时按归属清理。该验收不会替换业务后端或迁移 Windows MySQL 项目库。
+
+## 2026-09-11 本机试用启动
+
+用户要求启动当前版本试用后，复用既有 Demo 模式、三个前端构建和两个后端 JAR 启动。启动前通过本机安全输入窗口取得 MySQL 密码，仅用于当前进程；Git 忽略的 `.local/Start-ReviewProject.ps1` 先备份 `course_crawler`，再调用原 `Start-LocalProject.ps1`。备份和脱敏状态位于 `.local/review-start-20260911-171852/`，目录限制当前用户、管理员和 SYSTEM 访问，备份 SHA256 已复核；未重置账号或导入新的测试资料。日常启动、停止仍使用根目录 `start.bat`、`stop.bat`。
+
+本次启动前 Docker 因失效的零字节 AF_UNIX 套接字退出。确认 Docker/WSL 已停止且目录仅含运行时套接字后，将 `%LOCALAPPDATA%\Docker\run` 和 `%LOCALAPPDATA%\docker-secrets-engine` 改名为各自的 `.before-start-20260911-171755` 备份，再启动 Docker；未修改数据盘配置。两个原图库恢复 `healthy`。今后若出现同类错误，应重新核对日志、进程和目录内容，不能直接复用目录改名命令。
+
+实际日志与数据库查询确认 `course_crawler` 从 V16 升级至 V17；三个登记进程的 PID、创建时间、路径及命令行归属验证通过。门户、relation 健康接口、crawler readiness 与 graph 均返回 200/UP。未登录访问 `/crawler/author-import` 返回登录跳转，导入 API 返回 401，原认证边界保持。试用入口为 `http://127.0.0.1:18000/crawler/author-import`；使用原账号登录。本次启动检查未替用户上传真实知网文件，也未替代此前的隔离后端验收。
