@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ElAlert, ElButton } from 'element-plus'
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, type LocationQueryRaw } from 'vue-router'
 import { catalogApi } from '@/services/business'
 import { toErrorMessage } from '@/services/api'
 import type { AchievementDetail } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
 
-const props = defineProps<{ id: number }>()
+const props = defineProps<{ id: number; returnQuery?: LocationQueryRaw }>()
 const detail = ref<AchievementDetail | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -43,7 +43,7 @@ onBeforeUnmount(() => { sequence++ })
         <p>最近观测 {{ formatDateTime(source.scholarlyMetadata?.observedAt ?? source.lastSeenAt) }}</p>
         <p>引用计数：{{ source.scholarlyMetadata?.citedByCount ?? '未知' }} · 开放获取：{{ source.scholarlyMetadata?.openAccess === true ? '是' : source.scholarlyMetadata?.openAccess === false ? '否' : '未知' }}</p>
       </article>
-      <RouterLink :to="`/catalog/achievements/${id}`" class="achievement-preview__full">查看完整详情与字段溯源 →</RouterLink>
+      <RouterLink :to="{ path: `/catalog/achievements/${id}`, query: returnQuery }" class="achievement-preview__full">查看完整详情与字段溯源 →</RouterLink>
     </template>
   </div>
 </template>

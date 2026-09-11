@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<{
   collection: CatalogCollection
   label: string
   modelValue: string
+  entityId?: number
   /** text 模式把名称写回筛选值；id 模式把选中实体的规范ID写回筛选值。 */
   mode?: 'text' | 'id'
   placeholder?: string
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
+  (e: 'update:entityId', value: number | undefined): void
   (e: 'select', entity: CatalogEntity): void
   (e: 'enter'): void
 }>()
@@ -41,6 +43,7 @@ watch(() => props.modelValue, (value) => {
 })
 
 function onInput(value: string): void {
+  emit('update:entityId', undefined)
   text.value = value
   if (props.mode === 'text') emit('update:modelValue', value)
   else if (props.modelValue !== '') emit('update:modelValue', '')
@@ -90,10 +93,11 @@ function select(entity: CatalogEntity): void {
   error.value = ''
   emit('update:modelValue', props.mode === 'id' ? String(entity.id) : entity.displayName)
   emit('select', entity)
+  emit('update:entityId', entity.id)
 }
 
 function onEnter(): void {
-  if (listOpen.value && options.value.length) select(options.value[0]!)
+  if (listOpen.value && options.value.length === 1) select(options.value[0]!)
   else emit('enter')
 }
 

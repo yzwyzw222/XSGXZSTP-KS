@@ -22,6 +22,7 @@ export type Permission =
   | 'GOVERNANCE_READ'
   | 'GOVERNANCE_MANAGE'
   | 'CATALOG_READ'
+  | 'AUTHOR_IMPORT'
   | 'GRAPH_READ'
   | 'GRAPH_SYNC_READ'
   | 'GRAPH_SYNC_MANAGE'
@@ -368,6 +369,8 @@ export interface QualityMetricDetail {
 export type GraphNodeType = 'ACHIEVEMENT' | 'AUTHOR' | 'INSTITUTION' | 'VENUE' | 'TOPIC'
 
 export type GraphRelationshipType =
+  | 'SUPERVISED'
+  | 'PRODUCED_AT'
   | 'AUTHORED'
   | 'AFFILIATED_WITH'
   | 'PUBLISHED_IN'
@@ -509,6 +512,11 @@ export type ExportFormat = 'CSV' | 'JSON'
 export type ExportStatus = 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED'
 
 export interface ExportFilter {
+  author?: string
+  organization?: string
+  venue?: string
+  topic?: string
+  sourceCode?: string
   title?: string
   authorId?: number
   organizationId?: number

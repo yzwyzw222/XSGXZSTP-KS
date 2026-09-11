@@ -103,6 +103,8 @@ export function nodeTarget(node: GraphNode): string | null {
 export function relationshipLabel(type: string): string {
   return {
     AUTHORED: '创作',
+    SUPERVISED: '指导',
+    PRODUCED_AT: '所属机构',
     AFFILIATED_WITH: '隶属',
     PUBLISHED_IN: '发表于',
     HAS_TOPIC: '主题',

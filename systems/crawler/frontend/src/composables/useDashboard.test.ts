@@ -4,9 +4,10 @@ import { defineComponent } from 'vue'
 import { ApiError } from '@/services/api'
 import { useDashboard } from './useDashboard'
 
-const mocks = vi.hoisted(() => ({ permissions: ['ANALYTICS_READ'], overview: vi.fn(), trends: vi.fn(), distributions: vi.fn(), collaboration: vi.fn(), tasks: vi.fn(), audits: vi.fn() }))
+const mocks = vi.hoisted(() => ({ permissions: ['ANALYTICS_READ'], overview: vi.fn(), trends: vi.fn(), distributions: vi.fn(), collaboration: vi.fn(), imports: vi.fn(), audits: vi.fn() }))
 vi.mock('@/stores/session', () => ({ useSessionStore: () => ({ hasPermission: (permission: string) => mocks.permissions.includes(permission) }) }))
-vi.mock('@/services/business', () => ({ analyticsApi: mocks, crawlApi: { tasks: mocks.tasks } }))
+vi.mock('@/services/business', () => ({ analyticsApi: mocks }))
+vi.mock('@/services/author-import', () => ({ authorImportApi: { recent: mocks.imports } }))
 vi.mock('@/services/audits', () => ({ getAudits: mocks.audits }))
 
 function render() {
@@ -27,30 +28,30 @@ beforeEach(() => {
   mocks.trends.mockResolvedValue({ items: [] })
   mocks.distributions.mockResolvedValue({ topics: [] })
   mocks.collaboration.mockResolvedValue({ authors: [], organizations: [] })
-  mocks.tasks.mockResolvedValue({ items: [] })
+  mocks.imports.mockResolvedValue([])
   mocks.audits.mockResolvedValue({ items: [] })
 })
 
 describe('科研大屏读取边界', () => {
-  it('科研账号不请求采集或日志接口，受限区域明确标识', async () => {
+  it('科研账号不请求导入或日志接口，受限区域明确标识', async () => {
     const { wrapper, dashboard } = render()
     await flushPromises()
     expect(mocks.overview).toHaveBeenCalledOnce()
     expect(mocks.collaboration).toHaveBeenCalledWith({}, 20)
-    expect(mocks.tasks).not.toHaveBeenCalled()
+    expect(mocks.imports).not.toHaveBeenCalled()
     expect(mocks.audits).not.toHaveBeenCalled()
-    expect(dashboard.state.tasks.allowed).toBe(false)
+    expect(dashboard.state.imports.allowed).toBe(false)
     expect(dashboard.state.audits.data).toBeNull()
     wrapper.unmount()
   })
 
   it('运营账号只请求有权访问的区域', async () => {
-    mocks.permissions = ['CRAWL_TASK_READ', 'AUDIT_READ']
+    mocks.permissions = ['AUTHOR_IMPORT', 'AUDIT_READ']
     const { wrapper, dashboard } = render()
     await flushPromises()
     expect(mocks.overview).not.toHaveBeenCalled()
     expect(mocks.collaboration).not.toHaveBeenCalled()
-    expect(mocks.tasks).toHaveBeenCalledWith(0, 4)
+    expect(mocks.imports).toHaveBeenCalledOnce()
     expect(mocks.audits).toHaveBeenCalledWith({ category: 'OPERATION' }, 0, 5)
     expect(dashboard.loading.value).toBe(false)
     wrapper.unmount()

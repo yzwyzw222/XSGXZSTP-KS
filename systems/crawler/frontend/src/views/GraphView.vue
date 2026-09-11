@@ -6,19 +6,19 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { DataTable } from '@/components/business'
-import GraphCanvas from '@/components/business/graph-overview/GraphCanvas.vue'
+import GraphCanvas from '@/components/business/GraphCanvas.vue'
 import NodeDetail from '@/components/business/graph-overview/NodeDetail.vue'
 import type { DataTableColumn } from '@/components/business/types'
 import { useGraphStore } from '@/stores/graph'
 import { useGraphOverviewStore } from '@/stores/graph-overview'
 import type { GraphNode, GraphEdge } from '@/types/api'
-import { nodeTarget, reviewStatusLabel } from '@/utils/graph'
+import { nodeTarget, reviewStatusLabel, toCytoscapeElements } from '@/utils/graph'
 import { type CooperationEvidence } from '@/utils/graph-cooperation'
-import { graphDefinitions, toVisGraph } from '@/utils/graph-vis'
+import { graphDefinitions } from '@/utils/graph-presentation'
 
 const store = useGraphOverviewStore()
 const legacyStore = useGraphStore()
-const { graph, visible, loading, filtering, errorMessage, history, cooperations, focusedCooperation } = storeToRefs(store)
+const { graph, visible, loading, errorMessage, history, cooperations, focusedCooperation } = storeToRefs(store)
 const route = useRoute()
 const router = useRouter()
 const keyword = computed({ get: () => store.filters.keyword, set: value => { store.filters.keyword = value } })
@@ -32,7 +32,7 @@ const stage = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 const context = ref<{ kind: 'node' | 'edge'; id: string; x: number; y: number } | null>(null)
 const visibleCooperations = computed(() => cooperations.value.filter(item => visible.value?.edges.some(edge => edge.id === item.edge.id)))
-const canvasData = computed(() => visible.value ? toVisGraph(visible.value, graph.value ?? visible.value) : { nodes: [], edges: [] })
+const canvasData = computed(() => visible.value ? toCytoscapeElements({ ...visible.value, typeDefinitions: graphDefinitions(visible.value) }, graph.value ?? visible.value) : [])
 const label = computed(() => `知识图谱，共${visible.value?.nodes.length ?? 0}个节点和${visible.value?.edges.length ?? 0}条关系`)
 const definitions = computed(() => graphDefinitions(graph.value))
 const nodeDefinitions = computed(() => definitions.value.filter(type => type.kind === 'NODE'
@@ -40,7 +40,6 @@ const nodeDefinitions = computed(() => definitions.value.filter(type => type.kin
 const edgeDefinitions = computed(() => definitions.value.filter(type => type.kind === 'RELATIONSHIP'
   && (['AUTHORED', 'COAUTHORED'].includes(type.code) || graph.value?.edges.some(edge => edge.type === type.code))))
 const selectedNode = computed(() => visible.value?.nodes.find(node => node.id === selectedNodeId.value))
-const selectedDisplayNode = computed(() => canvasData.value.nodes.find(node => node.id === selectedNodeId.value))
 const selectedEdge = computed(() => visible.value?.edges.find(edge => edge.id === selectedEdgeId.value))
 const selectedType = computed(() => definitions.value.find(type => selectedNode.value
   ? type.kind === 'NODE' && type.code === selectedNode.value.type : type.kind === 'RELATIONSHIP' && type.code === selectedEdge.value?.type))
@@ -148,14 +147,14 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
       <ElInput v-model="keyword" class="overview-search" aria-label="搜索当前图谱" placeholder="搜索当前图谱中的名称或 ID" clearable :maxlength="200"><template #suffix><Search :size="16" /></template></ElInput>
       <ElSelect v-model="nodeType" :disabled="relationship === 'COAUTHORED'" aria-label="节点类型" placeholder="全部节点类型" clearable><ElOption v-for="type in nodeDefinitions" :key="type.code" :label="type.displayName" :value="type.code" /></ElSelect>
       <ElSelect v-model="relationship" aria-label="关系类型" placeholder="全部关系类型" clearable><ElOption v-for="type in edgeDefinitions" :key="type.code" :label="type.displayName" :value="type.code" /></ElSelect>
-      <div class="overview-actions"><ElButton type="primary" :loading="loading" @click="refresh"><RefreshCw v-if="!loading" :size="15" class="mr-1.5" />刷新图谱</ElButton><ElButton @click="router.push('/graph/entities')">实体管理</ElButton><ElButton @click="router.push('/graph/relations')">关系管理</ElButton></div>
+      <div class="overview-actions"><ElButton type="primary" :loading="loading" @click="refresh"><RefreshCw v-if="!loading" :size="15" class="mr-1.5" />刷新图谱</ElButton><ElButton @click="router.push('/graph/settings/nodes')">节点样式</ElButton><ElButton @click="router.push('/graph/settings/edges')">关系样式</ElButton></div>
     </div>
-    <p v-if="loading || filtering" role="status" class="overview-scope">{{ filtering ? '正在等待筛选…' : graph ? '正在更新图谱，当前显示上次成功结果…' : '正在读取图谱…' }}</p>
+    <p v-if="loading" role="status" class="overview-scope">{{ graph ? '正在更新图谱，当前显示上次成功结果…' : '正在读取图谱…' }}</p>
     <ElAlert v-if="errorMessage" class="overview-notice" type="error" :closable="false" :title="graph ? errorMessage + '；保留上次成功结果' : errorMessage" show-icon />
     <ElAlert v-if="graph?.truncated" class="overview-notice" type="warning" :closable="false" title="当前显示受限网络，可通过高级查询进一步定位作者或作品。" show-icon />
     <p v-if="relationship === 'COAUTHORED'" class="px-4 pb-2 text-xs text-muted-foreground">合作视图同时保留共同作品和双方创作连线，点击合作线可单独查看。</p>
     <div ref="stage" class="overview-stage" :class="{ 'has-cooperation': focusedCooperation }">
-      <GraphCanvas ref="canvas" :data="canvasData" :label="label" :loading="loading || filtering" :scope-key="scopeKey" :positions="positions" :selected-node-id="selectedNodeId" :selected-edge-id="selectedEdgeId" @select-node="selectNode" @select-edge="selectEdge" @double-click-node="enterNode" @clear-selection="leaveCooperation" @context-menu="openContext" @dismiss-context="context = null" />
+      <GraphCanvas ref="canvas" :elements="canvasData" fill compact drilldown layout="network" :label="label" :loading="loading" :scope-key="scopeKey" :positions="positions" :selected-node-id="selectedNodeId" :selected-edge-id="selectedEdgeId" @select-node="selectNode" @select-edge="selectEdge" @double-click-node="enterNode" @clear-selection="leaveCooperation" @context-menu="openContext" @dismiss-context="context = null" />
       <div v-if="context" ref="menu" class="graph-context-menu" role="menu" aria-label="图谱操作" :style="{ left: context.x + 'px', top: context.y + 'px' }" @keydown.esc.stop.prevent="closeContext">
         <button role="menuitem" @click="context.kind === 'node' ? selectNode(context.id) : selectEdge(context.id)">查看详情</button>
         <button v-if="context.kind === 'node'" role="menuitem" @click="enterNode(context.id)">查看两跳子图</button>
@@ -194,7 +193,7 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
           <h2 class="text-base font-semibold">{{ selectedNode?.label ?? `${nodeLabel(selectedEdge!.source)} — ${nodeLabel(selectedEdge!.target)}` }}</h2>
           <p>类型：{{ selectedType?.displayName ?? '--' }}</p><p>类型审核：{{ reviewStatusLabel(selectedType?.reviewStatus) }} · {{ selectedType?.size ?? '--' }} px</p>
           <template v-if="selectedEdge?.type === 'COAUTHORED'"><p>合作关系由当前图谱中的共同作品推导，不代表全库合作总量。</p><h3 class="font-medium">共同作品依据（{{ sharedWorks.length }}）</h3><ul class="grid gap-2"><li v-for="work in sharedWorks" :key="work.id"><RouterLink :to="nodeTarget(work) ?? '/catalog'" class="text-primary">{{ work.label }}</RouterLink></li></ul></template>
-          <NodeDetail v-if="selectedNode && selectedDisplayNode" :node="selectedNode" :display="selectedDisplayNode" :loading="loading" @explore="enterNode(selectedNode.id)" />
+          <NodeDetail v-if="selectedNode" :node="selectedNode" :loading="loading" @explore="enterNode(selectedNode.id)" />
           <template v-if="selectedEdge"><p>关系ID：{{ selectedEdge.id }}</p><ElButton disabled title="当前未提供关系删除接口">删除关系（暂不可用）</ElButton></template>
         </template><p v-else>选择节点或关系，查看类型配置与作品依据。</p>
       </div>

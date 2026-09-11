@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@vee-validate/zod": "^4.15.1",
     "@vueuse/core": "^14.4.0",
     "axios": "^1.20.0",
     "clsx": "^2.1.1",
@@ -23,9 +22,6 @@
     "pinia": "^3.0.4",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.3",
-    "vee-validate": "^4.15.1",
-    "vis-data": "7.1.9",
-    "vis-network": "9.1.9",
     "vue": "3.5.42",
     "vue-router": "5.3.0",
     "zod": "^3.25.76"

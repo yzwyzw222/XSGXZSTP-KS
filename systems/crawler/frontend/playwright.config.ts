@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173 --strictPort',
+    command: `npm run ${process.env.AACV_E2E_PREVIEW === '1' ? 'preview' : 'dev'} -- --host 127.0.0.1 --port 4173 --strictPort`,
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 30_000,

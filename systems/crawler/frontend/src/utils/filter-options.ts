@@ -3,20 +3,32 @@ export interface FilterOption {
   label: string
 }
 
-/** 成果类型取值与后端 achievement_type 精确匹配保持一致，标签附中文释义便于选择。 */
-export const achievementTypeOptions: FilterOption[] = [
-  { value: 'article', label: 'article · 期刊论文' },
-  { value: 'review', label: 'review · 综述' },
-  { value: 'preprint', label: 'preprint · 预印本' },
-  { value: 'proceedings-article', label: 'proceedings-article · 会议论文' },
-  { value: 'book-chapter', label: 'book-chapter · 图书章节' },
-  { value: 'book', label: 'book · 专著' },
-  { value: 'dataset', label: 'dataset · 数据集' },
-  { value: 'report', label: 'report · 报告' },
-]
+/** 中文名称复用于筛选选项与统计展示，类型编码与后端 achievement_type 保持一致。 */
+const achievementTypeLabels = new Map<string, string>([
+  ['article', '期刊论文'],
+  ['patent', '专利'],
+  ['master-thesis', '硕士学位论文'],
+  ['doctoral-thesis', '博士学位论文'],
+  ['review', '综述'],
+  ['preprint', '预印本'],
+  ['proceedings-article', '会议论文'],
+  ['book-chapter', '图书章节'],
+  ['book', '专著'],
+  ['dataset', '数据集'],
+  ['report', '报告'],
+])
 
-/** 来源代码仅支持两个已接入的学术来源，与导出校验口径一致。 */
+export const achievementTypeOptions: FilterOption[] = Array.from(achievementTypeLabels, ([value, label]) => ({
+  value, label: `${value} · ${label}`,
+}))
+
+export function achievementTypeLabel(value: string, fallback = value): string {
+  return achievementTypeLabels.get(value) ?? fallback
+}
+
+/** 来源筛选覆盖当前知网文件和历史远程来源，与目录及导出口径一致。 */
 export const sourceCodeOptions: FilterOption[] = [
+  { value: 'CNKI', label: '知网信息表' },
   { value: 'OPENALEX', label: 'OpenAlex' },
   { value: 'CROSSREF', label: 'Crossref' },
 ]

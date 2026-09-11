@@ -1,14 +1,12 @@
 import {
-  Activity,
   BookOpen,
-  Database,
+  FileInput,
   ContactRound,
   LayoutDashboard,
   Library,
   ShieldCheck,
   TrendingUp,
   Users,
-  Workflow,
   type LucideIcon,
 } from 'lucide-vue-next'
 
@@ -45,7 +43,8 @@ export function groupNavigation(items: readonly NavItem[]) {
 }
 
 const allNavItems: NavItem[] = [
-  { group: 'visualization', label: '可视化大屏', caption: 'Dashboard', to: '/', icon: LayoutDashboard, keywords: ['dashboard', 'overview', 'home'] },
+  { group: 'visualization', label: '工作台', caption: 'Workspace', to: '/', icon: LayoutDashboard, keywords: ['home', 'overview'] },
+  { group: 'visualization', label: '可视化大屏', caption: 'Dashboard', to: '/dashboard', icon: LayoutDashboard, keywords: ['dashboard'] },
   { group: 'visualization', label: '成果目录', caption: 'Catalog', to: '/catalog', icon: Library, permission: 'CATALOG_READ', keywords: ['catalog', 'achievement'], children: [
     { label: '全部成果', to: '/catalog' },
   ] },
@@ -57,8 +56,8 @@ const allNavItems: NavItem[] = [
     group: 'visualization', label: '知识图谱', caption: 'Network', to: '/graph', icon: BookOpen, permission: 'GRAPH_READ', keywords: ['graph', 'network'],
     children: [
       { label: '图谱概览', to: '/graph' },
-      { label: '实体管理', to: '/graph/entities' },
-      { label: '关系管理', to: '/graph/relations' },
+      { label: '节点样式', to: '/graph/settings/nodes', activePaths: ['/graph/settings/nodes', '/graph/entities'] },
+      { label: '关系样式', to: '/graph/settings/edges', activePaths: ['/graph/settings/edges', '/graph/relations'] },
       { label: '高级查询', to: '/graph/explore' },
       { label: '路径分析', to: '/graph/path' },
       { label: '保存的查询', to: '/graph/queries' },
@@ -69,10 +68,7 @@ const allNavItems: NavItem[] = [
     { label: '成果分布', to: '/analytics/distributions', activePaths: ['/analytics/distributions', '/analytics/research'] },
     { label: '合作分析', to: '/analytics/collaboration' },
   ] },
-  { group: 'crawler', label: '数据源', caption: 'Sources', to: '/sources', icon: Database, permission: 'SOURCE_READ', keywords: ['source', 'openalex', 'crossref'] },
-  { group: 'crawler', label: '采集任务', caption: 'Collection', to: '/crawl', icon: Workflow, permission: 'CRAWL_TASK_READ', keywords: ['crawl', 'collection', 'task', 'run'] },
-  { group: 'crawler', label: '数据治理', caption: 'Governance', to: '/governance', icon: ShieldCheck, permission: 'GOVERNANCE_READ', keywords: ['governance', 'duplicate', 'merge'] },
-  { group: 'crawler', label: '质量指标', caption: 'Quality', to: '/quality', icon: Activity, permission: 'GOVERNANCE_READ', keywords: ['quality', 'metric'] },
+  { group: 'crawler', label: '作者导入', caption: 'Author Import', to: '/author-import', icon: FileInput, permission: 'AUTHOR_IMPORT', keywords: ['导入', '学者', '知网', 'xlsx', 'xls', 'csv'] },
   { group: 'status', label: '日志管理', caption: 'Logs', to: '/logs', icon: ShieldCheck, permission: 'AUDIT_READ', keywords: ['logs', 'audit', 'login'] },
   { group: 'status', label: '账号管理', caption: 'Accounts', to: '/users', icon: Users, permission: 'USER_LIST', keywords: ['user', 'account', 'role', '用户管理'] },
 ]

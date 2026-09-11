@@ -50,6 +50,11 @@ export const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'overview',
+        component: () => import('@/views/WorkbenchView.vue'),
+        meta: { title: '工作台', workspace: 'workbench' },
+      },
+      {
+        path: 'dashboard', name: 'dashboard',
         component: () => import('@/views/OverviewView.vue'),
         meta: { title: '可视化大屏', workspace: 'overview', shell: 'dashboard' },
       },
@@ -58,20 +63,20 @@ export const routes: RouteRecordRaw[] = [
         meta: { title: '工作台', workspace: 'overview' },
         children: [
           { path: 'research', name: 'overview-research', redirect: '/analytics/collaboration', meta: { title: '研究关系' } },
-          { path: 'activity', name: 'overview-activity', redirect: integrated ? '/crawl' : '/logs', meta: { title: '活动与采集' } },
+          { path: 'activity', name: 'overview-activity', redirect: '/', meta: { title: '工作台' } },
         ],
       },
       {
         path: 'catalog',
         name: 'catalog',
         component: () => import('@/views/CatalogView.vue'),
-        meta: { permission: 'CATALOG_READ', title: '成果目录' },
+        meta: { permission: 'CATALOG_READ', title: '成果目录', workspace: 'catalog' },
       },
       {
         path: 'catalog/achievements/:id',
         name: 'achievement-detail',
         component: () => import('@/views/AchievementDetailView.vue'),
-        meta: { permission: 'CATALOG_READ', title: '成果详情' },
+        meta: { permission: 'CATALOG_READ', title: '成果详情', workspace: 'catalog' },
       },
       {
         path: 'catalog/:collection(authors|organizations|venues|topics)',
@@ -80,28 +85,10 @@ export const routes: RouteRecordRaw[] = [
         meta: { permission: 'CATALOG_READ', title: '编目实体' },
       },
       {
-        path: 'sources',
-        name: 'sources',
-        component: () => import('@/views/SourcesView.vue'),
-        meta: { permission: 'SOURCE_READ', title: '数据源' },
-      },
-      {
-        path: 'crawl',
-        name: 'crawl-tasks',
-        component: () => import('@/views/CrawlTasksView.vue'),
-        meta: { permission: 'CRAWL_TASK_READ', title: '采集任务' },
-      },
-      {
-        path: 'governance',
-        name: 'governance',
-        component: () => import('@/views/GovernanceView.vue'),
-        meta: { permission: 'GOVERNANCE_READ', title: '数据治理' },
-      },
-      {
-        path: 'quality',
-        name: 'quality',
-        component: () => import('@/views/QualityView.vue'),
-        meta: { permission: 'GOVERNANCE_READ', title: '质量指标' },
+        path: 'author-import',
+        name: 'author-import',
+        component: () => import('@/views/AuthorImportView.vue'),
+        meta: { permission: 'AUTHOR_IMPORT', title: '作者导入', workspace: 'author-import' },
       },
       {
         path: 'graph',
@@ -120,18 +107,18 @@ export const routes: RouteRecordRaw[] = [
             meta: { permission: 'GRAPH_READ', title: '高级查询' },
           },
           {
-            path: 'entities',
+            path: 'settings/nodes', alias: 'entities',
             name: 'graph-entities',
             component: () => import('@/views/GraphTypesView.vue'),
             props: { kind: 'NODE' },
-            meta: { permission: 'GRAPH_READ', title: '实体管理' },
+            meta: { permission: 'GRAPH_READ', title: '节点样式' },
           },
           {
-            path: 'relations',
+            path: 'settings/edges', alias: 'relations',
             name: 'graph-relations',
             component: () => import('@/views/GraphTypesView.vue'),
             props: { kind: 'RELATIONSHIP' },
-            meta: { permission: 'GRAPH_READ', title: '关系管理' },
+            meta: { permission: 'GRAPH_READ', title: '关系样式' },
           },
           {
             path: 'path',

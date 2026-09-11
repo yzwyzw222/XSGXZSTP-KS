@@ -34,8 +34,8 @@ try {
     assert.equal(await workspace.getByRole('button', { name: '进入全屏', exact: true }).count(), 0)
     if (system === 'crawler') {
       assert.equal(await workspace.locator('a[href="/crawler/users"], a[href="/crawler/logs"]').count(), 0)
-      await workspace.getByRole('link', { name: '采集任务 Collection', exact: false }).first().click()
-      await workspace.getByRole('heading', { name: '采集任务', exact: true }).waitFor()
+      await workspace.getByRole('link', { name: '作者导入', exact: true }).first().click()
+      await workspace.getByRole('heading', { name: '作者导入', exact: true }).waitFor()
       assert.equal(await page.evaluate(() => Boolean(document.fullscreenElement)), true)
     }
     const child = page.frames().find(frame => frame.url().startsWith(`${base}/${system}/`))
@@ -75,30 +75,21 @@ try {
   await page.waitForFunction(() => !document.fullscreenElement)
   await page.locator('.system-card.crawler .entry-button').click()
   workspace = page.frameLocator('iframe.platform-workspace')
-  await workspace.getByRole('link', { name: '采集任务 Collection', exact: false }).first().click()
-  await page.waitForURL(url => url.searchParams.get('workspace') === '/crawler/crawl')
+  await workspace.getByRole('link', { name: '作者导入', exact: true }).first().click()
+  await page.waitForURL(url => url.searchParams.get('workspace') === '/crawler/author-import')
   await page.reload()
   workspace = page.frameLocator('iframe.platform-workspace')
-  await workspace.getByRole('heading', { name: '采集任务', exact: true }).waitFor()
-  // 仅在浏览器拦截独立测试编号，不创建真实任务或发起外部采集。
-  const failureMessage = '采集执行队列已满或服务正在关闭，请稍后对该任务重新执行。'
-  await page.route('**/crawler/api/v1/crawl/runs/999999', route => route.fulfill({ json: {
-    id: 999999, taskId: 999999, runNumber: 'platform-test-launch-failure', triggerType: 'MANUAL',
-    status: 'FAILED', batchJobExecutionId: null, completionReason: 'BATCH_FAILED',
-    readCount: 0, parsedCount: 0, createdCount: 0, updatedCount: 0, duplicateCount: 0, failureCount: 0,
-    requestCount: 0, checkpoint: null, startedAt: null, finishedAt: '2026-09-10T00:00:00Z',
-  } }))
-  await page.route('**/crawler/api/v1/crawl/runs/999999/failures?*', route => route.fulfill({ json: {
-    items: [{ id: 999999, runId: 999999, rawRecordId: null, externalRecordId: null, failureStage: 'SYSTEM',
-      errorCategory: 'LAUNCH_EXECUTOR_BUSY', safeMessage: failureMessage, retryable: false, attemptCount: 1 }],
-    page: 0, size: 20, totalElements: 1, totalPages: 1,
-  } }))
-  await workspace.getByPlaceholder('运行编号', { exact: true }).fill('999999')
-  await workspace.getByRole('button', { name: '查询运行', exact: true }).click()
-  await workspace.getByText('采集批次未能启动，尚未发出来源请求。', { exact: false }).waitFor()
+  await workspace.getByRole('heading', { name: '作者导入', exact: true }).waitFor()
+  // 使用合成文件并只拦截预览请求，不写入真实学者资料。
+  const failureMessage = '信息表仍有问题，请核对后重新导出。'
+  await page.route('**/crawler/api/v1/author-import/preview', route => route.fulfill({ status: 400,
+    contentType: 'application/problem+json', json: { detail: failureMessage, errorCode: 'INVALID_ARGUMENT' } }))
+  await workspace.getByRole('textbox', { name: '学者名称检索' }).fill('界面验收学者')
+  await workspace.getByLabel('选择信息表').setInputFiles({ name: '界面验收.csv', mimeType: 'text/csv', buffer: Buffer.from('Title,Author\n验证论文,界面验收学者') })
+  await workspace.getByRole('button', { name: '解析并预览', exact: true }).click()
   await workspace.getByText(failureMessage, { exact: true }).waitFor()
-  assert.equal(await workspace.getByRole('button', { name: '重试失败项', exact: true }).count(), 0)
-  await page.screenshot({ path: fileURLToPath(new URL('launch-failure-fixture.png', output)), fullPage: true, animations: 'disabled' })
+  assert.equal(await workspace.getByRole('button', { name: /确认导入/ }).count(), 0)
+  await page.screenshot({ path: fileURLToPath(new URL('author-import-error-fixture.png', output)), fullPage: true, animations: 'disabled' })
   assert.deepEqual(errors, [], '所有受影响页面无浏览器脚本异常')
   console.log('门户响应式、两系统左上返回、持续全屏、统一用户与日志管理、后台审计均通过。')
 } finally {

@@ -22,15 +22,12 @@ for (const { width, height, theme } of [
       })),
       organizations: [], scope: { source: 'MYSQL', filters: {} }, updatedAt: time,
     } }))
-    await page.route('**/api/v1/crawl/tasks*', route => route.fulfill({ json: {
-      items: Array.from({ length: 6 }, (_, index) => ({ id: index + 1, name: `布局验证采集任务 ${index + 1}`, sourceId: 1, enabled: true })),
-      page: 0, size: 6, totalElements: 6, totalPages: 1,
-    } }))
+    await page.route('**/api/v1/author-import', route => route.fulfill({ json: Array.from({ length: 6 }, (_, i) => ({ id: i + 1, authorId: i + 1, scholarName: `布局测试学者 ${i + 1}`, fileName: '论文.csv', importMode: 'AUTHOR', importedCount: 5, skippedCount: 0, createdAt: time })) }))
     await page.route('**/api/v1/operations/audits*', route => route.fulfill({ json: {
       items: [{ id: 1, action: 'CRAWL_TASK_CREATED', targetType: 'CRAWL_TASK', targetId: '1', result: 'SUCCESS', createdAt: time }],
       page: 0, size: 8, totalElements: 1, totalPages: 1,
     } }))
-    await page.goto('/')
+    await page.goto('/dashboard')
     await expect(page.locator('.dashboard-kpis')).toContainText('1,286')
 
     const checkLayout = async () => {

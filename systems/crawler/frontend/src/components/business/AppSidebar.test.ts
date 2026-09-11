@@ -18,7 +18,7 @@ describe('研究界面侧栏导航', () => {
     expect(wrapper.findAll('nav section').map((section) => section.attributes('aria-label')))
       .toEqual(['研究工作', '数据管理', '管理工具'])
     expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/catalog')
-    expect(wrapper.findAll('nav section > ul > li')).toHaveLength(11)
+    expect(wrapper.findAll('nav section > ul > li')).toHaveLength(9)
     expect(wrapper.get('button[aria-label="成果目录"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.findAll('.graph-submenu-link').map(link => link.text()))
       .toEqual(['全部成果'])
@@ -35,7 +35,7 @@ describe('研究界面侧栏导航', () => {
     await toggle.trigger('click')
     expect(toggle.attributes('aria-expanded')).toBe('true')
     expect(Array.from(graphGroup.querySelectorAll('.graph-submenu-link')).map(link => link.textContent))
-      .toEqual(['图谱概览', '实体管理', '关系管理', '高级查询', '路径分析', '保存的查询'])
+      .toEqual(['图谱概览', '节点样式', '关系样式', '高级查询', '路径分析', '保存的查询'])
     expect(wrapper.get('button[aria-label="成果目录"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/catalog')
     await toggle.trigger('click')
@@ -45,10 +45,10 @@ describe('研究界面侧栏导航', () => {
     wrapper.unmount()
   })
 
-  it('合并重复入口，全部展开后保留研究、采集与日志功能', async () => {
+  it('合并重复入口，全部展开后保留研究、作者导入与日志功能', async () => {
     const wrapper = await render(navItems, false, '/')
     for (const toggle of wrapper.findAll('.graph-menu-toggle')) await toggle.trigger('click')
-    expect(wrapper.findAll('nav a')).toHaveLength(21)
+    expect(wrapper.findAll('nav a')).toHaveLength(19)
     expect(wrapper.findAll('.graph-menu-toggle')).toHaveLength(4)
     expect(wrapper.findAll('.graph-submenu-link')).toHaveLength(14)
     expect(wrapper.find('a[href="/operations"]').exists()).toBe(false)

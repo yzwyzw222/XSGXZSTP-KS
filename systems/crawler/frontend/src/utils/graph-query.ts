@@ -13,7 +13,7 @@ export const graphFilterSchema = z.object({
   publicationYearFrom: year,
   publicationYearTo: year,
   nodeTypes: z.array(nodeType).max(5),
-  relationshipTypes: z.array(z.enum(['AUTHORED', 'AFFILIATED_WITH', 'PUBLISHED_IN', 'HAS_TOPIC', 'CITES'])).max(5),
+  relationshipTypes: z.array(z.enum(['AUTHORED', 'SUPERVISED', 'PRODUCED_AT', 'AFFILIATED_WITH', 'PUBLISHED_IN', 'HAS_TOPIC', 'CITES'])).max(7),
   achievementTypes: z.string().max(200),
 }).refine((value) => !value.publicationYearFrom || !value.publicationYearTo
   || Number(value.publicationYearFrom) <= Number(value.publicationYearTo))

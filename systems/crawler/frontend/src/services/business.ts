@@ -1,4 +1,4 @@
-import { api, apiRequest } from '@/services/api'
+import { api } from '@/services/api'
 import type {
   AchievementDetail,
   AchievementSummary,
@@ -13,35 +13,18 @@ import type {
   CatalogCollection,
   CatalogEntity,
   CatalogEntityEvidence,
-  CandidateComparison,
-  CrawlFailure,
-  CrawlRun,
-  CrawlSchedule,
-  CrawlTask,
-  CrawlTaskParameters,
-  CrawlWindow,
-  DataSource,
-  DuplicateCandidate,
   ExportFilter,
   ExportFormat,
   ExportTask,
   GraphEvent,
   GraphMaintenanceRun,
   GraphOutboxStatus,
-  FieldOverride,
   GraphNodeType,
   GraphRelationshipType,
   GraphResponse,
   GraphSyncStatus,
-  MergeDecision,
   OperationsOverview,
   PageResponse,
-  QualityMetric,
-  QualityMetricDetail,
-  SourceConfigurationInput,
-  SourceEntity,
-  SourceEntityKind,
-  SourceProbe,
   AuditLog,
 } from '@/types/api'
 
@@ -59,6 +42,10 @@ export function withQuery(path: string, query: Record<string, QueryValue>): stri
 }
 
 export interface AchievementQuery {
+  authorId?: number
+  organizationId?: number
+  venueId?: number
+  topicId?: number
   title?: string
   author?: string
   organization?: string
@@ -89,127 +76,6 @@ export const catalogApi = {
       withQuery(`/api/v1/catalog/${collection}/${id}/achievements`, { page, size }),
     ),
 }
-
-export const sourceApi = {
-  /** 在选定来源按名称查询候选，允许取消过期搜索。 */
-  entities: (sourceId: number, kind: SourceEntityKind, query: string, signal?: AbortSignal) =>
-    api.get<SourceEntity[]>(withQuery(`/api/v1/sources/${sourceId}/entities/${kind}`, { query }), { signal, timeoutMs: 15000 }),
-  /** 批量回显已有任务中的名称，保持原有标识不变。 */
-  resolveEntities: (sourceId: number, kind: SourceEntityKind, ids: string[], signal?: AbortSignal) =>
-    api.get<SourceEntity[]>(withQuery(`/api/v1/sources/${sourceId}/entities/${kind}/resolve`, { ids: ids.join(',') }), { signal, timeoutMs: 15000 }),
-  page: (page = 0, size = 20) =>
-    api.get<PageResponse<DataSource>>(withQuery('/api/v1/sources', { page, size })),
-  create: (input: SourceConfigurationInput) => api.post<DataSource>('/api/v1/sources', input),
-  update: (id: number, input: SourceConfigurationInput) =>
-    api.put<DataSource>(`/api/v1/sources/${id}`, input),
-  setEnabled: (source: DataSource, enabled: boolean) =>
-    api.post<DataSource>(`/api/v1/sources/${source.id}/${enabled ? 'enable' : 'disable'}`, {
-      version: source.version,
-    }),
-  probe: (id: number) => api.post<SourceProbe>(`/api/v1/sources/${id}/probe`),
-}
-
-export const crawlApi = {
-  /** 读取任务定义，运行详情不依赖当前列表页。 */
-  task: (taskId: number) => api.get<CrawlTask>(`/api/v1/crawl/tasks/${taskId}`),
-  tasks: (page = 0, size = 20) =>
-    api.get<PageResponse<CrawlTask>>(withQuery('/api/v1/crawl/tasks', { page, size })),
-  createTask: (input: { sourceId: number; name: string; parameters: CrawlTaskParameters }) =>
-    api.post<CrawlTask>('/api/v1/crawl/tasks', input),
-  updateTask: (task: CrawlTask, name: string, parameters: CrawlTaskParameters) =>
-    api.put<CrawlTask>(`/api/v1/crawl/tasks/${task.id}`, { name, parameters, version: task.version }),
-  trigger: (taskId: number) => api.post<CrawlRun>(`/api/v1/crawl/tasks/${taskId}/trigger`),
-  schedule: (taskId: number, localTime: string, timeZone: string, version?: number,
-    incrementalMode = 'FIXED_SCOPE_REFRESH', enabled = true) =>
-    api.put<CrawlSchedule>(`/api/v1/crawl/tasks/${taskId}/schedule`, {
-      localTime,
-      timeZone,
-      version,
-      incrementalMode,
-      enabled,
-    }),
-  /** 未配置计划时返回空响应，修改时沿用服务端版本。 */
-  getSchedule: (taskId: number) => api.get<CrawlSchedule | undefined>(`/api/v1/crawl/tasks/${taskId}/schedule`),
-  deleteSchedule: (taskId: number, version: number) =>
-    apiRequest<void>(withQuery(`/api/v1/crawl/tasks/${taskId}/schedule`, { version }), { method: 'DELETE' }),
-  runs: (taskId: number, page = 0, size = 20) =>
-    api.get<PageResponse<CrawlRun>>(withQuery(`/api/v1/crawl/tasks/${taskId}/runs`, { page, size })),
-  window: (runId: number) => api.get<CrawlWindow | undefined>(`/api/v1/crawl/runs/${runId}/window`),
-  run: (runId: number) => api.get<CrawlRun>(`/api/v1/crawl/runs/${runId}`),
-  failures: (runId: number, page = 0, size = 20) =>
-    api.get<PageResponse<CrawlFailure>>(
-      withQuery(`/api/v1/crawl/runs/${runId}/failures`, { page, size }),
-    ),
-  control: (runId: number, action: 'pause' | 'resume' | 'cancel' | 'retry-failures' | 'retry-run') =>
-    api.post<CrawlRun>(`/api/v1/crawl/runs/${runId}/${action}`),
-}
-
-export const governanceApi = {
-  candidates: (query: {
-    entityType?: string
-    status?: string
-    sourceId?: number
-    ruleVersion?: number
-    page: number
-    size: number
-  }) =>
-    api.get<PageResponse<DuplicateCandidate>>(
-      withQuery('/api/v1/duplicate-candidates', { ...query }),
-    ),
-  candidate: (id: number) => api.get<DuplicateCandidate>(`/api/v1/duplicate-candidates/${id}`),
-  comparison: (id: number) => api.get<CandidateComparison>(`/api/v1/duplicate-candidates/${id}/comparison`),
-  accept: (candidate: DuplicateCandidate, canonicalEntityId: number, reason: string) =>
-    api.post<MergeDecision>(`/api/v1/duplicate-candidates/${candidate.id}/accept`, {
-      canonicalEntityId,
-      reason,
-      version: candidate.version,
-    }),
-  reject: (candidate: DuplicateCandidate, reason: string) =>
-    api.post<MergeDecision>(`/api/v1/duplicate-candidates/${candidate.id}/reject`, {
-      reason,
-      version: candidate.version,
-    }),
-  revertDecision: (decision: MergeDecision, reason: string) =>
-    api.post<MergeDecision>(`/api/v1/merge-decisions/${decision.id}/revert`, {
-      reason,
-      version: decision.version,
-    }),
-  overrideField: (
-    achievementId: number,
-    fieldName: string,
-    value: unknown,
-    reason: string,
-    version: number,
-  ) =>
-    api.post<FieldOverride>(`/api/v1/catalog/achievements/${achievementId}/field-overrides`, {
-      fieldName,
-      value,
-      reason,
-      version,
-    }),
-  revertOverride: (override: FieldOverride, reason: string) =>
-    api.post<FieldOverride>(
-      `/api/v1/catalog/achievements/${override.achievementId}/field-overrides/${override.revisionId}/revert`,
-      { reason, version: override.version },
-    ),
-}
-
-export const qualityApi = {
-  page: (query: {
-    sourceId?: number
-    runId?: number
-    metricCode?: string
-    page: number
-    size: number
-  }) =>
-    api.get<PageResponse<QualityMetric>>(withQuery('/api/v1/quality-metrics', { ...query })),
-  detail: (id: number, sampleLimit = 20) =>
-    api.get<QualityMetricDetail>(
-      withQuery(`/api/v1/quality-metrics/${id}`, { sampleLimit }),
-    ),
-}
-
-export { userApi } from '@/services/users'
 
 export interface GraphSubgraphQuery {
   centerType: GraphNodeType

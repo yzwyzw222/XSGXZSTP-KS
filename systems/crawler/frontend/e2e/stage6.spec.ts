@@ -47,7 +47,7 @@ test('未登录用户登录后返回成果目录并看到空状态', async ({ pa
 test('缺少权限时进入明确的 403 页面', async ({ page }) => {
   await mockJson(page, '**/api/v1/auth/me', researcher)
 
-  await page.goto('/sources')
+  await page.goto('/author-import')
 
   await expect(page.getByText('当前账号无权访问')).toBeVisible()
   await expect(page).toHaveURL(/\/forbidden$/)

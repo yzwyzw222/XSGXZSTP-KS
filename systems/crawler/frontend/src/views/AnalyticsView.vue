@@ -18,7 +18,7 @@ import type {
   AnalyticsCollaborationResponse, AnalyticsDistributionItem, AnalyticsDistributionResponse,
   AnalyticsFilter, AnalyticsOverview, AnalyticsTrendItem, AnalyticsTrendResponse,
 } from '@/types/api'
-import { achievementTypeOptions } from '@/utils/filter-options'
+import { achievementTypeLabel, achievementTypeOptions } from '@/utils/filter-options'
 import { formatDateTime } from '@/utils/format'
 
 type CollaborationItem = AnalyticsCollaborationResponse['authors'][number]
@@ -46,6 +46,7 @@ const errorMessage = ref('')
 const overview = ref<AnalyticsOverview | null>(null)
 const trends = ref<AnalyticsTrendResponse | null>(null)
 const distributions = ref<AnalyticsDistributionResponse | null>(null)
+const achievementTypes = computed(() => (distributions.value?.achievementTypes ?? []).map(item => ({ ...item, label: achievementTypeLabel(item.key, item.label) })))
 const collaboration = ref<AnalyticsCollaborationResponse | null>(null)
 const collaborationSort = ref<'count' | 'name'>('count')
 const { palette } = useChartTheme()
@@ -157,12 +158,12 @@ function distributionOption(items: AnalyticsDistributionItem[], color: string): 
   }
 }
 
-const typeOption = computed(() => distributionOption(distributions.value?.achievementTypes ?? [], palette.value.series[0]!))
+const typeOption = computed(() => distributionOption(achievementTypes.value, palette.value.series[0]!))
 const typeRingOption = computed<EChartsCoreOption>(() => ({
   aria: { enabled: true, description: '当前统计范围的成果类型分布' },
   tooltip: { trigger: 'item' },
   legend: { right: 12, top: 'middle', orient: 'vertical', type: 'scroll', textStyle: { color: palette.value.text } },
-  series: [{ type: 'pie', radius: ['46%', '76%'], center: ['35%', '50%'], label: { show: false }, itemStyle: { borderColor: '#061B38', borderWidth: 2 }, data: distributions.value?.achievementTypes.map(item => ({ name: item.label, value: item.achievementCount })) ?? [] }],
+  series: [{ type: 'pie', radius: ['46%', '76%'], center: ['35%', '50%'], label: { show: false }, itemStyle: { borderColor: '#061B38', borderWidth: 2 }, data: achievementTypes.value.map(item => ({ name: item.label, value: item.achievementCount })) }],
 }))
 const sourceOption = computed(() => distributionOption(distributions.value?.sources ?? [], palette.value.series[1]!))
 const orgOption = computed(() => distributionOption(distributions.value?.organizations ?? [], palette.value.series[2]!))
@@ -173,7 +174,7 @@ const distributionPanels = computed(() => {
     { key: 'org', title: '机构分布', option: orgOption.value, label: '机构成果分布条形图', items: distributions.value.organizations, summary: '查看机构表格' },
     { key: 'topic', title: '主题分布', option: topicOption.value, label: '主题成果分布条形图', items: distributions.value.topics, summary: '查看主题表格' },
   ] : [
-    { key: 'type', title: '成果类型', option: typeOption.value, label: '成果类型分布条形图', items: distributions.value.achievementTypes, summary: '查看类型表格' },
+    { key: 'type', title: '成果类型', option: typeOption.value, label: '成果类型分布条形图', items: achievementTypes.value, summary: '查看类型表格' },
     { key: 'source', title: '数据来源', option: sourceOption.value, label: '数据来源分布条形图', items: distributions.value.sources, summary: '查看来源表格' },
   ]
 })

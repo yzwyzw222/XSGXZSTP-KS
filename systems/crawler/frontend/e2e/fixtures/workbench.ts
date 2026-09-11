@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 
 export const time = '2026-09-06T08:00:00Z'
 const scope = { source: 'MYSQL', filters: {} }
-const permissions = ['ACCOUNT_SELF_READ', 'CATALOG_READ', 'GRAPH_READ', 'ANALYTICS_READ', 'SOURCE_READ', 'SOURCE_MANAGE', 'SOURCE_PROBE', 'CRAWL_TASK_READ', 'CRAWL_TASK_CREATE', 'CRAWL_TASK_UPDATE', 'CRAWL_TASK_CONTROL', 'CRAWL_SCHEDULE_MANAGE', 'GOVERNANCE_READ', 'GOVERNANCE_MANAGE', 'OPERATIONS_READ', 'GRAPH_SYNC_READ', 'GRAPH_SYNC_MANAGE', 'ALERT_MANAGE', 'USER_LIST', 'USER_CREATE', 'USER_UPDATE', 'USER_ROLE_CHANGE', 'USER_ENABLE', 'USER_DISABLE', 'USER_PASSWORD_RESET', 'AUDIT_READ', 'EXPORT_CREATE', 'EXPORT_READ']
+const permissions = ['ACCOUNT_SELF_READ', 'CATALOG_READ', 'AUTHOR_IMPORT', 'GRAPH_READ', 'ANALYTICS_READ', 'SOURCE_READ', 'SOURCE_MANAGE', 'SOURCE_PROBE', 'CRAWL_TASK_READ', 'CRAWL_TASK_CREATE', 'CRAWL_TASK_UPDATE', 'CRAWL_TASK_CONTROL', 'CRAWL_SCHEDULE_MANAGE', 'GOVERNANCE_READ', 'GOVERNANCE_MANAGE', 'OPERATIONS_READ', 'GRAPH_SYNC_READ', 'GRAPH_SYNC_MANAGE', 'ALERT_MANAGE', 'USER_LIST', 'USER_CREATE', 'USER_UPDATE', 'USER_ROLE_CHANGE', 'USER_ENABLE', 'USER_DISABLE', 'USER_PASSWORD_RESET', 'AUDIT_READ', 'EXPORT_CREATE', 'EXPORT_READ']
 export const achievement = { id: 42, title: '面向开放学术数据的可信知识图谱与研究证据溯源方法', doi: '10.1000/aacv-demo', publicationYear: 2026, publicationDate: '2026-05-20', achievementType: 'article', primaryVenue: '计算机学报', authors: [], organizations: [], topics: [], sources: ['OPENALEX'], version: 1 }
 
 /** 全路由视觉夹具仅提供本机合成数据，未定义的请求明确失败。 */
@@ -33,9 +33,10 @@ export async function fixture(page: Page, authenticated = true) {
     else if (path === '/graph/subgraph' || path === '/graph/path') data = { nodes: [{ id: 'ACHIEVEMENT:42', businessId: '42', type: 'ACHIEVEMENT', label: achievement.title, properties: { publicationYear: 2026 } }, { id: 'AUTHOR:7', businessId: '7', type: 'AUTHOR', label: '林研究员', properties: {} }], edges: [{ id: 'AUTHORED:7:42', type: 'AUTHORED', source: 'AUTHOR:7', target: 'ACHIEVEMENT:42', properties: {} }], rootNodeId: 'ACHIEVEMENT:42', truncated: false, appliedLimits: { depth: 1, nodeLimit: 100, maxHops: 6 }, syncedAt: time, projectionLagSeconds: 2, traceId: 'visual-graph' }
     else if (path === '/graph/sync-status') data = { neo4jAvailable: true, rebuildInProgress: false, lagThresholdExceeded: false, oldestPendingAgeSeconds: 2, pendingCount: 3, deadCount: 0, generatedAt: time }
     else if (path === '/operations/overview') data = { applicationStatus: 'UP', mysqlStatus: 'UP', neo4jStatus: 'UP', activeCrawlRunCount: 2, recentCrawlFailureCount: 1, graphPendingCount: 3, graphProcessingCount: 1, graphDeadCount: 0, openAlertCount: 1, generatedAt: time }
+    else if (path === '/author-import' || /^\/author-import\/achievements\/\d+\/evidence$/.test(path)) data = []
     else if (path === '/users/statistics') data = { totalUsers: 12, admin: 2, dataOperator: 3, researcher: 7 }
     else if (path === '/users') data = pageOf([{ id: 2, username: 'research-demo', realName: '林研究员', organization: '开放科学研究院', roles: ['RESEARCHER'], status: 'ACTIVE', version: 1, createdAt: time, updatedAt: time, credentialsChangedAt: time }])
-    else if (['/sources', '/crawl/tasks', '/duplicate-candidates', '/quality-metrics', '/operations/alerts', '/operations/audits', '/operations/graph-events', '/operations/graph-maintenance/runs'].includes(path)) data = pageOf([])
+    else if (['/operations/alerts', '/operations/audits', '/operations/graph-events', '/operations/graph-maintenance/runs'].includes(path)) data = pageOf([])
     else return route.fulfill({ status: 404, json: { detail: '视觉夹具未定义接口', errorCode: 'NOT_FOUND' } })
     await route.fulfill({ json: data })
   })

@@ -17,12 +17,19 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   addedNodeIds?: string[]
   layout?: 'concentric' | 'network' | 'cooperation'
+  scopeKey?: string
+  positions?: Record<string, { x: number; y: number }>
+  compact?: boolean
+  drilldown?: boolean
 }>(), { height: 'min(58vh, 620px)', loading: false })
 
 const emit = defineEmits<{
   (e: 'select-node', id: string): void
   (e: 'select-edge', id: string): void
   (e: 'clear-selection'): void
+  (e: 'double-click-node', id: string): void
+  (e: 'context-menu', value: { kind: 'node' | 'edge'; id: string; x: number; y: number }): void
+  (e: 'dismiss-context'): void
 }>()
 
 const container = ref<HTMLDivElement | null>(null)
@@ -32,6 +39,9 @@ let cy: Core | null = null
 let resizeObserver: ResizeObserver | null = null
 let resizeFrame: number | undefined
 let mounted = false
+let currentScope: string | undefined
+let laidOut = false
+const positions = new Map<string, { x: number; y: number }>()
 
 /** Cytoscape 使用逗号分隔的 HSL 语法，与页面共享同一组语义颜色。 */
 function graphColor(name: string, fallback: string): string {
@@ -84,6 +94,14 @@ function buildStyle(): cytoscape.StylesheetStyle[] {
     { selector: 'edge[relationshipType = "COAUTHORED"]', style: {
       'target-arrow-shape': 'none', 'line-style': 'dashed', 'text-wrap': 'wrap', 'text-max-width': '190px',
     } },
+    ...(props.compact ? [{ selector: 'node', style: {
+      shape: 'ellipse', 'text-valign': 'center', 'text-margin-y': 0,
+      'text-background-opacity': 0, color: '#ffffff', 'font-size': 11, 'min-zoomed-font-size': 6,
+      label: (node: cytoscape.NodeSingular) => {
+        const label = Array.from(String(node.data('label')))
+        return label.slice(0, 4).join('') + (label.length > 4 ? '…' : '')
+      },
+    } }] : []),
     { selector: '.is-dimmed', style: { opacity: .22 } },
     { selector: 'edge.is-focused', style: { 'line-color': primary, 'target-arrow-color': primary, width: 2 } },
     { selector: 'node:selected', style: { 'border-color': primary, 'border-width': 3, 'border-opacity': 1 } },
@@ -152,16 +170,36 @@ function render(): void {
       container: container.value, minZoom: .15, maxZoom: 2.5, style: buildStyle(),
       selectionType: 'single',
     })
-    cy.on('tap', 'node', (event: EventObject) => emit('select-node', event.target.id()))
-    cy.on('tap', 'edge', (event: EventObject) => emit('select-edge', event.target.id()))
+    cy.on(props.drilldown ? 'onetap' : 'tap', 'node', (event: EventObject) => emit('select-node', event.target.id()))
+    cy.on(props.drilldown ? 'onetap' : 'tap', 'edge', (event: EventObject) => emit('select-edge', event.target.id()))
+    cy.on('dbltap', 'node', (event: EventObject) => { if (props.drilldown) emit('double-click-node', event.target.id()) })
+    cy.on('cxttap', 'node, edge', (event: EventObject) => {
+      if (!props.drilldown) return
+      emit('context-menu', { kind: event.target.isNode() ? 'node' : 'edge', id: event.target.id(), ...event.renderedPosition })
+    })
+    cy.on('pan zoom drag', () => emit('dismiss-context'))
     cy.on('tap', event => { if (event.target === cy) emit('clear-selection') })
-    cy.on('mouseover', 'node', (event: EventObject) => focusElements(event.target))
-    cy.on('mouseout', 'node', () => focusElements())
+    cy.on('mouseover', 'node', (event: EventObject) => {
+      focusElements(event.target)
+      if (container.value) container.value.title = String(event.target.data('label'))
+    })
+    cy.on('mouseout', 'node', () => { focusElements(); if (container.value) container.value.title = '' })
   }
   stopAnimations()
+  if (currentScope !== props.scopeKey) {
+    currentScope = props.scopeKey
+    cy.elements().remove()
+    positions.clear()
+    laidOut = false
+  }
+  cy.nodes().forEach(node => { positions.set(node.id(), { ...node.position() }) })
+  while (positions.size > 300) positions.delete(positions.keys().next().value!)
   const change = reconcileGraphElements(cy, props.elements, props.rootNodeId)
-  if (change.initial && cy.nodes().nonempty()) {
-    if (props.layout === 'cooperation') {
+  if (change.initial && (!laidOut || props.scopeKey === undefined) && cy.nodes().nonempty()) {
+    if (props.scopeKey === undefined) positions.clear()
+    if (props.positions) {
+      cy.nodes().positions(node => props.positions?.[node.id()] ?? { x: 0, y: 0 })
+    } else if (props.layout === 'cooperation') {
       // 合作详情独立排列作者和共同作品，避免复用全网坐标后挤在同一区域。
       cy.nodes('[nodeType = "AUTHOR"]').positions((_node, index) => ({ x: index * 360, y: 0 }))
       cy.nodes('[nodeType = "ACHIEVEMENT"]').positions((_node, index) => ({ x: 180, y: 180 + index * 160 }))
@@ -173,6 +211,16 @@ function render(): void {
         componentSpacing: 120, nodeRepulsion: () => 8000,
         idealEdgeLength: () => 100, nodeOverlap: 24, padding: 48,
       }).run()
+      if (props.compact) {
+        // 扩展较短的坐标轴以适应宽屏，不压缩节点间距或改变关系。
+        const box = cy.nodes().boundingBox({ includeLabels: false })
+        const aspect = Math.max(0.5, (container.value.clientWidth - 96) / Math.max(1, container.value.clientHeight - 96))
+        if (box.w > 0 && box.h > 0) {
+          const scaleX = Math.max(1, box.h * aspect / box.w)
+          const scaleY = Math.max(1, box.w / aspect / box.h)
+          cy.nodes().positions(node => ({ x: node.position('x') * scaleX, y: node.position('y') * scaleY }))
+        }
+      }
     }
     else cy.layout({
       name: 'concentric', animate: false, fit: false, padding: 48,
@@ -181,7 +229,12 @@ function render(): void {
       levelWidth: () => 1000,
     }).run()
     fit(undefined, false)
+    laidOut = true
   } else {
+    for (const id of change.addedIds) {
+      const position = positions.get(id)
+      if (position) { cy.getElementById(id).position(position); change.targets.delete(id) }
+    }
     for (const [id, position] of change.targets) {
       const node = cy.getElementById(id)
       if (reducedMotion.value) node.position(position)
@@ -204,7 +257,7 @@ function resize(): void {
 function restyle(): void { cy?.style(buildStyle()).update() }
 function visibilityChanged(): void { if (document.hidden) stopAnimations(true) }
 
-watch(() => props.elements, render, { flush: 'post' })
+watch(() => [props.elements, props.scopeKey, props.positions], render, { flush: 'post' })
 watch(() => [props.selectedNodeId, props.selectedEdgeId], syncSelection, { flush: 'post' })
 watch(isDark, restyle, { flush: 'post' })
 watch(reducedMotion, () => { stopAnimations(true); restyle() }, { flush: 'post' })
@@ -230,8 +283,8 @@ onBeforeUnmount(() => {
 
 defineExpose({
   resize, fit: () => { cy?.resize(); fit() },
-  focus: () => {
-    const selected = selection()
+  focus: (id?: string) => {
+    const selected = id ? cy?.getElementById(id) : selection()
     if (selected?.nonempty()) fit(relatedElements(selected))
   },
 })
@@ -246,5 +299,8 @@ defineExpose({
     role="img"
     :aria-label="label"
     :aria-busy="loading"
+    tabindex="0"
+    @contextmenu.prevent
+    @keydown.esc="emit('clear-selection'); emit('dismiss-context')"
   />
 </template>

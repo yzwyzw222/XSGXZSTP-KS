@@ -64,10 +64,10 @@ describe('权限路由', () => {
     hasPermission.mockReturnValue(false)
     const router = createAppRouter(createMemoryHistory())
 
-    await router.push('/sources')
+    await router.push('/author-import')
 
     expect(router.currentRoute.value.name).toBe('forbidden')
-    expect(hasPermission).toHaveBeenCalledWith('SOURCE_READ')
+    expect(hasPermission).toHaveBeenCalledWith('AUTHOR_IMPORT')
   })
 
   it('具备权限时允许进入业务页面', async () => {
@@ -75,12 +75,12 @@ describe('权限路由', () => {
     hasPermission.mockReturnValue(true)
     const router = createAppRouter(createMemoryHistory())
 
-    await router.push('/crawl')
+    await router.push('/author-import')
 
-    expect(router.currentRoute.value.name).toBe('crawl-tasks')
+    expect(router.currentRoute.value.name).toBe('author-import')
   })
 
-  it.each(['/operations', '/operations/alerts', '/operations/events', '/operations/maintenance', '/operations/audits', '/overview/activity'])('旧入口 %s 转到日志，并按日志权限校验', async (path) => {
+  it.each(['/operations', '/operations/alerts', '/operations/events', '/operations/maintenance', '/operations/audits'])('旧入口 %s 转到日志，并按日志权限校验', async (path) => {
     ensureSession.mockResolvedValue({} as CurrentUser)
     hasPermission.mockImplementation((permission) => permission === 'OPERATIONS_READ')
     const router = createAppRouter(createMemoryHistory())
@@ -90,6 +90,14 @@ describe('权限路由', () => {
     hasPermission.mockImplementation((permission) => permission === 'AUDIT_READ')
     await router.push(path)
     expect(router.currentRoute.value.name).toBe('logs')
+  })
+
+  it.each(['/sources', '/crawl', '/governance', '/quality'])('移除的业务入口 %s 返回不存在页面', async path => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockReturnValue(true)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push(path)
+    expect(router.currentRoute.value.name).toBe('not-found')
   })
 
   it('重复的工作台研究入口合并到合作分析', async () => {

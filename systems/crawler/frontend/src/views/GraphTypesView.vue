@@ -24,10 +24,10 @@ const batchRunning = ref(false)
 const batchMessage = ref('')
 const editor = ref<GraphTypeDefinition | null>(null)
 const formError = ref('')
-const title = computed(() => props.kind === 'NODE' ? '实体管理' : '关系管理')
+const title = computed(() => props.kind === 'NODE' ? '节点样式' : '关系样式')
 const canEdit = computed(() => session.hasPermission('GRAPH_SYNC_MANAGE'))
 const rows = computed(() => definitions.value.filter(item => item.kind === props.kind
-  && (props.kind === 'NODE' ? ['AUTHOR', 'ACHIEVEMENT'] : ['AUTHORED', 'COAUTHORED']).includes(item.code)
+  && (props.kind === 'NODE' ? ['AUTHOR', 'ACHIEVEMENT', 'INSTITUTION'] : ['AUTHORED', 'SUPERVISED', 'PRODUCED_AT', 'AFFILIATED_WITH', 'COAUTHORED']).includes(item.code)
   && `${item.displayName} ${item.code}`.toLowerCase().includes(keyword.value.trim().toLowerCase())))
 const statusOptions = (['PENDING', 'APPROVED', 'REJECTED'] as const).map(value => ({ text: reviewStatusLabel(value), value }))
 let pageVersion = 0
@@ -97,6 +97,7 @@ async function save(): Promise<void> {
   <section class="graph-types-page">
     <header class="types-heading"><h1><Circle :size="17" aria-hidden="true" />{{ title }}</h1></header>
     <div class="types-content">
+      <p class="mb-4 text-sm text-muted-foreground">图谱设置：调整节点与关系类型的名称、颜色和尺寸。作者、机构及成果记录请前往实体编目或成果目录。</p>
       <div class="types-toolbar">
         <ElInput v-model="keyword" class="types-search" aria-label="搜索类型" placeholder="搜索类型名称或标识" clearable><template #suffix><Search :size="16" /></template></ElInput>
         <div class="types-actions">

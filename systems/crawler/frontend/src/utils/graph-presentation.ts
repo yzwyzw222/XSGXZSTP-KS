@@ -1,11 +1,10 @@
 import { z } from 'zod'
 
 import type { GraphResponse, GraphTypeDefinition } from '@/types/api'
-import { cooperationEvidence, cooperationLabel } from '@/utils/graph-cooperation'
 import { relationshipLabel } from '@/utils/graph'
 
 const nodeTypes = ['AUTHOR', 'ACHIEVEMENT', 'INSTITUTION', 'VENUE', 'TOPIC'] as const
-const edgeTypes = ['AUTHORED', 'COAUTHORED', 'AFFILIATED_WITH', 'PUBLISHED_IN', 'HAS_TOPIC', 'CITES'] as const
+const edgeTypes = ['AUTHORED', 'SUPERVISED', 'PRODUCED_AT', 'COAUTHORED', 'AFFILIATED_WITH', 'PUBLISHED_IN', 'HAS_TOPIC', 'CITES'] as const
 const identifier = z.string().min(1).refine(value => value.trim() === value, '标识不能包含首尾空白')
 const properties = z.record(z.unknown()).default({})
 const definitionSchema = z.object({
@@ -102,51 +101,3 @@ export function graphDefinitions(graph: GraphResponse | null): GraphTypeDefiniti
   return defaults.map(value => graph?.typeDefinitions?.find(item => item.kind === value.kind && item.code === value.code) ?? value)
 }
 
-export interface CanvasNode {
-  id: string
-  name: string
-  label: string
-  title: string
-  type: string
-  typeName: string
-  color: string
-  widthConstraint: number
-  heightConstraint: number
-  extend: Record<string, unknown>
-}
-export interface CanvasEdge {
-  id: string
-  from: string
-  to: string
-  label: string
-  title: string
-  relation: string
-  color: string
-  width: number
-  directed: boolean
-}
-export interface CanvasGraph { nodes: CanvasNode[]; edges: CanvasEdge[] }
-
-/** 本项目 label 是完整题名，type 才是类型；显示缩写永不回写业务记录。 */
-export function toVisGraph(graph: GraphResponse, evidenceGraph = graph): CanvasGraph {
-  const definitions = graphDefinitions(graph)
-  const evidence = new Map(cooperationEvidence(evidenceGraph).map(item => [item.edge.id, item]))
-  return {
-    nodes: graph.nodes.map(node => {
-      const definition = definitions.find(item => item.kind === 'NODE' && item.code === node.type)!
-      const letters = Array.from(node.label)
-      return {
-        id: node.id, name: node.label, label: letters.slice(0, 4).join('') + (letters.length > 4 ? '…' : ''),
-        title: node.label, type: node.type, typeName: definition.displayName, color: definition.color,
-        widthConstraint: definition.size, heightConstraint: definition.size,
-        extend: { ...node.properties, ...parseGraphExtend(node.properties.extend_data, node.id) },
-      }
-    }),
-    edges: graph.edges.map(edge => {
-      const definition = definitions.find(item => item.kind === 'RELATIONSHIP' && item.code === edge.type)!
-      const label = edge.type === 'COAUTHORED' ? cooperationLabel(definition.displayName, evidence.get(edge.id)) : definition.displayName
-      return { id: edge.id, from: edge.source, to: edge.target, label, title: label,
-        relation: edge.type, color: definition.color, width: definition.size, directed: edge.type !== 'COAUTHORED' }
-    }),
-  }
-}

@@ -7,16 +7,14 @@ import { useSessionStore } from '@/stores/session'
 import type { GraphNode, GraphResponse } from '@/types/api'
 import { filterOverview } from '@/utils/graph-overview'
 import { cooperationEvidence, cooperationGraph } from '@/utils/graph-cooperation'
-import { GraphDataError, parseGraphResponse } from '@/utils/graph-vis'
+import { GraphDataError, parseGraphResponse } from '@/utils/graph-presentation'
 
-/** 概览业务数据的唯一来源；请求句柄和防抖定时器只保存在闭包中。 */
+/** 概览业务数据的唯一来源；请求句柄只保存在闭包中。 */
 export const useGraphOverviewStore = defineStore('graph-overview', () => {
   const graph = ref<GraphResponse | null>(null)
   const loading = ref(false)
-  const filtering = ref(false)
   const errorMessage = ref('')
   const filters = reactive({ keyword: '', nodeType: '', relationship: '' })
-  const appliedFilters = ref({ ...filters })
   const history = ref<GraphCenter[]>([])
   const selection = ref<{ kind: 'node' | 'edge'; id: string } | null>(null)
   const focusedCooperationId = ref('')
@@ -25,32 +23,27 @@ export const useGraphOverviewStore = defineStore('graph-overview', () => {
   const visible = computed(() => {
     if (!graph.value) return null
     if (focusedCooperation.value) return cooperationGraph(graph.value, [focusedCooperation.value])
-    const { keyword, nodeType, relationship } = appliedFilters.value
+    const { keyword, nodeType, relationship } = filters
     return filterOverview(graph.value, keyword, nodeType, relationship, true)
   })
   let sequence = 0
   let controller: AbortController | undefined
-  let timer: ReturnType<typeof setTimeout> | undefined
   let targetHistory: GraphCenter[] = []
 
   function invalidate(): void {
     sequence++
     controller?.abort()
     controller = undefined
-    clearTimeout(timer)
-    timer = undefined
   }
 
-  /** 提交成功响应时同时切换数据、筛选和导航，失败保留上次可核对的结果。 */
+  /** 提交成功响应时同时切换数据和导航，失败保留上次可核对的结果。 */
   async function refresh(path = targetHistory): Promise<void> {
     invalidate()
     const current = sequence
     targetHistory = [...path]
     const requestedHistory = [...path]
-    const requestedFilters = { ...filters }
     controller = new AbortController()
     loading.value = true
-    filtering.value = false
     errorMessage.value = ''
     try {
       const response = await graphOverviewApi.load(requestedHistory.at(-1), controller.signal)
@@ -58,7 +51,6 @@ export const useGraphOverviewStore = defineStore('graph-overview', () => {
       const next = parseGraphResponse(response)
       graph.value = next
       history.value = requestedHistory
-      appliedFilters.value = requestedFilters
       if (selection.value && !(selection.value.kind === 'node' ? visible.value?.nodes : visible.value?.edges)?.some(item => item.id === selection.value?.id)) selection.value = null
       if (!cooperations.value.some(item => item.edge.id === focusedCooperationId.value)) focusedCooperationId.value = ''
     } catch (error) {
@@ -92,14 +84,8 @@ export const useGraphOverviewStore = defineStore('graph-overview', () => {
     selection.value = { kind, id }
   }
 
-  /** 输入变化即令旧请求失效，避免防抖等待窗口内旧响应覆盖新意图。 */
-  watch(filters, () => {
-    invalidate()
-    loading.value = false
-    filtering.value = true
-    clearSelection()
-    timer = setTimeout(() => { void refresh() }, 200)
-  }, { flush: 'sync' })
+  // 筛选只作用于已读取的图，不取消加载，也不重复请求相同数据。
+  watch(filters, clearSelection, { flush: 'sync' })
 
   function reset(): void {
     Object.assign(filters, { keyword: '', nodeType: '', relationship: '' })
@@ -107,15 +93,13 @@ export const useGraphOverviewStore = defineStore('graph-overview', () => {
     graph.value = null
     history.value = []
     targetHistory = []
-    appliedFilters.value = { ...filters }
     loading.value = false
-    filtering.value = false
     errorMessage.value = ''
     clearSelection()
   }
   const session = useSessionStore()
   watch(() => session.currentUserId, reset, { flush: 'sync' })
   onScopeDispose(invalidate)
-  return { graph, visible, cooperations, focusedCooperation, focusedCooperationId, filters, appliedFilters,
-    history, loading, filtering, errorMessage, selection, refresh, enterNode, goTo, select, clearSelection, reset }
+  return { graph, visible, cooperations, focusedCooperation, focusedCooperationId, filters,
+    history, loading, errorMessage, selection, refresh, enterNode, goTo, select, clearSelection, reset }
 })

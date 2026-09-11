@@ -2,9 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { achievement, fixture } from './fixtures/workbench'
 
 const routes = [
-  ['/', '科研成果分析中枢'], ['/overview/research', '合作排行'], ['/overview/activity', '日志管理'],
+  ['/dashboard', '科研成果分析中枢'], ['/overview/research', '合作排行'], ['/overview/activity', '学者研究工作台'],
   ['/catalog', '成果目录'], ['/catalog/achievements/42', achievement.title], ['/catalog/authors', '作者编目'],
-  ['/sources', '数据源'], ['/crawl', '采集任务'], ['/governance', '数据治理'], ['/quality', '质量指标'],
+  ['/author-import', '作者导入'],
   ['/analytics', '统计分析'], ['/analytics/coverage', '字段覆盖率'], ['/analytics/distributions', '成果分布'],
   ['/analytics/research', '机构与主题'], ['/analytics/collaboration', '合作排行'],
   ['/operations', '日志管理'], ['/operations/alerts', '日志管理'], ['/operations/events', '日志管理'],
@@ -31,12 +31,28 @@ async function assertWorkspaceFits(page: Page, path: string): Promise<void> {
     documentVertical: true, documentHorizontal: true, mainVertical: true, mainHorizontal: true,
   })
 
-  if (path === '/') {
+  if (path === '/dashboard') {
     for (const panel of await main.locator('.dashboard-panel').all()) {
       await panel.scrollIntoViewIfNeeded()
       await expect(panel).toBeInViewport({ ratio: 1 })
       expect((await panel.boundingBox())!.height).toBeGreaterThan(100)
     }
+    return
+  }
+
+  if (path === '/author-import') {
+    // 导入表单按内容纵向滚动，校验各项操作可达，避免固定面板压缩并遮挡预览。
+    await expect(main.getByLabel('学者名称检索')).toHaveCount(0)
+    await main.getByLabel('选择信息表').setInputFiles({ name: '布局测试.csv', mimeType: 'text/csv', buffer: Buffer.from('SrcDatabase,Title,Author\n期刊,测试论文,张三') })
+    for (const label of ['选择信息表', '工作表序号', '表头所在行']) {
+      const control = main.getByLabel(label)
+      await control.scrollIntoViewIfNeeded()
+      await expect(control).toBeInViewport({ ratio: 1 })
+    }
+    const parse = main.getByRole('button', { name: '解析并预览' })
+    await parse.scrollIntoViewIfNeeded()
+    await expect(parse).toBeInViewport({ ratio: 1 })
+    await expect(parse).toBeEnabled()
     return
   }
 

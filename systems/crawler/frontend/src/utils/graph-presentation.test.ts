@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+import { toCytoscapeElements } from '@/utils/graph'
 import type { GraphResponse } from '@/types/api'
-import { parseGraphExtend, parseGraphResponse, toVisGraph } from '@/utils/graph-vis'
+import { parseGraphExtend, parseGraphResponse, graphDefinitions } from '@/utils/graph-presentation'
 
 function response(): GraphResponse {
   return {
@@ -15,35 +16,35 @@ function response(): GraphResponse {
   }
 }
 
-describe('vis 图谱数据契约', () => {
+describe('图谱展示数据契约', () => {
   it('保持完整名称、后端关系 ID、孤立节点，缺少配置使用默认颜色与尺寸', () => {
     const raw = response()
     const graph = parseGraphResponse(raw)
-    const canvas = toVisGraph(graph)
-    expect(canvas.nodes).toHaveLength(3)
-    expect(canvas.nodes[0]).toMatchObject({ name: raw.nodes[0]!.label, title: raw.nodes[0]!.label,
-      label: '完整的长…', type: 'AUTHOR', typeName: '作者', color: '#258ca3', widthConstraint: 50, heightConstraint: 50 })
+    const canvas = toCytoscapeElements({ ...graph, typeDefinitions: graphDefinitions(graph) })
+    expect(canvas.filter(item => !item.data.source)).toHaveLength(3)
+    expect(canvas[0]?.data).toMatchObject({ label: raw.nodes[0]!.label, nodeType: 'AUTHOR', typeName: '作者', displayColor: '#258ca3', displaySize: 50 })
     expect(raw.nodes[0]!.label).toBe('完整的长名称不能因为画布缩写而丢失')
-    expect(canvas.edges[0]).toMatchObject({ id: 'backend-edge-1', from: 'AUTHOR:1', to: 'ACHIEVEMENT:2', label: '创作', directed: true })
+    expect(canvas[3]?.data).toMatchObject({ id: 'backend-edge-1', source: 'AUTHOR:1', target: 'ACHIEVEMENT:2', label: '创作' })
     expect(graph.projectionLagSeconds).toBe(0)
-    expect(toVisGraph(parseGraphResponse({ ...raw, nodes: [], edges: [] }))).toEqual({ nodes: [], edges: [] })
+    expect(toCytoscapeElements(parseGraphResponse({ ...raw, nodes: [], edges: [] }))).toEqual([])
   })
 
   it('样式使用类型配置，零值与无向合作的业务语义保持不变', () => {
     const raw = response()
     raw.typeDefinitions = [{ kind: 'NODE', code: 'AUTHOR', displayName: '学者', color: '#123456', size: 0, version: 0, reviewStatus: 'APPROVED' }]
     raw.edges.push({ id: 'co', type: 'COAUTHORED', source: 'AUTHOR:1', target: 'AUTHOR:3', properties: { sharedWorkIds: [] } })
-    const canvas = toVisGraph(parseGraphResponse(raw))
-    expect(canvas.nodes[0]).toMatchObject({ color: '#123456', typeName: '学者', widthConstraint: 0, heightConstraint: 0 })
-    expect(canvas.edges[1]).toMatchObject({ id: 'co', directed: false })
+    const graph = parseGraphResponse(raw)
+    const canvas = toCytoscapeElements({ ...graph, typeDefinitions: graphDefinitions(graph) })
+    expect(canvas[0]?.data).toMatchObject({ displayColor: '#123456', typeName: '学者', displaySize: 0 })
+    expect(canvas[4]?.data).toMatchObject({ id: 'co', relationshipType: 'COAUTHORED' })
     const missingStyle = parseGraphResponse({ ...raw, typeDefinitions: raw.typeDefinitions.map(type => ({ ...type, color: null, size: undefined })) })
-    expect(toVisGraph(missingStyle).nodes[0]).toMatchObject({ color: '#258ca3', widthConstraint: 50 })
+    expect(toCytoscapeElements(missingStyle)[0]?.data).toMatchObject({ displayColor: '#258ca3', displaySize: 50 })
   })
 
   it('安全解析扩展 JSON，允许空对象但拒绝格式错误和非对象', () => {
     const raw = response()
     raw.nodes[0]!.properties = { extend_data: '{"机构":"研究院","作品数":0}', active: false }
-    expect(toVisGraph(parseGraphResponse(raw)).nodes[0]!.extend).toMatchObject({ 机构: '研究院', 作品数: 0, active: false })
+    expect(parseGraphResponse(raw).nodes[0]!.properties).toMatchObject({ extend_data: { 机构: '研究院', 作品数: 0 }, active: false })
     expect(parseGraphExtend(null, '节点')).toEqual({})
     for (const input of ['{invalid', '[]', 'null', '42', [], true]) expect(() => parseGraphExtend(input, '节点')).toThrow('图谱数据异常')
     raw.nodes[0]!.properties.extend_data = '{bad'

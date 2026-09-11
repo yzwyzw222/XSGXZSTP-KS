@@ -4,10 +4,10 @@ import { RouterLink, useRoute } from 'vue-router'
 import { activeNavigation, navItems } from '@/config/nav'
 import { useSessionStore } from '@/stores/session'
 
-defineProps<{ dock?: boolean }>()
+const props = defineProps<{ dock?: boolean }>()
 const route = useRoute()
 const session = useSessionStore()
-const items = computed(() => navItems.filter(item => item.to !== '/' && session.hasPermission(item.permission)))
+const items = computed(() => navItems.filter(item => item.to !== (props.dock ? '/dashboard' : '/') && session.hasPermission(item.permission)))
 const active = computed(() => activeNavigation(route.path, items.value))
 const pages = computed(() => !['/graph', '/analytics'].includes(active.value?.to ?? '') ? [] : active.value?.children ?? [])
 </script>

@@ -6,6 +6,8 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import { DataTable, LoadingSkeleton, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import ScholarlySourcePanel from '@/components/business/ScholarlySourcePanel.vue'
+import ImportEvidencePanel from '@/components/business/ImportEvidencePanel.vue'
+import { achievementTypeLabel } from '@/utils/filter-options'
 import type { DataTableColumn } from '@/components/business/types'
 import { toErrorMessage } from '@/services/api'
 import { catalogApi } from '@/services/business'
@@ -85,7 +87,7 @@ onBeforeUnmount(() => { ++requestSequence })
           class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
         >查看关系图谱</RouterLink>
         <RouterLink
-          to="/catalog"
+          :to="{ path: '/catalog', query: route.query }"
           class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
         >
           <ArrowLeft class="size-4" aria-hidden="true" />返回成果目录
@@ -102,14 +104,16 @@ onBeforeUnmount(() => { ++requestSequence })
       <ElTabPane name="authors" label="署名与引用" />
       <ElTabPane name="sources" label="来源指标" />
       <ElTabPane name="provenance" label="来源与字段" />
+      <ElTabPane name="import" label="知网导入记录" />
     </ElTabs>
     <div v-if="detail" class="achievement-layout workspace-fill">
+      <PanelSection v-if="section === 'import'" title="信息表原始字段" subtitle="保留上传时的表头及内容，包含基金、卷期、页码、中图分类号等。" class="workspace-panel"><ImportEvidencePanel :achievement-id="achievementId" /></PanelSection>
       <!-- 规范记录 -->
       <PanelSection v-if="section === 'record'" title="规范记录" class="achievement-record workspace-panel">
         <template #actions><FileText class="size-4 text-muted-foreground" aria-hidden="true" /></template>
         <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
           <div class="space-y-1"><dt class="text-xs text-muted-foreground">DOI</dt><dd class="mono-evidence text-sm">{{ detail.summary.doi || '—' }}</dd></div>
-          <div class="space-y-1"><dt class="text-xs text-muted-foreground">成果类型</dt><dd class="text-sm">{{ detail.summary.achievementType || '—' }}</dd></div>
+          <div class="space-y-1"><dt class="text-xs text-muted-foreground">成果类型</dt><dd class="text-sm">{{ achievementTypeLabel(detail.summary.achievementType ?? '') || '—' }}</dd></div>
           <div class="space-y-1"><dt class="text-xs text-muted-foreground">发表日期</dt><dd class="text-sm">{{ detail.summary.publicationDate || '—' }}</dd></div>
           <div class="space-y-1"><dt class="text-xs text-muted-foreground">主要期刊</dt><dd class="text-sm">{{ detail.summary.primaryVenue || '—' }}</dd></div>
           <div class="space-y-1"><dt class="text-xs text-muted-foreground">语言</dt><dd class="text-sm">{{ detail.language || '—' }}</dd></div>

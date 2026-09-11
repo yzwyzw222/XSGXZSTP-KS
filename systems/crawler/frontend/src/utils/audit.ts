@@ -1,6 +1,7 @@
 import type { AuditLog } from '@/types/api'
 
 export const auditActions: Record<string, string> = {
+  AUTHOR_IMPORTED: '导入作者资料',
   LOGIN_SUCCEEDED: '登录成功', LOGIN_FAILED: '登录失败', LOGOUT: '退出登录',
   USER_CREATED: '创建用户', USER_UPDATED: '编辑用户', USER_ENABLED: '启用用户', USER_DISABLED: '停用用户',
   USER_PASSWORD_RESET: '重置密码', USER_ROLES_CHANGED: '调整角色', OPERATION_FAILED: '操作请求失败',
@@ -15,6 +16,7 @@ export const auditActions: Record<string, string> = {
 }
 
 const auditTargetTypes: Record<string, string> = {
+  AUTHOR_IMPORT: '作者导入批次',
   USER_ACCOUNT: '用户账号', API_OPERATION: '接口操作', DATA_SOURCE: '数据源',
   CRAWL_TASK: '采集任务', CRAWL_RUN: '采集运行', CRAWL_SCHEDULE: '采集计划',
   DUPLICATE_CANDIDATE: '重复候选', MERGE_DECISION: '合并决策', ACHIEVEMENT: '成果',

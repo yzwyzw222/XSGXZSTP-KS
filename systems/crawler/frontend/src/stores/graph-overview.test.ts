@@ -1,6 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
 
 import { ApiError } from '@/services/api'
 import { graphOverviewApi } from '@/services/graph-overview'
@@ -21,25 +20,20 @@ const result: GraphResponse = {
 beforeEach(() => { setActivePinia(createPinia()); vi.useFakeTimers(); load.mockReset(); load.mockResolvedValue(result) })
 afterEach(() => { useGraphOverviewStore().reset(); vi.useRealTimers() })
 
-it('防抖期间立即取消旧请求，较早响应不能覆盖最后一次筛选', async () => {
+it('加载期间修改筛选不取消请求，本地筛选始终采用当前输入且不增加请求', async () => {
   const store = useGraphOverviewStore()
   let release!: (value: unknown) => void
   load.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
   const pending = store.refresh()
-  const signal = load.mock.calls[0]![1]
   store.filters.keyword = '不存在'
-  expect(signal.aborted).toBe(true)
+  expect(load.mock.calls[0]![1].aborted).toBe(false)
   release(result)
   await pending
-  expect(store.graph).toBeNull()
-  await vi.advanceTimersByTimeAsync(100)
+  expect(store.graph?.nodes).toHaveLength(2)
+  expect(store.visible?.nodes).toHaveLength(0)
   store.filters.keyword = '作品乙'
-  await vi.advanceTimersByTimeAsync(199)
+  await vi.advanceTimersByTimeAsync(500)
   expect(load).toHaveBeenCalledTimes(1)
-  await vi.advanceTimersByTimeAsync(1)
-  await flushPromises()
-  expect(load).toHaveBeenCalledTimes(2)
-  expect(store.appliedFilters.keyword).toBe('作品乙')
   expect(store.visible?.nodes).toHaveLength(2)
   expect(store.loading).toBe(false)
 })
@@ -82,7 +76,7 @@ it('失败或坏数据保留图与导航；再次成功才提交中心及统计'
   expect(store.errorMessage).toBe('')
 })
 
-it('较早中心响应、离开页面和账号切换不能恢复旧数据，清理防抖任务', async () => {
+it('较早中心响应、离开页面和账号切换不能恢复旧数据，取消旧读取', async () => {
   const store = useGraphOverviewStore()
   let release!: (value: unknown) => void
   load.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))

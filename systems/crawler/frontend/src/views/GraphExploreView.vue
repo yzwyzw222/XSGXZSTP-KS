@@ -33,6 +33,8 @@ const nodeTypes: Array<{ value: GraphNodeType; label: string }> = [
 const queryOpen = ref(false)
 const relationshipTypes: Array<{ value: GraphRelationshipType; label: string }> = [
   { value: 'AUTHORED', label: '创作' },
+  { value: 'SUPERVISED', label: '指导' },
+  { value: 'PRODUCED_AT', label: '所属机构' },
   { value: 'AFFILIATED_WITH', label: '隶属' },
   { value: 'PUBLISHED_IN', label: '发表于' },
   { value: 'HAS_TOPIC', label: '主题' },

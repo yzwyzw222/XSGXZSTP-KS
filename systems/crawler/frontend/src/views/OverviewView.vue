@@ -2,8 +2,8 @@
 import { integrated } from '@/services/portal-auth'
 import { ElButton, ElOption, ElSelect } from 'element-plus'
 import type { EChartsCoreOption } from 'echarts/core'
-import { Building2, FileText, Layers3, RefreshCw, Users } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { Building2, FileText, RefreshCw, Users } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import DashboardPanel from '@/components/business/DashboardPanel.vue'
 import ChartFrame from '@/components/business/ChartFrame.vue'
@@ -11,26 +11,26 @@ import ModuleNavigation from '@/components/business/ModuleNavigation.vue'
 import { navItems } from '@/config/nav'
 import { useChartTheme } from '@/composables/useChartTheme'
 import { useDashboard } from '@/composables/useDashboard'
-import { useDataSources } from '@/composables/useDataSources'
+import { importModeLabel } from '@/services/author-import'
 import { useSessionStore } from '@/stores/session'
 import { auditActionLabel } from '@/utils/audit'
+import { achievementTypeLabel } from '@/utils/filter-options'
 import { formatDateTime } from '@/utils/format'
 
 const { state, loading, yearRange, topicId, refresh } = useDashboard()
 const session = useSessionStore()
-const { sourceName, sourceError, sourceLoading, loadSources } = useDataSources()
-onMounted(() => { if (session.hasPermission('SOURCE_READ')) void loadSources() })
 const { palette } = useChartTheme()
 const showingTrendData = ref(false)
 const overview = computed(() => state.overview.data)
+const achievementTypes = computed(() => (state.distributions.data?.achievementTypes ?? []).map(item => ({ ...item, label: achievementTypeLabel(item.key, item.label) })))
 const topics = computed(() => state.distributions.data?.topics.slice(0, 6) ?? [])
 const topicOptions = computed(() => (state.distributions.data?.topics ?? []).filter(item => Number.isSafeInteger(Number(item.key)) && Number(item.key) > 0))
-const coreModules = computed(() => ['/sources', '/catalog', '/crawl', '/graph', '/governance', '/analytics'].flatMap(path => navItems.filter(item => item.to === path && session.hasPermission(item.permission))))
+const coreModules = computed(() => ['/author-import', '/catalog', '/catalog/authors', '/graph', '/analytics'].flatMap(path => navItems.filter(item => item.to === path && session.hasPermission(item.permission))))
 const metricCards = computed(() => [
   { label: '成果总量', value: overview.value?.achievementCount, icon: FileText, to: '/catalog', permission: 'CATALOG_READ' as const },
   { label: '作者总量', value: overview.value?.authorCount, icon: Users, to: '/catalog/authors', permission: 'CATALOG_READ' as const },
   { label: '机构总量', value: overview.value?.organizationCount, icon: Building2, to: '/catalog/organizations', permission: 'CATALOG_READ' as const },
-  { label: '数据来源', value: overview.value?.sourceCount, icon: Layers3, to: '/sources', permission: 'SOURCE_READ' as const },
+  { label: '包含摘要', value: overview.value?.coverage?.withAbstractCount, icon: FileText, to: '/catalog', permission: 'CATALOG_READ' as const },
 ])
 const coverage = computed(() => {
   const data = overview.value?.coverage
@@ -64,9 +64,9 @@ const trendOption = computed<EChartsCoreOption>(() => ({
 }))
 const typeOption = computed<EChartsCoreOption>(() => ({
   aria: { enabled: true, description: '成果类型数量分布' }, tooltip: { trigger: 'item' },
-  legend: { orient: 'vertical', right: 0, top: 'middle', textStyle: { color: palette.value.text, fontSize: 12 }, itemWidth: 9, itemHeight: 9, type: 'scroll', formatter: (name: string) => `${name}  ${number(state.distributions.data?.achievementTypes.find(item => item.label === name)?.achievementCount)}` },
+  legend: { orient: 'vertical', right: 0, top: 'middle', textStyle: { color: palette.value.text, fontSize: 12 }, itemWidth: 9, itemHeight: 9, type: 'scroll', formatter: (name: string) => `${name}  ${number(achievementTypes.value.find(item => item.label === name)?.achievementCount)}` },
   title: { text: number(overview.value?.achievementCount), subtext: '规范成果', left: '32%', top: '39%', textAlign: 'center', itemGap: 3, textStyle: { color: palette.value.text, fontSize: 18, fontWeight: 600 }, subtextStyle: { color: palette.value.textMuted, fontSize: 11 } },
-  series: [{ id: 'achievement-types', type: 'pie', radius: ['48%', '76%'], center: ['32%', '50%'], label: { show: false }, itemStyle: { borderColor: '#061B38', borderWidth: 2 }, data: state.distributions.data?.achievementTypes.map(item => ({ name: item.label, value: item.achievementCount })) ?? [] }],
+  series: [{ id: 'achievement-types', type: 'pie', radius: ['48%', '76%'], center: ['32%', '50%'], label: { show: false }, itemStyle: { borderColor: '#061B38', borderWidth: 2 }, data: achievementTypes.value.map(item => ({ name: item.label, value: item.achievementCount })) }],
 }))
 const networkOption = computed<EChartsCoreOption>(() => ({
   aria: { enabled: true, description: '前二十组机构合作关系网络，连线数值为共同成果数，不代表地理位置' },
@@ -106,11 +106,10 @@ function number(value: number | undefined): string { return value === undefined 
               </component>
             </div>
           </DashboardPanel>
-          <DashboardPanel title="采集任务概况" to="/crawl" :region="state.tasks" :empty="!state.tasks.data?.items.length">
-            <p v-if="sourceError">{{ sourceError }} <ElButton link :loading="sourceLoading" @click="loadSources">重试读取数据源</ElButton></p>
-            <ul class="dashboard-task-list"><li v-for="task in state.tasks.data?.items.slice(0, 3)" :key="task.id">
-              <RouterLink to="/crawl"><strong>{{ task.name }}</strong><span :class="task.enabled ? 'text-success' : 'text-muted-foreground'">{{ task.enabled ? '已启用' : '已停用' }}</span></RouterLink>
-              <p>{{ sourceName(task.sourceId) }} · {{ task.parameters?.keyword || '自定义范围' }} · 上限 {{ task.parameters?.maxPages ?? '—' }} 页 / {{ number(task.parameters?.maxRecords) }} 条</p>
+          <DashboardPanel title="最近作者导入" to="/author-import" :region="state.imports" :empty="!state.imports.data?.length">
+            <ul class="dashboard-task-list"><li v-for="batch in state.imports.data?.slice(0, 3)" :key="batch.id">
+              <RouterLink to="/author-import"><strong>{{ batch.scholarName }}</strong><span class="text-success">新增 {{ batch.importedCount }} 项</span></RouterLink>
+              <p>{{ importModeLabel(batch.importMode) }} · {{ batch.fileName }}</p>
             </li></ul>
           </DashboardPanel>
           <DashboardPanel title="研究领域分布" to="/analytics/research" :region="state.distributions" :empty="!topics.length">

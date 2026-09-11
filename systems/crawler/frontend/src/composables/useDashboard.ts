@@ -1,9 +1,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { analyticsApi, crawlApi } from '@/services/business'
+import { analyticsApi } from '@/services/business'
+import { authorImportApi, type ImportSummary } from '@/services/author-import'
 import { getAudits } from '@/services/audits'
 import { toErrorMessage } from '@/services/api'
 import { useSessionStore } from '@/stores/session'
-import type { AnalyticsCollaborationResponse, AnalyticsDistributionResponse, AnalyticsOverview, AnalyticsTrendResponse, AuditLog, CrawlTask, PageResponse, Permission } from '@/types/api'
+import type { AnalyticsCollaborationResponse, AnalyticsDistributionResponse, AnalyticsOverview, AnalyticsTrendResponse, AuditLog, PageResponse, Permission } from '@/types/api'
 
 export interface DashboardRegion<T> { data: T | null; loading: boolean; error: string; allowed: boolean; loadedAt: string }
 
@@ -18,7 +19,7 @@ export function useDashboard() {
     trends: region<AnalyticsTrendResponse>('ANALYTICS_READ'),
     distributions: region<AnalyticsDistributionResponse>('ANALYTICS_READ'),
     collaboration: region<AnalyticsCollaborationResponse>('ANALYTICS_READ'),
-    tasks: region<PageResponse<CrawlTask>>('CRAWL_TASK_READ'),
+    imports: region<ImportSummary[]>('AUTHOR_IMPORT'),
     audits: region<PageResponse<AuditLog>>('AUDIT_READ'),
   })
   let sequence = 0
@@ -49,7 +50,7 @@ export function useDashboard() {
       read(state.trends, () => analyticsApi.trends(filters)),
       read(state.distributions, () => analyticsApi.distributions(filters)),
       read(state.collaboration, () => analyticsApi.collaboration(filters, 20)),
-      read(state.tasks, () => crawlApi.tasks(0, 4)),
+      read(state.imports, () => authorImportApi.recent()),
       read(state.audits, () => getAudits({ category: 'OPERATION' }, 0, 5)),
     ])
   }

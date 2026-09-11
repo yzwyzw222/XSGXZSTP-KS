@@ -37,7 +37,7 @@ test('研究人员按当前目录筛选创建、轮询并下载CSV导出', async
         publicationYearFrom: 2026,
         publicationYearTo: 2026,
         achievementType: 'article',
-        sourceType: 'OPENALEX',
+        sourceCode: 'OPENALEX',
       },
     })
     await fulfill(route, {
@@ -87,6 +87,8 @@ test('研究人员按当前目录筛选创建、轮询并下载CSV导出', async
   await page.getByRole('option', { name: 'article · 期刊论文' }).click()
   await page.locator('label:has-text("来源代码")').getByRole('combobox').click()
   await page.getByRole('option', { name: 'OpenAlex' }).click()
+  await page.getByRole('button', { name: '查询成果' }).click()
+  await expect(page).toHaveURL(/title=/)
   await page.getByRole('button', { name: '导出 CSV' }).click()
 
   await expect(page.getByText('导出完成')).toBeVisible()

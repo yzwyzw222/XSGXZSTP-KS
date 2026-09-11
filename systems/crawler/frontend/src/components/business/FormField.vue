@@ -15,7 +15,7 @@ const props = defineProps<{
 <template>
   <!--
     表单字段容器：只负责标签、错误文本与关联关系，
-    校验规则由调用方的 schema（Zod + vee-validate）唯一提供，
+    校验规则由调用方统一提供，
     Element Plus 控件只负责呈现，避免出现两套冲突的校验源。
   -->
   <div :class="cn('grid gap-1.5 text-sm', props.class)">
