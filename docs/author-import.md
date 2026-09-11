@@ -2,14 +2,16 @@
 
 适用版本：2026-09-11 的 crawler 子系统。目录和集成地址继续使用 `systems/crawler`、`/crawler/`，relation 子系统保持现状。
 
+最新本机状态：2026-09-11 已用用户提供的两份真实知网 XLS 替换 crawler 的旧学术业务数据，并运行更新后的前后端。实际结果、备份和本次验证见下方“真实文件替换验收”；后面的早期阶段记录不代表当前数据状态。
+
 ## 使用流程
 
 1. 进入“作者导入”（集成入口 `/crawler/author-import`）。ADMIN、DATA_OPERATOR 可以导入；RESEARCHER 可以检索成果和查看图谱。
 2. 一次选择同一学者的本人署名成果表，以及可选的硕论、博论表。硕博文件必须按这位学者的导师姓名筛选导出；此约定已由用户确认，页面在确认导入处再次展示。无需预先填写姓名、机构或关系。
-3. 系统从全部非学位论文和专利记录的完整作者交集中识别学者；交集唯一时自动选定，多人时仅需点选文件候选，不能任意填写姓名。没有共同作者、缺少完整作者列或只上传硕博文件时阻止确认，不按出现次数、第一作者或第一责任人猜测。补充指导成果时同时附上本人署名成果表，既有成果按原规则去重。
-4. 支持 XLSX、二进制 XLS、HTML 表格形式的 XLS，以及 CSV。每份文件选择一个工作表，可分别调整工作表序号、表头行和映射；工作表从 1 开始。来源库为自动识别所必需，逐行区分期刊、会议、专利、硕士和博士；同一文件中的硕博记录自动分组。
+3. 系统从论文、专利等记录的完整作者交集中识别学者；交集唯一时自动选定，多人时仅需点选文件候选，不能任意填写姓名。科技成果在有论文或专利时不参与主学者交集；其中独立单人署名的成果按原作者保存，并在预览明确说明，不给主学者补写署名或合作关系。仅有科技成果时仍要求其作者交集唯一。没有共同作者、缺少完整作者列或只上传硕博文件时阻止确认，不按出现次数、第一作者或第一责任人猜测。补充指导成果时同时附上本人署名成果表，既有成果按原规则去重。
+4. 支持 XLSX、二进制 XLS、HTML 表格形式的 XLS，以及 CSV。每份文件选择一个工作表，可分别调整工作表序号、表头行和映射；工作表从 1 开始。来源库为自动识别所必需，逐行区分期刊、辑刊、会议、专利、科技成果、硕士和博士；同一文件中的硕博记录自动分组。文件内再次出现含来源库、题名、作者的表头时切换到该段列定义，不把表头当成果；手工映射跟随原列名，原始行号保持不变。
 5. 核对自动识别的学者、表内机构列表、文件关系及每份文件前 20 条记录和全部问题行。任何文件存在错误行都会阻止整批提交；缺少摘要或年份只给提示。文件、候选、工作表、表头行或映射改变后必须重新预览。
-6. 确认导入后显示新增成果、补充关系和已存在成果数量。可进入该学者的两跳图谱；Neo4j 由后台 Outbox 同步，刚提交的数据可能需要稍后刷新。
+6. 确认导入后显示新增成果、补充关系和已存在成果数量。可进入该学者的学术成果图谱，并切换学术关系、学术背景模块；Neo4j 由后台 Outbox 同步，刚提交的数据可能需要稍后刷新。三个模块的实体、关系口径及分页方式见 [三类学术图谱](academic-graphs.md)。
 7. 成果详情的“知网导入记录”显示文件、工作表、行号和全部原始列。最近导入页显示最近 20 个成功批次；单项成果显示最近 50 条导入来源记录。
 
 ## 已确认的表头
@@ -18,7 +20,7 @@
 
 | 知网导出列 | 解析用途 |
 | --- | --- |
-| SrcDatabase-来源库 | 识别期刊/会议论文、专利、硕士学位论文、博士学位论文 |
+| SrcDatabase-来源库 | 识别期刊/辑刊/会议论文、专利、科技成果、硕士学位论文、博士学位论文 |
 | Title-题名 | 成果题名，必需 |
 | Author-作者 | 署名作者、专利发明人；指导模式下为学生 |
 | Organ-单位 | 成果所属机构 |
@@ -39,9 +41,13 @@
 
 所有原始列均保存，不限于映射列。作者、机构和关键词支持分号、中文分号、顿号及换行分隔；不按空格拆分，避免拆坏英文姓名和机构名称。CSV 支持引号、逗号/制表符、单元格内换行、UTF-8、UTF-16 BOM 和 GB18030。不能以此推断未提供的机构对应关系、摘要或专利信息。旧单文件 API 仍支持第一责任人回退；新多文件自动识别要求完整作者列。
 
+旧版中文作者名单还支持中英文逗号：只在分隔后的各项均为中文姓名时拆分，保留 `Smith, John` 和机构内部的逗号。字段边界的空白和 BOM 会在解析时清除，原始列仍保留；不删除 DOI 或链接内部的空格来掩盖错误。科技成果使用 `scientific-result`，不会算作专利或期刊论文。
+
 ## 关系与重复处理
 
-- 署名作者 → 成果：`AUTHORED`。导师不会作为学位论文的署名作者，也不进入作者合作统计。
+- 署名作者 → 成果：`AUTHORED`。指导关系本身不会令导师成为学位论文的署名作者，也不作为合作统计证据。
+- 同一成果中的全部署名作者均入库并保留顺序。`COAUTHORED` 由共同作品的 `AUTHORED` 关系派生；独立科技成果优先复用本批共同作者身份。仅有指导关系的学生不会因此成为导师的合作作者。
+- 作者两跳子图按作品组织取数，优先保留作品及共同作者证据，避免大量一跳论文占满额度；每次仍最多 300 个节点、1000 条派生合作边，界面合作次数只表示当前返回子图的证据范围。
 - 同批识别的学者导师 → 学位论文：`SUPERVISED`。依据为“同一学者、硕博按导师姓名筛选导出”的导入约定，审计记录 `relationshipBasis=SAME_SCHOLAR_ADVISOR_FILTER`；不是从来源库推导导师姓名。学者出现在学位论文作者中或已有 DOI 成果类型冲突时整批拒绝。
 - 成果 → 表内单位：`PRODUCED_AT`。单位列表不能逐一对应作者时，不将全部单位分配给全部作者。
 - 自动流程仅汇总表内机构并保存成果机构关系，不把所有单位赋给学者，也不从频次或发表时间猜测当前所属单位。旧单文件 API 仍保留手动确认机构的 `AFFILIATED_WITH` 行为；既有关系保留。
@@ -78,7 +84,83 @@ Flyway V17 新增导入锁、身份、批次、成果标识、来源记录、导
 
 上段为兼容的单文件 API。新多文件 `options` 只包含可留空的 `scholarName`（仅限返回的候选）和按上传顺序排列的 `files` 设置；每项为 `sheetIndex`、`headerRow`、`mapping`。不接受手填机构或关系。预览摘要绑定文件内容、文件顺序与名称、工作表、映射和最终候选；确认时重新解析全部文件。先在事务锁内确定同一学者，再复用原保存逻辑按文件和关系类型写入批次，任一后续文件失败时早先文件、审计与 Outbox 同时回滚。未增加依赖、迁移或数据库表。
 
-## 多文件自动识别验收（2026-09-11）
+## 真实文件替换验收（2026-09-11）
+
+用户提供 `CNKI-20260911184927501.xls` 和 `CNKI-20260911184034561.xls`，确认硕博文件按导师姓名筛选，并明确《中国企业的营销渠道控制行为研究》只归属原署名作者庄贵军。两个文件均为 UTF-8 HTML 表格形式的 XLS；大表含 10 行重复或切换列顺序的表头，均按表头处理，未计入成果。
+
+### 实际业务库和图谱结果
+
+| 项目 | 已验证结果 |
+| --- | --- |
+| 原始来源记录 | 479 条，全部保留；其中 3 条重复来源不新建成果 |
+| 去重成果 | 476 项：471 篇期刊/辑刊论文、2 篇博士论文、3 项科技成果 |
+| 作者 | 211 人，每项成果的完整作者名单和顺序均与文件核对 |
+| 机构 | 195 家，652 条成果机构关系；未据此补写学者当前所属机构 |
+| 指导关系 | 席酉民的 2 条博士指导关系；未给导师添加这两篇论文的署名 |
+| 合作关系 | 席酉民有 210 名共同署名作者，全库有 546 对不同合作作者 |
+| 独立科技成果 | 《中国企业的营销渠道控制行为研究》仅署名庄贵军；该条记录不产生席酉民的署名或合作关系 |
+| 图谱同步 | 476 项成果、211 名作者、1269 条署名及 2 条指导关系与 MySQL 一致；476 个 Outbox 事件全部完成，无死信 |
+
+两份文件没有硕士论文或专利，不生成相应记录。合作关系仍由共同作品的署名证据派生，不单独虚构导师与学生的合作。作者子图继续限制 300 个节点，实际查询返回 300 节点、309 条派生合作边并标记截断；546 对是全库核对值，不代表单次界面展示全部关系。多成果作者的查询现按共同作品组织路径，避免一跳论文占满额度后遗漏合作证据。
+
+### 替换范围与恢复材料
+
+在本机 `course_crawler` 的 V17 结构上，先停止 crawler 写入、备份 33 张指定学术业务表及现有托管图谱，再在同一 MySQL 事务内清理旧目录、导入记录和投影任务，调用现有 `AuthorImportService.saveBundle` 导入文件，最后重建 Neo4j 托管投影。旧 12 项演示成果已移除。账号、权限、配置、旧采集运行历史和 relation 子系统未参与清理；保留表的计数在事务前后核对一致。没有新增迁移、依赖或在线清库接口。
+
+本机材料位于 Git 忽略且限制访问的 `.local/cnki-replacement-20260911/`：`academic-before.sql`（44485 字节）、`graph-before.json`（34313 字节）及各自 SHA256 文件；两份备份的 SHA256 均重新计算并匹配。SQL 备份 SHA256 为 `55da17fd521b95052a22c172f5ea389a7f59f6adc63eb273d86abedf95d1cbc9`。原始 Excel 仍位于用户的 Downloads，未改写。`before-counts.json`、`data-committed.json`、`verified.json`、`graph-verification.json` 和 `run-status.json` 保存本次核对结果。
+
+本机维护工具 `InspectCnki.java`、`ReplaceCnkiData.java`、`Run-Replacement.ps1` 同样保留在该目录，仅针对固定文件哈希、数据库和表名单；已提交标记阻止再次清理。日常使用页面导入，不重复执行本次替换工具。数据库密码只在本机遮罩窗口和进程内使用，未保存到脚本、日志或备份。
+
+### 本次实际验证命令
+
+以下两条命令在 `systems/crawler` 执行，共通过 43 项不同后端测试；第二条包含重复执行的 3 项图展示测试，不重复计数。
+
+```powershell
+.\mvnw.cmd -o -f backend/pom.xml '-Dtest=AutomaticAuthorImportIntegrationTests,AuthorImportIntegrationTests,ScholarImportParserTests,ScholarBundleParserTests,GraphPresentationServiceTests,OpenApiDocumentTests' test -q
+.\mvnw.cmd -o -f backend/pom.xml '-Dtest=GraphQueryIntegrationTests,GraphPresentationServiceTests' test -q
+.\mvnw.cmd -o -f backend/pom.xml -DskipTests package
+```
+
+最后一条为替换前的实际打包，返回 `BUILD SUCCESS`，不额外计作测试。图查询新增用例先复现“多成果作者没有合作边”的失败，修复后 11 项图查询测试通过。解析、自动导入测试覆盖表内换表头、映射回放、中文逗号署名、英文姓名、BOM 原值保留、独立科技成果、博士指导和重复导入。
+
+以下命令在仓库根目录执行：
+
+```powershell
+npm.cmd --prefix systems/crawler/frontend run test -- src/services/author-import.test.ts src/utils/filter-options.test.ts src/utils/graph-cooperation.test.ts src/utils/graph-overview.test.ts
+npm.cmd --prefix systems/crawler/frontend run build -- --base=/crawler/
+node scripts/check-source.mjs
+git -c core.safecrlf=false diff --check
+```
+
+前端测试匹配 3 个实际测试文件，共 10 项通过；仓库没有独立的 `filter-options.test.ts`，不将该筛选参数记为已执行测试。TypeScript 与 Vite 构建通过，保留既有大分块提示。`diff --check` 通过。来源检查的 relation、crawler 校验通过，整仓命令仍因历史 retired scholar 对象 `f11b0b8d99f37e8e971aa86661d0ba59a21fbd9d^{tree}` 缺失而失败，这是既有仓库限制，未改写历史来规避。
+
+真实替换由本机窗口启动 `Run-Replacement.ps1`，经固定文件预检、SQL/Neo4j 查询以及生产导入、投影和图展示服务核对后，状态为 `completed-and-running`。前后端产物已更新，crawler 已重新启动；`Invoke-RestMethod -Uri 'http://127.0.0.1:18083/crawler/actuator/health/readiness' -TimeoutSec 15` 返回 `UP`，`Invoke-WebRequest -Uri 'http://127.0.0.1:18000/crawler/author-import' -UseBasicParsing -TimeoutSec 15` 返回 200。该 HTTP 结果证明入口可达；本次没有完成真实浏览器的人工视觉验收。
+
+首次备份尝试因 `mysqldump` 不支持 `connect-timeout` 参数，在删除前停止并恢复服务；修正后重试成功。首次重复设置本机备份目录 ACL 的重试也在输入窗口和数据操作前失败，改为核对已收紧的 ACL 后成功。失败日志与成功结果分开保留，不把失败尝试记为已导入。
+
+### 本次文件范围与项目记忆
+
+本次开始时工作区干净。实际修改的 13 个受版本管理文件如下，原两份 Excel 未修改；未提交 Git、修改依赖或新增迁移。
+
+| 文件 | 变更 |
+| --- | --- |
+| `systems/crawler/backend/src/main/java/com/aacv/system/authorimport/application/ScholarImportParser.java` | 按段识别表头，拆分中文逗号作者，清理字段边界 BOM，识别科技成果 |
+| `systems/crawler/backend/src/main/java/com/aacv/system/authorimport/application/ScholarBundleParser.java` | 从论文识别主学者，独立单人科技成果按原作者分组 |
+| `systems/crawler/backend/src/main/java/com/aacv/system/authorimport/application/AuthorImportService.java` | 主学者身份独立核对，复用合作作者身份保存独立成果 |
+| `systems/crawler/backend/src/main/java/com/aacv/system/graph/application/GraphQueryService.java` | 限额内按共同作品保留作者合作证据 |
+| `systems/crawler/backend/src/test/java/com/aacv/system/authorimport/ScholarImportParserTests.java` | 真实表格式兼容回归 |
+| `systems/crawler/backend/src/test/java/com/aacv/system/authorimport/ScholarBundleParserTests.java` | 独立科技成果归属及多作者歧义回归 |
+| `systems/crawler/backend/src/test/java/com/aacv/system/authorimport/AutomaticAuthorImportIntegrationTests.java` | 多作者入库、独立成果身份复用与重复导入回归 |
+| `systems/crawler/backend/src/test/java/com/aacv/system/graph/GraphQueryIntegrationTests.java` | 大量成果时的合作边回归 |
+| `systems/crawler/frontend/src/utils/filter-options.ts` | 科技成果中文名称 |
+| `docs/author-import.md` | 使用边界、本次文件范围及真实替换验收 |
+| `docs/development.md` | 同步解析规则、本机替换范围与运行状态 |
+| `docs/integration-baseline.md` | 同步当前业务数据和已运行版本 |
+| `docs/source-adaptations.json` | 更新 9 个 crawler 源码和测试文件的适配哈希 |
+
+实施前已读取仓库指定记忆 `development.md`、`integration-baseline.md` 及本文，并对照源码和实际实例核对。旧记录的“尚无真实文件、运行版本未更新”只适用于早期阶段；本次将当前状态更新为真实文件已替换、业务服务已运行，并保留原阶段证据。没有新增项目记忆体系。
+
+## 早期多文件自动识别验收（2026-09-11）
 
 本轮按用户确认的“所有文件属于同一学者，硕博按导师姓名筛选导出”实现。实施前核对 `integration-baseline.md`、`development.md`、本文与源码，保留工作区既有未提交改动；两份项目记忆和本文已同步新流程与边界。原文档描述的是手动单文件流程，已改为页面的自动多文件流程，同时明确旧 API 的兼容行为。
 
@@ -123,7 +205,7 @@ Flyway V17 新增导入锁、身份、批次、成果标识、来源记录、导
 | `git -c core.safecrlf=false diff --check` | 通过。 |
 | `node scripts/check-source.mjs` | relation、crawler 全部文件和适配哈希通过；整仓最终仍因历史 scholar 对象 `f11b0b8d99f37e8e971aa86661d0ba59a21fbd9d` 缺失而退出 1，为既有历史对象问题。未跳过校验或改写来源记录。 |
 
-真实知网 Excel 尚未提供，本轮不声称完成用户实际文件验收。姓名交集为空或多解、不同批次没有共同成果、仅有硕博文件、无法对应具体作者的机构仍按前文边界处理。本轮构建与容器验收没有更新业务 JAR、业务数据库或正在提供服务的前端；新页面需要按已有本机运行流程重建、启动后才会在业务实例生效。
+该阶段尚未提供真实知网 Excel，因此当时未验收用户实际文件，也未更新业务 JAR、业务数据库或正在提供服务的前端。后续真实文件及运行状态以本文“真实文件替换验收”为准。姓名交集为空或多解、不同批次没有共同成果、仅有硕博文件、无法对应具体作者的机构仍按前文边界处理。
 
 ## 运行切换
 
@@ -169,7 +251,7 @@ pwsh -NoProfile -File scripts/Start-Integration.ps1 -System crawler -Mode Demo
 .\mvnw.cmd -f backend/pom.xml '-DargLine=-Xmx512m -XX:MaxMetaspaceSize=256m' '-Dtest=AuthorImportIntegrationTests,ScholarImportParserTests,CatalogExportFilterSqlTests,OpenApiDocumentTests,SecurityIntegrationTests,FlywayMigrationTests,GraphProjectionIntegrationTests,GraphQueryIntegrationTests' test
 ```
 
-其中 Flyway 测试验证从历史版本升级并保留旧数据，该测试阶段没有对真实业务库执行迁移；后续本机试用升级见上方运行切换记录。真实知网导出文件尚未提供，当前兼容性依据用户确认的表头和合成 XLSX/XLS/CSV 用例。
+其中 Flyway 测试验证从历史版本升级并保留旧数据，该测试阶段没有对真实业务库执行迁移；后续本机试用升级见上方运行切换记录。该阶段的兼容性依据用户确认的表头和合成 XLSX/XLS/CSV 用例，后续两份真实文件的验收单独记录。
 
 ## 2026-09-11 Docker 修复后完整后端验收
 
@@ -181,7 +263,7 @@ crawler 默认完整套件执行 67 个测试类/264 项，发现并修正两处
 
 完整命令、存储恢复证据、查询测量及本轮文件清单见 [Docker 存储修复与后端验收](backend-acceptance-20260911.md)。两个有效系统的来源和适配哈希检查通过；整仓历史校验仍受既有 retired scholar Git 对象缺失影响。该轮验收使用隔离库，未替换业务实例，也未对真实业务库执行 V17 升级；之后的本机试用启动与升级单独记录在上方运行切换章节。
 
-## 本轮文件范围
+## 早期单文件导入实施文件范围
 
 以下清单以实施前工作区快照为基准，不把已有未提交改动归入本轮。旧模块包含的未提交内容保存在本机忽略的 `.local/author-import-before-20260911`；没有创建 Git 提交、分支或执行推送。
 

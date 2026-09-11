@@ -6,6 +6,22 @@
 
 删除前的系统目录及未提交改动保存在本机 Git 忽略的 `.local/subsystem-removal-*/`。源码删除不清理已有数据库、数据卷、本机凭据或历史日志。已有工作区的废弃 Compose 服务不在新初始化范围内，数据仍保留；无需运行删除数据卷的命令。
 
+## 三类学术图谱（2026-09-11）
+
+crawler 的三个独立主模块为 `/academic-relations` 学术关系、`/academic-achievements` 学术成果与 `/academic-background` 学术背景，均以规范作者 ID 为中心。本人论文、专利使用 `AUTHORED`，指导硕博使用 `SUPERVISED`；机构、期刊、主题及其他成果类型不参与这三个视图，原记录继续保留。背景图按成果日期正序分页，缺日期置于末尾，不推断教育或任职经历。
+
+新增只读 `/api/v1/graph/authors/{authorId}`，先按成果分页再补共同作者，维持 300 节点与 3 秒查询限制。合作边只关联中心作者，证据仅覆盖当前页且不以指导关系推断共同署名。原全局概览移到 `/graph/overview`，原高级工具保留；旧 `/graph/relations`、`/graph/achievements`、`/graph/background` 跳转到三个独立路径并保留查询参数，样式入口为 `/graph/settings/edges`。作者导入、工作台的作者图谱链接进入成果模块；三个模块切换保留作者。
+
+本次不新增依赖、迁移或业务数据修改。功能实施阶段使用隔离容器和浏览器合成数据验证，构建写入 `.local/academic-graph-review/`，当时未重启业务实例。随后按用户试用要求于 2026-09-11 重新构建 crawler 前后端并启动新 JAR；整体、readiness 和 graph 健康均为 `UP`，业务库仍为 V17，无新迁移。门户与 relation 原进程保持运行。统一入口已打开，登录后的真实数据交互待用户试用；不能把匿名请求的登录页响应当作图谱数据验收。接口口径、实际测试及本机启动记录见 [三类学术图谱](academic-graphs.md)。本节与 `integration-baseline.md` 已对照路由、服务及启动日志同步，早期全局概览和两跳入口描述仅适用于对应历史阶段。
+
+## 研究页面紧凑布局与编目（2026-09-11）
+
+三个图谱不再放在知识图谱父菜单下；沿用共享图谱组件、请求生命周期与 GRAPH_READ 权限，主导航、侧栏及命令面板切换保留作者。内容清单默认收起，标题、作者和分类选择集中在顶部工具栏，画布填满剩余宽高。
+
+成果目录右上角通过字段选择搜索题名、作者、机构、期刊或主题，发表年份从日期列表头的日历选择；已删除的类型和来源条件不会从旧 URL 隐式恢复。导出按钮内保留 CSV/JSON 任务与下载，使用已提交结果条件。统计页沿用已有机构、主题的规范 ID 筛选，年份范围在年度图或趋势表头选择；其他统计分类提供同一日历入口。分类导航合并为一行，指标为紧凑摘要。统计导出使用已加载的聚合结果，合作排行最多二十项，导出入口沿用 EXPORT_CREATE 权限。
+
+编目 GET `/api/v1/catalog/{collection}` 增加 `patents`、`master-theses`、`doctoral-theses`，规范成果类型分别为 `patent`、`master-thesis`、`doctoral-thesis`；后两者必须有 `achievement_advisor`，合并成员与多人指导去重。编目列表展示内部 ID 与中文类别，作品通过现有成果详情接口查看；无表结构、依赖或数据迁移。两份指定记忆已对照当前路由、SQL、接口与前端修正旧父菜单描述；具体测试及试用版本状态见 [研究页面调整](compact-research-ui.md)。
+
 ## 作者信息表导入（2026-09-11）
 
 crawler 使用知网 XLSX/XLS/CSV 文件作为新增学者资料的入口，页面 `/crawler/author-import`，API `/api/v1/author-import`（集成前缀 `/crawler`）。四个旧模块的页面和控制器已删除；历史 SQL 数据与必要的内部模型保留。旧恢复监听不再装配，兼容 Quartz Job 只注销旧采集计划。不要使用历史采集操作说明作为当前入口。
@@ -187,7 +203,7 @@ OpenAlex 采集表单通过来源名称候选选择作者、机构（各最多50
 
 采集任务列表按创建顺序倒序展示，通过 `/api/v1/crawl/tasks/latest-runs?taskIds=...` 与 `/api/v1/crawl/tasks/schedules?taskIds=...` 批量读取本页状态，每次最多 100 个正整数 ID，分别沿用 CRAWL_RUN_READ 与 CRAWL_SCHEDULE_MANAGE 权限。运行编号统一显示数字 ID，UUID 仅在技术标识中保留。运行详情用处理计数与结束原因表达状态，不再将采集上限当成总量。任务、计划、运行弹窗分别位于 `components/business/crawl/`；高级采集参数默认折叠，数据源校验统一使用 Element Plus。
 
-图谱概览、高级查询、路径分析统一使用 `components/business/GraphCanvas.vue`（Cytoscape）；`utils/graph-presentation.ts` 保留响应验证与类型默认值。关键词和类型筛选不再重复请求，双击进入中心与显式刷新仍受取消、序列校验保护。样式入口改为 `/graph/settings/nodes`、`/graph/settings/edges`，旧地址为兼容别名。删除闲置 OperationsView、health 服务、preferences store、motion 工具和旧 vis 画布，移除 vis-network、vis-data、vee-validate、@vee-validate/zod；后端运维、采集检查点、调度及权限功能保持。
+图谱概览、高级查询、路径分析统一使用 `components/business/GraphCanvas.vue`（Cytoscape）；`utils/graph-presentation.ts` 保留响应验证与类型默认值。关键词和类型筛选不再重复请求，双击进入中心与显式刷新仍受取消、序列校验保护。样式入口改为 `/graph/settings/nodes`、`/graph/settings/edges`，当时旧地址保留为兼容别名；2026-09-11 三类图谱实施后 `/graph/relations` 改为学术关系图谱，关系样式使用正式地址。删除闲置 OperationsView、health 服务、preferences store、motion 工具和旧 vis 画布，移除 vis-network、vis-data、vee-validate、@vee-validate/zod；后端运维、采集检查点、调度及权限功能保持。
 
 实施前读取本文件与另一份指定项目记忆，核对源码及工作区；根目录 `11` 的既有删除未改动。本轮对首页、画布和筛选语义的变更已同步 README，旧图谱空白修复段落属于历史验收，其动效单位约束继续适用。未改数据库结构、凭据或部署配置，未提交、推送或部署。验证证据与剩余边界见 [采集子系统改进记录](crawler-ux-improvements.md)。
 
@@ -215,6 +231,8 @@ OpenAlex 采集表单通过来源名称候选选择作者、机构（各最多50
 
 当前 crawler 以 XLSX/XLS/CSV 作者导入、成果检索、统计和知识图谱为主，数据源、采集任务、数据治理、质量指标的页面和业务 API 已退场。历史基础表和数据保留，新版启动后停止旧采集计划。V17 增加作者导入记录及导师/成果机构关系，图类型共 13 种；知网字段映射、预览确认、原子导入、重复导入与权限约定见 [作者导入说明](author-import.md)。上文 2026-09-10 采集界面和调度说明保留为历史记录，不作为当前入口依据。
 
+真实混合知网 XLS 的段内表头可更换顺序或省略列，解析器逐段重建映射；手工映射按列名跟随，保留原行号及各段原始字段。中文姓名逗号分隔与 DOI/URL 边界 BOM 有定向兼容，英文姓名和机构内逗号不拆。`scientific-result` 为科技成果类型；独立单人署名项目按原作者保存，不改变主学者身份或博士指导口径。导入服务仍沿用现有 MyBatis、事务和 Outbox，不增加数据库迁移、依赖或清库 API。合作边仍从共同作品派生，作者子图按作品先后保留相邻共同作者，避免大量论文挤掉合作证据；节点和关系上限保持。
+
 后端验收采用隔离数据库。crawler 沿用 Testcontainers；relation 的 `local` 测试依赖样例数据，必须先准备独立 MySQL/Neo4j、执行现有 schema/sample SQL 并完成 Outbox 图同步，再运行 `mvnw.cmd verify`。本机复现入口为 Git 忽略的 `.local/docker-repair-20260911/run_relation_acceptance.py`；凭据只在进程环境流转，测试容器限定回环地址并在结束时按归属清理。该验收不会替换业务后端或迁移 Windows MySQL 项目库。
 
 ## 2026-09-11 本机试用启动
@@ -224,3 +242,11 @@ OpenAlex 采集表单通过来源名称候选选择作者、机构（各最多50
 本次启动前 Docker 因失效的零字节 AF_UNIX 套接字退出。确认 Docker/WSL 已停止且目录仅含运行时套接字后，将 `%LOCALAPPDATA%\Docker\run` 和 `%LOCALAPPDATA%\docker-secrets-engine` 改名为各自的 `.before-start-20260911-171755` 备份，再启动 Docker；未修改数据盘配置。两个原图库恢复 `healthy`。今后若出现同类错误，应重新核对日志、进程和目录内容，不能直接复用目录改名命令。
 
 实际日志与数据库查询确认 `course_crawler` 从 V16 升级至 V17；三个登记进程的 PID、创建时间、路径及命令行归属验证通过。门户、relation 健康接口、crawler readiness 与 graph 均返回 200/UP。未登录访问 `/crawler/author-import` 返回登录跳转，导入 API 返回 401，原认证边界保持。试用入口为 `http://127.0.0.1:18000/crawler/author-import`；使用原账号登录。本次启动检查未替用户上传真实知网文件，也未替代此前的隔离后端验收。
+
+## 2026-09-11 真实知网数据替换
+
+随后按用户要求，将 `CNKI-20260911184927501.xls`、`CNKI-20260911184034561.xls` 导入本机 `course_crawler`，替换原 12 项演示成果及关联学术数据。备份后以现有导入服务在一个事务中清理、导入 33 张指定业务表的数据，再通过原 Outbox 重建托管图谱。保留账号、角色、配置、历史采集运行和 relation 子系统；V17 结构不变，未新增在线清库接口。
+
+实际核对：479 条来源记录、476 项去重成果（471 篇期刊/辑刊论文、2 篇博士论文、3 项科技成果）、211 名作者、195 家成果机构。席酉民有 210 名共同署名合作作者，全库 546 对合作作者；席酉民与两篇博士论文仅建立指导关系，学生署名照常保存。庄贵军独立署名的《中国企业的营销渠道控制行为研究》未补席酉民署名。所有成果的完整作者名单及顺序均与原文件逐项核对；MySQL 与 Neo4j 的成果、作者、署名和指导数量一致，Outbox 全部完成。
+
+更新后的后端已打包重启，前端已构建；readiness 为 `UP`，门户作者导入入口返回 200。最新状态以本段为准，上方“未导入真实文件”等描述属于之前的启动阶段。恢复材料和固定文件维护工具保留在限制访问、Git 忽略的 `.local/cnki-replacement-20260911/`，SQL 与图谱备份均已核对 SHA256，密码未落盘；不重复运行已完成的替换。43 项不同后端测试、10 项前端测试和构建通过，整仓来源检查仍有既存 retired scholar Git 对象缺失限制；本次未完成真实浏览器视觉验收。确切命令、文件范围和数据边界见 [真实文件替换验收](author-import.md#真实文件替换验收2026-09-11)。

@@ -9,7 +9,7 @@
 | 子系统 | 主要功能 | 入口与代码目录 |
 | --- | --- | --- |
 | 学术关系知识图谱构建平台（relation） | 论文、作者、机构与关键词查询；合作网络、机构关系、引用影响、研究领域与时间线分析；数据导入及实体抽取 | `/relation/`；`systems/relation/` |
-| 学术成果信息采集及可视化系统（crawler） | XLSX/XLS/CSV 作者导入；论文、专利、机构、硕博指导与摘要解析；成果检索、统计、知识图谱及 CSV/JSON 导出；统一账号与审计 | `/crawler/`；`systems/crawler/` |
+| 学术成果信息采集及可视化系统（crawler） | XLSX/XLS/CSV 作者导入；论文、专利、机构、硕博指导与摘要解析；成果检索、统计、[学术关系/成果/背景图谱](docs/academic-graphs.md)及 CSV/JSON 导出；统一账号与审计 | `/crawler/`；`systems/crawler/` |
 
 2026-09-10 起仅保留 relation 和 crawler；extraction、scholar 已从源码、入口和集成脚本移除。信息采集系统继续使用 `/crawler/`、`systems/crawler/` 和原数据库名，以兼容现有数据与接口。既有数据库卷不会随源码删除。信息采集首页现为日常工作台，原可视化大屏位于 `/crawler/dashboard`；2026-09-11 起通过“作者导入”解析学者资料，数据源、采集任务、数据治理和质量指标四个模块已移除，详见 [作者导入说明](docs/author-import.md)。此前体验改动保留为 [历史记录](docs/crawler-ux-improvements.md)。
 
