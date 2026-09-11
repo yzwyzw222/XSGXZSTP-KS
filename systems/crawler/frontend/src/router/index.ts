@@ -3,6 +3,7 @@ import {
   createWebHistory,
   type RouterHistory,
   type RouteRecordRaw,
+  type RouteLocationNormalized,
 } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
@@ -79,7 +80,7 @@ export const routes: RouteRecordRaw[] = [
         meta: { permission: 'CATALOG_READ', title: '成果详情', workspace: 'catalog' },
       },
       {
-        path: 'catalog/:collection(authors|organizations|venues|topics)',
+        path: 'catalog/:collection(authors|organizations|venues|topics|patents|master-theses|doctoral-theses)',
         name: 'catalog-entities',
         component: () => import('@/views/CatalogEntitiesView.vue'),
         meta: { permission: 'CATALOG_READ', title: '编目实体' },
@@ -90,6 +91,12 @@ export const routes: RouteRecordRaw[] = [
         component: () => import('@/views/AuthorImportView.vue'),
         meta: { permission: 'AUTHOR_IMPORT', title: '作者导入', workspace: 'author-import' },
       },
+      ...(['relations', 'achievements', 'background'] as const).map((mode, index) => ({
+        path: `academic-${mode}`, name: `academic-${mode}`,
+        component: () => import('@/views/AcademicGraphView.vue'), props: { mode },
+        meta: { permission: 'GRAPH_READ' as const, workspace: 'academic-graph',
+          title: ['学术关系图谱', '学术成果图谱', '学术背景图谱'][index] },
+      })),
       {
         path: 'graph',
         meta: { permission: 'GRAPH_READ', title: '知识图谱' },
@@ -97,6 +104,17 @@ export const routes: RouteRecordRaw[] = [
           {
             path: '',
             name: 'graph',
+            redirect: (to: RouteLocationNormalized) => to.query.centerType && to.query.centerType !== 'AUTHOR'
+              ? { path: '/graph/explore', query: to.query }
+              : { path: '/academic-relations', query: { ...to.query,
+                authorId: to.query.authorId ?? to.query.centerId, centerType: undefined, centerId: undefined } },
+          },
+          ...(['relations', 'achievements', 'background'] as const).map((mode) => ({
+            path: mode,
+            redirect: (to: RouteLocationNormalized) => ({ path: `/academic-${mode}`, query: to.query }),
+          })),
+          {
+            path: 'overview', name: 'graph-overview',
             component: () => import('@/views/GraphView.vue'),
             meta: { permission: 'GRAPH_READ', title: '图谱概览' },
           },
@@ -114,7 +132,7 @@ export const routes: RouteRecordRaw[] = [
             meta: { permission: 'GRAPH_READ', title: '节点样式' },
           },
           {
-            path: 'settings/edges', alias: 'relations',
+            path: 'settings/edges',
             name: 'graph-relations',
             component: () => import('@/views/GraphTypesView.vue'),
             props: { kind: 'RELATIONSHIP' },

@@ -18,30 +18,23 @@ describe('研究界面侧栏导航', () => {
     expect(wrapper.findAll('nav section').map((section) => section.attributes('aria-label')))
       .toEqual(['研究工作', '数据管理', '管理工具'])
     expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/catalog')
-    expect(wrapper.findAll('nav section > ul > li')).toHaveLength(9)
+    expect(wrapper.findAll('nav section > ul > li')).toHaveLength(11)
     expect(wrapper.get('button[aria-label="成果目录"]').attributes('aria-expanded')).toBe('true')
     expect(wrapper.findAll('.graph-submenu-link').map(link => link.text()))
       .toEqual(['全部成果'])
-    expect(wrapper.get('button[aria-label="知识图谱"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('button[aria-label="知识图谱"]').exists()).toBe(false)
     expect(wrapper.get('section[aria-label="管理工具"]').text()).toContain('日志管理')
     expect(wrapper.get('section[aria-label="管理工具"]').text()).toContain('账号管理')
     wrapper.unmount()
   })
 
-  it('知识图谱父菜单独立折叠且子页按指定顺序展开', async () => {
-    const wrapper = await render()
-    const toggle = wrapper.get('button[aria-label="知识图谱"]')
-    const graphGroup = toggle.element.parentElement!
-    await toggle.trigger('click')
-    expect(toggle.attributes('aria-expanded')).toBe('true')
-    expect(Array.from(graphGroup.querySelectorAll('.graph-submenu-link')).map(link => link.textContent))
-      .toEqual(['图谱概览', '节点样式', '关系样式', '高级查询', '路径分析', '保存的查询'])
-    expect(wrapper.get('button[aria-label="成果目录"]').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/catalog')
-    await toggle.trigger('click')
-    expect(graphGroup.querySelectorAll('.graph-submenu-link')).toHaveLength(0)
-    expect(wrapper.get('button[aria-label="成果目录"]').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.findAll('.graph-submenu-link')).toHaveLength(1)
+  it('三类图谱均为独立主入口，切换保留作者且无需展开父菜单', async () => {
+    const wrapper = await render(navItems, false, '/academic-relations?authorId=42')
+    expect(wrapper.find('button[aria-label="知识图谱"]').exists()).toBe(false)
+    for (const mode of ['relations', 'achievements', 'background']) {
+      expect(wrapper.get(`nav > section > ul > li > a[href="/academic-${mode}?authorId=42"]`).attributes('href')).toBe(`/academic-${mode}?authorId=42`)
+    }
+    expect(wrapper.get('a[aria-current="page"]').attributes('href')).toBe('/academic-relations?authorId=42')
     wrapper.unmount()
   })
 
@@ -49,8 +42,8 @@ describe('研究界面侧栏导航', () => {
     const wrapper = await render(navItems, false, '/')
     for (const toggle of wrapper.findAll('.graph-menu-toggle')) await toggle.trigger('click')
     expect(wrapper.findAll('nav a')).toHaveLength(19)
-    expect(wrapper.findAll('.graph-menu-toggle')).toHaveLength(4)
-    expect(wrapper.findAll('.graph-submenu-link')).toHaveLength(14)
+    expect(wrapper.findAll('.graph-menu-toggle')).toHaveLength(3)
+    expect(wrapper.findAll('.graph-submenu-link')).toHaveLength(11)
     expect(wrapper.find('a[href="/operations"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('运行监控')
     expect(wrapper.get('a[href="/logs"]').text()).toBe('日志管理')
@@ -59,7 +52,8 @@ describe('研究界面侧栏导航', () => {
 
   it.each([
     ['/catalog/organizations', '/catalog/organizations'], ['/catalog/venues', '/catalog/venues'],
-    ['/catalog/topics', '/catalog/topics'], ['/analytics/research', '/analytics/distributions'],
+    ['/catalog/topics', '/catalog/topics'], ['/catalog/patents', '/catalog/patents'],
+    ['/catalog/master-theses', '/catalog/master-theses'], ['/catalog/doctoral-theses', '/catalog/doctoral-theses'], ['/analytics/research', '/analytics/distributions'],
     ['/analytics/coverage', '/analytics'],
   ])('页内分类 %s 高亮合并后的入口 %s', async (path, target) => {
     const wrapper = await render(navItems, false, path)
@@ -83,7 +77,7 @@ describe('研究界面侧栏导航', () => {
     const wrapper = await render(items, true)
     expect(wrapper.findAll('nav section')).toHaveLength(1)
     expect(wrapper.get('nav section').attributes('aria-label')).toBe('研究工作')
-    expect(wrapper.get('a[href="/graph"]').attributes('aria-label')).toBe('知识图谱')
+    expect(wrapper.get('a[href="/academic-relations"]').attributes('aria-label')).toBe('学术关系图谱')
     expect(wrapper.find('a[href="/users"]').exists()).toBe(false)
     wrapper.unmount()
   })

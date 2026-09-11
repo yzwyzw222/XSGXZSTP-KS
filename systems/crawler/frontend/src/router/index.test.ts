@@ -114,6 +114,9 @@ describe('权限路由', () => {
     ['/analytics/research', 'ANALYTICS_READ', 'analytics-research'],
     ['/analytics/collaboration', 'ANALYTICS_READ', 'analytics-collaboration'],
     ['/users/overview', 'USER_LIST', 'users-overview'],
+    ['/academic-relations', 'GRAPH_READ', 'academic-relations'],
+    ['/academic-achievements', 'GRAPH_READ', 'academic-achievements'],
+    ['/academic-background', 'GRAPH_READ', 'academic-background'],
   ])('子模块 %s 继承父模块权限 %s', async (path, permission, name) => {
     ensureSession.mockResolvedValue({} as CurrentUser)
     hasPermission.mockReturnValue(false)
@@ -132,6 +135,7 @@ describe('权限路由', () => {
   it.each([
     ['/analytics', '/analytics/coverage', '/analytics/collaboration'],
     ['/users', '/users/overview', '/users'],
+    ['/academic-relations', '/academic-achievements', '/academic-background'],
   ])('从 %s 切换同模块子页保留请求，离开模块才取消', async (initial, next, last) => {
     ensureSession.mockResolvedValue({} as CurrentUser)
     hasPermission.mockReturnValue(true)
@@ -178,10 +182,33 @@ describe('权限路由', () => {
     expect(router.currentRoute.value.name).toBe('graph-path')
     await router.push('/graph/entities')
     expect(router.currentRoute.value.name).toBe('graph-entities')
-    await router.push('/graph/relations')
+    await router.push('/academic-relations')
+    expect(router.currentRoute.value.name).toBe('academic-relations')
+    await router.push('/graph/settings/edges')
     expect(router.currentRoute.value.name).toBe('graph-relations')
 
     await router.push('/graph/queries')
     expect(router.currentRoute.value.name).toBe('graph-queries')
+  })
+
+  it.each(['relations', 'achievements', 'background'])('旧图谱地址 %s 保留作者、分类与分页', async (mode) => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockReturnValue(true)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push(`/graph/${mode}?authorId=12&category=PATENT&page=2`)
+    expect(router.currentRoute.value.path).toBe(`/academic-${mode}`)
+    expect(router.currentRoute.value.query).toEqual({ authorId: '12', category: 'PATENT', page: '2' })
+  })
+
+  it('作者旧链接进入新模块，作品旧链接仍进入高级查询', async () => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockReturnValue(true)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/graph?centerType=AUTHOR&centerId=12')
+    expect(router.currentRoute.value.path).toBe('/academic-relations')
+    expect(router.currentRoute.value.query).toMatchObject({ authorId: '12' })
+    await router.push('/graph?centerType=ACHIEVEMENT&centerId=42')
+    expect(router.currentRoute.value.path).toBe('/graph/explore')
+    expect(router.currentRoute.value.query).toMatchObject({ centerType: 'ACHIEVEMENT', centerId: '42' })
   })
 })

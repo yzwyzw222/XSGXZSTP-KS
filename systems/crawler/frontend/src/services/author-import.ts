@@ -126,5 +126,5 @@ export function importModeLabel(mode: string): string {
 }
 
 export function authorGraphTarget(authorId: number) {
-  return { path: '/graph/explore', query: { centerType: 'AUTHOR', centerId: String(authorId), depth: '2' } }
+  return { path: '/academic-achievements', query: { authorId: String(authorId) } }
 }

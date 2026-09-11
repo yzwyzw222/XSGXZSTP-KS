@@ -7,6 +7,7 @@ import { RouterLink, useRoute } from 'vue-router'
 
 import { DataTable, EmptyState, LoadingSkeleton, PageHeader, PanelSection } from '@/components/business'
 import CatalogEntityEvidencePanel from '@/components/business/CatalogEntityEvidencePanel.vue'
+import AchievementPreview from '@/components/business/AchievementPreview.vue'
 import type { DataTableColumn } from '@/components/business/types'
 import { toErrorMessage } from '@/services/api'
 import { catalogApi } from '@/services/business'
@@ -14,9 +15,11 @@ import type { AchievementSummary, CatalogCollection, CatalogEntity, CatalogEntit
 
 const labels: Record<CatalogCollection, string> = {
   authors: '作者', organizations: '机构', venues: '期刊', topics: '主题',
+  patents: '专利', 'master-theses': '指导硕论', 'doctoral-theses': '指导博论',
 }
 const route = useRoute()
 const collection = computed(() => route.params.collection as CatalogCollection)
+const isWorkCollection = computed(() => ['patents', 'master-theses', 'doctoral-theses'].includes(collection.value))
 const name = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
@@ -34,7 +37,7 @@ let detailSequence = 0
 
 const columns: DataTableColumn<CatalogEntity>[] = [
   { accessorKey: 'displayName', header: '规范名称', enableSorting: false },
-  { accessorKey: 'externalId', header: '外部标识', enableSorting: false },
+  { accessorKey: 'id', header: '内部标识', enableSorting: false, meta: { width: '120px' } },
   { accessorKey: 'entityType', header: '类型', enableSorting: false, meta: { width: '120px' } },
   { accessorKey: 'achievementCount', header: '成果数', enableSorting: false, meta: { width: '90px' } },
   { id: 'actions', header: '操作', enableSorting: false, meta: { width: '120px' } },
@@ -63,6 +66,7 @@ async function showRelated(entity: CatalogEntity): Promise<void> {
   relatedError.value = ''
   relatedTotal.value = 0
   drawerVisible.value = true
+  if (isWorkCollection.value) { relatedLoading.value = false; return }
   relatedLoading.value = true
   try {
     const [response, observations] = await Promise.all([
@@ -81,6 +85,7 @@ async function showRelated(entity: CatalogEntity): Promise<void> {
 }
 
 function actionLabel(): string {
+  if (isWorkCollection.value) return '查看详情'
   return collection.value === 'authors' || collection.value === 'organizations' ? '成果与证据' : '查看成果'
 }
 
@@ -152,6 +157,7 @@ onMounted(() => load())
         :get-row-id="(row) => String(row.id)"
         @update:page="load"
       >
+        <template #cell-entityType>{{ labels[collection] }}</template>
         <template #cell-actions="{ row }">
           <ElButton link type="primary" @click="showRelated(row)">{{ actionLabel() }}</ElButton>
         </template>
@@ -159,7 +165,9 @@ onMounted(() => load())
     </PanelSection>
 
     <template #detail>
-      <p v-if="selectedEntity" class="mb-4 break-words text-sm text-muted-foreground">{{ labels[collection] }} · 外部标识 {{ selectedEntity.externalId || '—' }} · 关联成果 {{ selectedEntity.achievementCount ?? 0 }}</p>
+      <AchievementPreview v-if="isWorkCollection && selectedEntity" :key="selectedEntity.id" :id="selectedEntity.id" />
+      <template v-else>
+      <p v-if="selectedEntity" class="mb-4 break-words text-sm text-muted-foreground">{{ labels[collection] }} · 内部标识 {{ selectedEntity.id }} · 外部标识 {{ selectedEntity.externalId || '—' }} · 关联成果 {{ selectedEntity.achievementCount ?? 0 }}</p>
       <LoadingSkeleton v-if="relatedLoading" variant="text" :rows="4" />
       <ElAlert v-if="relatedError" type="error" :closable="false" :title="relatedError" show-icon />
       <CatalogEntityEvidencePanel v-if="evidence" :evidence="evidence" />
@@ -184,6 +192,7 @@ onMounted(() => load())
           </p>
         </li>
       </ul>
+      </template>
     </template>
     </SplitWorkspace>
   </section>

@@ -185,7 +185,7 @@ export interface ScholarlyMetadata {
   versionRelations: Array<{ relationType: string; targetDoi: string }>
 }
 
-export type CatalogCollection = 'authors' | 'organizations' | 'venues' | 'topics'
+export type CatalogCollection = 'authors' | 'organizations' | 'venues' | 'topics' | 'patents' | 'master-theses' | 'doctoral-theses'
 
 export interface CatalogEntity {
   id: number

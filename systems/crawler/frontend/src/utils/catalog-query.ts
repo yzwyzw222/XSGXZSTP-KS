@@ -1,7 +1,7 @@
 import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 import type { AchievementQuery } from '@/services/business'
 
-const textKeys = ['title', 'author', 'organization', 'achievementType', 'sourceCode', 'venue', 'topic'] as const
+const textKeys = ['title', 'author', 'organization', 'venue', 'topic'] as const
 const idKeys = ['authorId', 'organizationId', 'venueId', 'topicId'] as const
 
 /** URL 只接受目录已知条件，避免详情返回时携带无关参数。 */
@@ -15,6 +15,7 @@ export function readCatalogQuery(query: LocationQuery): AchievementQuery {
 
 export function catalogRouteQuery(query: AchievementQuery): LocationQueryRaw {
   return Object.fromEntries(Object.entries(query)
+    .filter(([key]) => [...textKeys, ...idKeys, 'publicationYear', 'page', 'size'].includes(key))
     .filter(([key, value]) => value !== undefined && value !== '' && !(key === 'page' && value === 0) && !(key === 'size' && value === 20))
     .map(([key, value]) => [key, String(value)]))
 }

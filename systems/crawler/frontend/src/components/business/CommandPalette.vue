@@ -2,7 +2,7 @@
 import { ElDialog, ElInput } from 'element-plus'
 import { CornerDownLeft, LogOut, Search } from 'lucide-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { navGroups, navItems } from '@/config/nav'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ (e: 'update:open', v: boolean): void; (e: 'logout'): void }>()
 
 const router = useRouter()
+const route = useRoute()
 const sessionStore = useSessionStore()
 
 const query = ref('')
@@ -37,7 +38,7 @@ const commands = computed<Command[]>(() => {
         label: item.label,
         group: navGroups.find((group) => group.id === item.group)?.label ?? '',
         icon: item.icon,
-        run: () => { void router.push(item.to) },
+        run: () => { void router.push(item.preserveAuthor ? { path: item.to, query: { authorId: route.query.authorId } } : item.to) },
       },
       ...(item.children ?? []).filter((child) => child.to !== item.to).map((child) => ({
         id: `nav-${child.to}`,

@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
-import { ElAlert, ElButton, ElOption, ElSelect } from 'element-plus'
+import { ElAlert, ElButton, ElPopover } from 'element-plus'
+import { Download, Info } from 'lucide-vue-next'
 import type { EChartsCoreOption } from 'echarts/core'
 import { RouterLink } from 'vue-router'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
-import { DataTable, FilterBar, FilterField, LoadingSkeleton, PageHeader, PanelSection, StatCard } from '@/components/business'
+import { DataTable, LoadingSkeleton, PanelSection } from '@/components/business'
 import AnalyticsCoveragePanel from '@/components/business/AnalyticsCoveragePanel.vue'
 import ChartFrame from '@/components/business/ChartFrame.vue'
-import EntitySuggestInput from '@/components/business/EntitySuggestInput.vue'
-import YearPicker from '@/components/business/YearPicker.vue'
+import CompactFieldSearch from '@/components/business/CompactFieldSearch.vue'
+import YearRangeFilter from '@/components/business/YearRangeFilter.vue'
+import { useSessionStore } from '@/stores/session'
+import { analyticsCsv, type AnalyticsSnapshot } from '@/utils/analytics-export'
 import type { DataTableColumn } from '@/components/business/types'
 import { useChartTheme } from '@/composables/useChartTheme'
 import { toErrorMessage } from '@/services/api'
@@ -18,7 +21,7 @@ import type {
   AnalyticsCollaborationResponse, AnalyticsDistributionItem, AnalyticsDistributionResponse,
   AnalyticsFilter, AnalyticsOverview, AnalyticsTrendItem, AnalyticsTrendResponse,
 } from '@/types/api'
-import { achievementTypeLabel, achievementTypeOptions } from '@/utils/filter-options'
+import { achievementTypeLabel } from '@/utils/filter-options'
 import { formatDateTime } from '@/utils/format'
 
 type CollaborationItem = AnalyticsCollaborationResponse['authors'][number]
@@ -29,9 +32,7 @@ const props = withDefaults(defineProps<{
 const sectionTitle = computed(() => ({
   overview: '统计分析', coverage: '字段覆盖率', distributions: '成果分布', research: '机构与主题', collaboration: '合作排行',
 })[props.section])
-const compactFilters = useMediaQuery('(min-width: 768px) and (max-height: 800px)')
 const wideOverview = useMediaQuery('(min-width: 1600px) and (min-height: 1000px)')
-const filtersCollapsed = ref(true)
 const showingTables = reactive<Record<string, boolean>>({})
 const distributionFocus = reactive({ distributions: 'type', research: 'org' })
 const selectedDistribution = computed({
@@ -53,28 +54,39 @@ const { palette } = useChartTheme()
 let querySequence = 0
 onBeforeUnmount(() => { querySequence++ })
 
-const filterForm = reactive({
-  publicationYearFrom: '',
-  publicationYearTo: '',
-  achievementType: '',
-  sourceType: 'ALL' as 'ALL' | 'OPENALEX' | 'CROSSREF',
-  organizationId: '',
-  topicId: '',
-})
-
-/** 年份以日历面板选择，表单值仍保存为字符串以兼容既有提交逻辑。 */
-const yearFromModel = computed<number | undefined>({
-  get: () => (filterForm.publicationYearFrom.trim() ? Number(filterForm.publicationYearFrom) : undefined),
-  set: (value) => { filterForm.publicationYearFrom = value === undefined ? '' : String(value) },
-})
-const yearToModel = computed<number | undefined>({
-  get: () => (filterForm.publicationYearTo.trim() ? Number(filterForm.publicationYearTo) : undefined),
-  set: (value) => { filterForm.publicationYearTo = value === undefined ? '' : String(value) },
-})
-const achievementTypeModel = computed<string>({
-  get: () => filterForm.achievementType || 'ALL',
-  set: (value) => { filterForm.achievementType = value === 'ALL' ? '' : value },
-})
+const session = useSessionStore()
+const searchFields = [
+  { value: 'organizationId', label: '机构', collection: 'organizations' },
+  { value: 'topicId', label: '主题', collection: 'topics' },
+] as const
+const searchField = ref<'organizationId' | 'topicId'>('organizationId')
+const searchText = ref('')
+const searchEntityId = ref<number>()
+const yearFrom = ref<number>()
+const yearTo = ref<number>()
+function changeSearchField(value: string): void {
+  searchField.value = value as 'organizationId' | 'topicId'
+  searchText.value = ''
+  searchEntityId.value = undefined
+}
+function applyYears(from: number | undefined, to: number | undefined): void {
+  yearFrom.value = from; yearTo.value = to
+  void loadAnalytics()
+}
+const exportReady = computed(() => !loading.value && !errorMessage.value && overview.value && trends.value && distributions.value && collaboration.value)
+function downloadStatistics(format: 'CSV' | 'JSON'): void {
+  if (!exportReady.value || !session.hasPermission('EXPORT_CREATE')) return
+  const snapshot: AnalyticsSnapshot = { overview: overview.value!, trends: trends.value!, distributions: distributions.value!, collaboration: collaboration.value! }
+  const blob = new Blob([format === 'CSV' ? analyticsCsv(snapshot) : JSON.stringify(snapshot, null, 2)], { type: format === 'CSV' ? 'text/csv;charset=utf-8' : 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `aacv-statistics.${format.toLowerCase()}`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
+}
 
 const metricCards = computed(() => overview.value ? [
   { label: '成果', value: overview.value.achievementCount, note: '规范成果', tone: 'blue' as const },
@@ -89,8 +101,6 @@ const appliedFilterText = computed(() => {
   const parts = [
     applied.publicationYearFrom ? `起始年份 ${applied.publicationYearFrom}` : '',
     applied.publicationYearTo ? `结束年份 ${applied.publicationYearTo}` : '',
-    applied.achievementType ? `成果类型 ${applied.achievementType}` : '',
-    applied.sourceType ? `来源 ${applied.sourceType}` : '',
     applied.organizationId ? `机构ID ${applied.organizationId}` : '',
     applied.topicId ? `主题ID ${applied.topicId}` : '',
   ].filter(Boolean)
@@ -211,22 +221,16 @@ async function loadAnalytics(): Promise<void> {
 }
 
 function resetFilters(): void {
-  Object.assign(filterForm, {
-    publicationYearFrom: '', publicationYearTo: '', achievementType: '',
-    sourceType: 'ALL', organizationId: '', topicId: '',
-  })
+  searchText.value = ''; searchEntityId.value = undefined
+  yearFrom.value = undefined; yearTo.value = undefined
   void loadAnalytics()
 }
 
 function cleanFilters(): AnalyticsFilter {
-  const result: AnalyticsFilter = {}
-  if (filterForm.publicationYearFrom.trim()) result.publicationYearFrom = Number(filterForm.publicationYearFrom)
-  if (filterForm.publicationYearTo.trim()) result.publicationYearTo = Number(filterForm.publicationYearTo)
-  if (filterForm.achievementType.trim()) result.achievementType = filterForm.achievementType.trim()
-  if (filterForm.sourceType && filterForm.sourceType !== 'ALL') result.sourceType = filterForm.sourceType
-  if (filterForm.organizationId.trim()) result.organizationId = Number(filterForm.organizationId)
-  if (filterForm.topicId.trim()) result.topicId = Number(filterForm.topicId)
-  return result
+  if (searchText.value.trim() && !searchEntityId.value) throw new Error('请从候选列表选择机构或主题后搜索。')
+  if (yearFrom.value !== undefined && yearTo.value !== undefined && yearFrom.value > yearTo.value) throw new Error('起始年份不能晚于结束年份。')
+  return { publicationYearFrom: yearFrom.value, publicationYearTo: yearTo.value,
+    ...(searchText.value.trim() && searchEntityId.value ? { [searchField.value]: searchEntityId.value } : {}) }
 }
 
 function sortCollaborations(items: CollaborationItem[]): CollaborationItem[] {
@@ -240,73 +244,45 @@ onMounted(loadAnalytics)
 
 <template>
   <section class="page-stack analytics-page">
-    <PageHeader
-      :title="sectionTitle"
-      description="按年份、类型与来源探索规范成果。"
-    >
-      <template #actions>
-        <nav v-if="section === 'overview' || section === 'coverage'" class="workspace-tabs" aria-label="趋势与覆盖">
-          <RouterLink to="/analytics" :aria-current="section === 'overview' ? 'page' : undefined">发表趋势</RouterLink>
-          <RouterLink to="/analytics/coverage" :aria-current="section === 'coverage' ? 'page' : undefined">字段覆盖</RouterLink>
-        </nav>
-        <nav v-else-if="section === 'distributions' || section === 'research'" class="workspace-tabs" aria-label="成果分布分类">
-          <RouterLink to="/analytics/distributions" :aria-current="section === 'distributions' ? 'page' : undefined">类型与来源</RouterLink>
-          <RouterLink to="/analytics/research" :aria-current="section === 'research' ? 'page' : undefined">机构与主题</RouterLink>
-        </nav>
-        <div v-if="overview" class="flex flex-wrap items-center gap-3">
-          <span class="text-xs text-muted-foreground">数据更新时间 {{ formatDateTime(overview.updatedAt) }}</span>
-        </div>
-      </template>
-    </PageHeader>
-
-    <FilterBar :collapsible="compactFilters" :collapsed="filtersCollapsed" @toggle="filtersCollapsed = !filtersCollapsed" :columns="6" :applying="loading" apply-text="应用筛选" @apply="loadAnalytics" @reset="resetFilters">
-      <FilterField label="起始年份">
-        <YearPicker v-model="yearFromModel" aria-label="选择起始年份" />
-      </FilterField>
-      <FilterField label="结束年份">
-        <YearPicker v-model="yearToModel" aria-label="选择结束年份" />
-      </FilterField>
-      <FilterField label="成果类型">
-        <ElSelect v-model="achievementTypeModel" placeholder="全部类型" filterable>
-          <ElOption value="ALL" label="全部类型" />
-          <ElOption
-            v-for="item in achievementTypeOptions"
-            :key="item.value"
-            :value="item.value"
-            :label="item.label"
-          />
-        </ElSelect>
-      </FilterField>
-      <FilterField label="来源">
-        <ElSelect v-model="filterForm.sourceType" placeholder="全部" filterable>
-          <ElOption value="ALL" label="全部" />
-          <ElOption value="OPENALEX" label="OpenAlex" />
-          <ElOption value="CROSSREF" label="Crossref" />
-        </ElSelect>
-      </FilterField>
-      <FilterField label="机构" hint="输入名称选择，按规范ID过滤">
-        <EntitySuggestInput v-model="filterForm.organizationId" mode="id" collection="organizations" label="机构" placeholder="输入机构名称后选择" />
-      </FilterField>
-      <FilterField label="主题" hint="输入名称选择，按规范ID过滤">
-        <EntitySuggestInput v-model="filterForm.topicId" mode="id" collection="topics" label="主题" placeholder="输入主题名称后选择" />
-      </FilterField>
-      <template #meta>实际范围：{{ appliedFilterText }}</template>
-    </FilterBar>
+    <header class="analytics-toolbar">
+      <h1>{{ sectionTitle }}</h1>
+      <div class="analytics-actions">
+        <CompactFieldSearch v-model="searchText" v-model:entity-id="searchEntityId" :field="searchField" :fields="searchFields" :loading="loading" @update:field="changeSearchField" @submit="loadAnalytics" />
+        <ElButton text size="small" @click="resetFilters">重置</ElButton>
+        <ElPopover v-if="session.hasPermission('EXPORT_CREATE')" trigger="click" placement="bottom-end" :width="260">
+          <template #reference><ElButton size="small" aria-label="导出统计"><Download :size="14" class="mr-1" />导出</ElButton></template>
+          <p class="text-xs mb-3">导出当前查询范围内已加载的统计结果，合作排行最多二十项。</p>
+          <ElButton size="small" :disabled="!exportReady" @click="downloadStatistics('CSV')">导出 CSV</ElButton><ElButton size="small" :disabled="!exportReady" @click="downloadStatistics('JSON')">导出 JSON</ElButton>
+        </ElPopover>
+      </div>
+    </header>
+    <div class="analytics-meta">
+      <nav class="workspace-tabs" aria-label="统计分类">
+        <RouterLink to="/analytics" :aria-current="section === 'overview' ? 'page' : undefined">发表趋势</RouterLink>
+        <RouterLink to="/analytics/coverage" :aria-current="section === 'coverage' ? 'page' : undefined">字段覆盖</RouterLink>
+        <RouterLink to="/analytics/distributions" :aria-current="section === 'distributions' ? 'page' : undefined">类型与来源</RouterLink>
+        <RouterLink to="/analytics/research" :aria-current="section === 'research' ? 'page' : undefined">机构与主题</RouterLink>
+        <RouterLink to="/analytics/collaboration" :aria-current="section === 'collaboration' ? 'page' : undefined">合作分析</RouterLink>
+      </nav>
+      <dl v-if="overview" class="analytics-metrics" :aria-busy="loading"><div v-for="metric in metricCards" :key="metric.label" :title="metric.note"><dt>{{ metric.label }}</dt><dd>{{ metric.value.toLocaleString('zh-CN') }}</dd></div></dl>
+      <span class="analytics-scope">实际范围：{{ appliedFilterText }}</span>
+      <YearRangeFilter v-if="section !== 'overview'" :from="yearFrom" :to="yearTo" @apply="applyYears" />
+      <ElPopover trigger="click" placement="bottom-end" :width="300">
+        <template #reference><ElButton text size="small" aria-label="统计口径与更新时间"><Info :size="15" /></ElButton></template>
+        <p class="text-xs">规范成果去重；机构、主题和来源按完整计数，一项成果可贡献多个分类，各分类数量不能相加作为成果总量。合作数表示共同署名的规范成果数，不表示合作强度或质量。</p>
+        <p v-if="overview" class="text-xs mt-2">数据更新时间 {{ formatDateTime(overview.updatedAt) }}</p>
+      </ElPopover>
+    </div>
 
     <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
     <LoadingSkeleton v-if="loading && !overview && !trends && !distributions && !collaboration" variant="metrics" />
 
     <template v-if="overview || trends || distributions || collaboration">
-      <div v-if="section === 'overview'" class="metric-strip" :aria-busy="loading">
-        <StatCard v-for="metric in metricCards" :key="metric.label" :label="metric.label" :value="metric.value" :note="metric.note" :tone="metric.tone" />
-      </div>
-      <p class="context-note">计数口径：规范成果去重；机构、主题和来源按完整计数，一项成果可贡献多个分类，各分类数量不能相加作为成果总量。合作数表示共同署名的规范成果数，不表示合作强度或质量。</p>
-
       <div :class="[{ 'analytics-content--summary': section === 'overview' && wideOverview }, isFiltering ? 'opacity-50 transition-opacity' : 'transition-opacity']" :aria-busy="loading" class="analytics-content workspace-fill">
         <PanelSection v-if="section === 'overview' && trends" title="年度成果趋势" class="workspace-panel analytics-chart-panel">
-          <template #actions><ElButton text size="small" :aria-pressed="Boolean(showingTables.trend)" @click="showingTables.trend = !showingTables.trend">{{ showingTables.trend ? '返回趋势图' : '查看趋势表格' }}</ElButton></template>
+          <template #actions><YearRangeFilter v-if="!showingTables.trend" :from="yearFrom" :to="yearTo" @apply="applyYears" /><ElButton text size="small" :aria-pressed="Boolean(showingTables.trend)" @click="showingTables.trend = !showingTables.trend">{{ showingTables.trend ? '返回趋势图' : '查看趋势表格' }}</ElButton></template>
           <ChartFrame v-if="!showingTables.trend" :option="trendOption" label="年度成果趋势折线图" height="100%" />
-          <DataTable v-else :columns="trendColumns" :data="trends.items" :get-row-id="(row) => String(row.publicationYear)" empty-text="暂无趋势数据" dense fill />
+          <DataTable v-else :columns="trendColumns" :data="trends.items" :get-row-id="(row) => String(row.publicationYear)" empty-text="暂无趋势数据" dense fill><template #header-publicationYear><span class="flex items-center gap-2">发表年份<YearRangeFilter :from="yearFrom" :to="yearTo" @apply="applyYears" /></span></template></DataTable>
         </PanelSection>
         <template v-if="section === 'overview' && wideOverview">
           <PanelSection v-if="distributions" title="成果类型分布" class="workspace-panel analytics-chart-panel">
@@ -387,35 +363,37 @@ onMounted(loadAnalytics)
 </template>
 
 <style scoped>
-.analytics-page > .metric-strip { flex-shrink: 0; }
-.analytics-page .workspace-tabs { padding-bottom: 0; border-bottom: 0; }
-.analytics-content { display: flex; flex-direction: column; gap: var(--space-3); }
+.analytics-page { padding: 8px 14px; gap: 7px; }
+.analytics-toolbar, .analytics-actions, .analytics-meta, .analytics-metrics, .analytics-metrics > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.analytics-toolbar { justify-content: space-between; flex-wrap: wrap; }
+.analytics-toolbar h1 { font-size: 17px; font-weight: 650; }
+.analytics-actions > .el-button + .el-button { margin-left: 0; }
+.analytics-meta { flex-wrap: wrap; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.analytics-metrics { gap: 16px; }
+.analytics-metrics > div { gap: 5px; }
+.analytics-metrics dd { color: hsl(var(--primary)); font-size: 16px; font-variant-numeric: tabular-nums; }
+.analytics-scope { margin-left: auto; }
+.analytics-page .workspace-tabs { padding: 0; border: 0; }
+.analytics-page .workspace-tabs a { min-height: 28px; padding: 4px 9px; font-size: 12px; }
+.analytics-content { display: flex; flex-direction: column; gap: 9px; }
 .analytics-content--summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.analytics-content--summary :deep(.panel-section__body) { padding: 10px 14px; }
-.analytics-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.analytics-page :deep(.panel-section__header) { min-height: 36px; padding: 5px 12px; }
+.analytics-page :deep(.panel-section__body) { padding: 8px 12px; }
+.analytics-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .analytics-chart-panel :deep(.panel-section__body) { display: flex; flex-direction: column; overflow: hidden; }
 .analytics-coverage :deep(.panel-section__body > div) { max-width: 900px; }
-.analytics-mobile-switch { display: none; flex-shrink: 0; gap: var(--space-2); }
+.analytics-mobile-switch { display: none; flex-shrink: 0; gap: 7px; }
 .analytics-mobile-switch .el-button + .el-button { margin-left: 0; }
 @media (max-width: 1023px) {
   .analytics-pair { grid-template-columns: minmax(0, 1fr); }
   .analytics-mobile-switch { display: flex; }
   .analytics-pair > .is-mobile-inactive { display: none; }
 }
-@media (max-width: 767px) {
-  .analytics-page { gap: var(--space-2); }
-  .analytics-page > .metric-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .analytics-page :deep(.metric-strip .stat-card) { padding: var(--space-2); }
-  .analytics-page :deep(.stat-card__value) { font-size: var(--font-size-xl); }
-}
-@media (min-width: 768px) and (max-height: 800px) {
-  .analytics-page { gap: var(--space-2); padding-block: var(--space-3); }
-  .analytics-page :deep(.filter-bar), .analytics-page :deep(.stat-card) { padding: var(--space-3); }
-  .analytics-page :deep(.metric-strip .stat-card) { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2); }
-  .analytics-page :deep(.stat-card__note) { grid-column: 1 / -1; margin-top: var(--space-1); }
-  .analytics-page :deep(.filter-bar__footer) { margin-top: var(--space-2); padding-block: 0; }
-  .analytics-page :deep(.stat-card__value) { font-size: 28px; margin-top: 0; }
-  .analytics-page :deep(.panel-section__header) { min-height: 48px; padding: var(--space-3); }
-  .analytics-page :deep(.panel-section__body) { padding: var(--space-3); }
+@media (max-width: 700px) {
+  .analytics-page { padding: 8px; }
+  .analytics-actions { width: 100%; gap: 4px; }
+  .analytics-actions > .compact-search { flex: 1; }
+  .analytics-metrics { gap: 10px; }
+  .analytics-scope { margin-left: 0; }
 }
 </style>

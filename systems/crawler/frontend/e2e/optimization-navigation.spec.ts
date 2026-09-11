@@ -8,7 +8,7 @@ async function mockUser(page: Page, admin: boolean) {
     status: 200, contentType: 'application/json', body: JSON.stringify({
       id: 1, username: 'navigation-test', roles: [admin ? 'ADMIN' : 'RESEARCHER'],
       permissions: admin
-        ? ['CATALOG_READ', 'GRAPH_READ', 'ANALYTICS_READ', 'SOURCE_READ', 'CRAWL_TASK_READ', 'GOVERNANCE_READ', 'OPERATIONS_READ', 'AUDIT_READ', 'USER_LIST']
+        ? ['CATALOG_READ', 'GRAPH_READ', 'ANALYTICS_READ', 'AUTHOR_IMPORT', 'SOURCE_READ', 'CRAWL_TASK_READ', 'GOVERNANCE_READ', 'OPERATIONS_READ', 'AUDIT_READ', 'USER_LIST']
         : ['CATALOG_READ', 'GRAPH_READ', 'ANALYTICS_READ'],
     }),
   }))
@@ -20,13 +20,13 @@ test('管理员横向导航、命令面板与窄屏入口一致', async ({ page 
   await mockUser(page, true)
   await page.goto('/catalog')
   const sidebar = page.getByRole('navigation', { name: '模块导航', exact: true })
-  await expect(sidebar.getByRole('link')).toHaveCount(11)
+  await expect(sidebar.getByRole('link')).toHaveCount(10)
   await expect(sidebar.getByRole('link', { name: '账号管理' })).toHaveAttribute('href', '/users')
   await expect(page.locator('.app-shell__sidebar')).toHaveCount(0)
   await page.keyboard.press('Control+k')
   await expect(page.getByRole('textbox', { name: '命令面板搜索' })).toBeFocused()
   await page.getByRole('textbox', { name: '命令面板搜索' }).fill('数据管理')
-  await expect(page.getByRole('option')).toHaveCount(4)
+  await expect(page.getByRole('listbox', { name: '命令列表' }).getByRole('option')).toHaveCount(1)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/navigation-desktop.png', fullPage: true, animations: 'disabled' })
@@ -42,6 +42,6 @@ test('科研用户仅显示研究工作分组', async ({ page }) => {
   await mockUser(page, false)
   await page.goto('/catalog')
   const sidebar = page.getByRole('navigation', { name: '模块导航', exact: true })
-  await expect(sidebar.getByRole('link')).toHaveText(['可视化大屏', '成果目录', '实体编目', '知识图谱', '统计分析'])
+  await expect(sidebar.getByRole('link')).toHaveText(['可视化大屏', '成果目录', '实体编目', '学术关系图谱', '学术成果图谱', '学术背景图谱', '统计分析'])
   await expect(sidebar.getByRole('link', { name: '账号管理' })).toHaveCount(0)
 })

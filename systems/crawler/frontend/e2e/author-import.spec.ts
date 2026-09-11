@@ -28,16 +28,14 @@ for (const width of [1440, 390]) {
       confirmed = true
       return route.fulfill({ json: { authorId: 12, scholarName: '张老师', importedCount: 2, linkedCount: 0, skippedCount: 0, batches: [batch] } })
     })
-    await page.route('**/api/v1/graph/subgraph?*', route => route.fulfill({ json: {
+    await page.route('**/api/v1/graph/authors/12?*', route => route.fulfill({ json: { page: 0, size: 20, totalWorks: 1, graph: {
       nodes: [
         { id: 'AUTHOR:12', businessId: '12', type: 'AUTHOR', label: '张老师', properties: {} },
         { id: 'ACHIEVEMENT:42', businessId: '42', type: 'ACHIEVEMENT', label: row.title, properties: { abstractText: row.abstractText, achievementType: 'master-thesis' } },
-        { id: 'INSTITUTION:3', businessId: '3', type: 'INSTITUTION', label: '示例大学', properties: {} },
       ], edges: [
         { id: 'supervised', source: 'AUTHOR:12', target: 'ACHIEVEMENT:42', type: 'SUPERVISED', properties: {} },
-        { id: 'institution', source: 'ACHIEVEMENT:42', target: 'INSTITUTION:3', type: 'PRODUCED_AT', properties: {} },
       ], rootNodeId: 'AUTHOR:12', truncated: false, appliedLimits: { depth: 2, nodeLimit: 100, maxHops: 6 }, syncedAt: time, projectionLagSeconds: 0,
-    } }))
+    } } }))
     await page.goto('/author-import')
     await expect(page.getByRole('heading', { name: '作者导入', exact: true })).toBeVisible()
     for (const label of ['数据源', '采集任务', '数据治理', '质量指标']) {
@@ -62,8 +60,10 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('heading', { name: '导入已完成' })).toBeVisible()
     await expect(confirm).toBeDisabled()
     await page.getByRole('link', { name: '查看 张老师 的知识图谱' }).click()
-    await expect(page).toHaveURL(/graph\/explore\?centerType=AUTHOR&centerId=12&depth=2/)
-    await expect(page.getByRole('img', { name: '知识图谱，共3个节点和2条关系' })).toBeVisible()
+    await expect(page).toHaveURL(/academic-achievements\?authorId=12/)
+    await expect(page.getByRole('img', { name: '张老师的学术成果图谱，2个节点' })).toBeVisible()
+    await page.getByRole('button', { name: '内容清单', exact: true }).click()
+    await expect(page.getByRole('list', { name: '当前页作品' })).toContainText('指导硕论')
     await page.screenshot({ path: testInfo.outputPath(`author-import-graph-${width}.png`), animations: 'disabled' })
     expect(requests.filter(path => /^\/(sources|crawl|duplicate-candidates|quality-metrics)/.test(path))).toEqual([])
     expect(errors).toEqual([])

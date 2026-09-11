@@ -63,8 +63,10 @@ test('研究人员查看MySQL统计图表、表格摘要和实际筛选范围', 
   await page.goto('/analytics')
   await expect(page.getByRole('heading', { name: '统计分析' })).toBeVisible()
   await expect(page.getByText('权威来源 · MYSQL')).toHaveCount(0)
+  await page.getByRole('button', { name: '统计口径与更新时间' }).click()
   await expect(page.getByText('数据更新时间', { exact: false })).toBeVisible()
   await expect(page.getByText('各分类数量不能相加作为成果总量', { exact: false })).toBeVisible()
+  await page.getByRole('heading', { name: '统计分析', exact: true }).click()
   await expect(page.getByRole('img', { name: '年度成果趋势折线图' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '本地字段覆盖率' })).toHaveCount(0)
 
@@ -94,25 +96,26 @@ test('研究人员查看MySQL统计图表、表格摘要和实际筛选范围', 
   await expect(page.getByRole('img', { name: '年度成果趋势折线图' })).toHaveCount(0)
   await checkViewport()
 
+  await page.getByRole('button', { name: '按发表年份范围筛选' }).click()
   await page.getByRole('button', { name: '选择起始年份' }).click()
   await page.getByRole('button', { name: '2025', exact: true }).click()
   const filteredRequest = page.waitForRequest((request) =>
     request.url().includes('/api/v1/analytics/overview?publicationYearFrom=2025'),
   )
-  await page.getByRole('button', { name: '应用筛选' }).click()
+  await page.getByRole('button', { name: '应用年份' }).click()
   await filteredRequest
 
   await openSection('/analytics/coverage')
   await expect(page.getByRole('heading', { name: '本地字段覆盖率' })).toBeVisible()
   await expect(page.getByText('75.0%', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: '选择起始年份' })).toContainText('2025')
+  await expect(page.getByRole('button', { name: '按发表年份范围筛选' })).toContainText('2025')
   await page.screenshot({ path: 'test-results/analytics-coverage.png', animations: 'disabled' })
 
   await openSection('/analytics/distributions')
   await expect(page.getByRole('img', { name: '成果类型分布条形图' })).toBeVisible()
   await expect(page.getByRole('img', { name: '数据来源分布条形图' })).toBeVisible()
   await page.getByRole('button', { name: '查看类型表格' }).click()
-  await expect(page.getByRole('cell', { name: 'article', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '期刊论文', exact: true })).toBeVisible()
 
   await openSection('/analytics/research')
   await expect(page.getByRole('img', { name: '机构成果分布条形图' })).toBeVisible()

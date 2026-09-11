@@ -1,24 +1,23 @@
 <script setup lang="ts">
-import { ElAlert, ElButton, ElInput, ElOption, ElSelect, ElTag } from 'element-plus'
-import { Download, FileSpreadsheet } from 'lucide-vue-next'
+import { ElAlert, ElButton, ElPopover, ElTag } from 'element-plus'
+import { Download } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import {
-  DataTable, FilterBar, FilterField, PageHeader, PanelSection, StatusPill,
+  DataTable, StatusPill,
 } from '@/components/business'
 import SplitWorkspace from '@/components/business/SplitWorkspace.vue'
 import AchievementPreview from '@/components/business/AchievementPreview.vue'
-import EntitySuggestInput from '@/components/business/EntitySuggestInput.vue'
+import CompactFieldSearch from '@/components/business/CompactFieldSearch.vue'
 import YearPicker from '@/components/business/YearPicker.vue'
 import type { DataTableColumn } from '@/components/business/types'
 import { useSessionCleanup } from '@/composables/useSessionCleanup'
 import { toErrorMessage } from '@/services/api'
 import { catalogApi, exportApi, type AchievementQuery } from '@/services/business'
 import { useSessionStore } from '@/stores/session'
-import type { AchievementSummary, ExportFormat, ExportTask, PageResponse } from '@/types/api'
+import type { AchievementSummary, CatalogCollection, ExportFormat, ExportTask, PageResponse } from '@/types/api'
 import { resolveExportFilter } from '@/utils/export-filter'
-import { achievementTypeOptions, sourceCodeOptions } from '@/utils/filter-options'
 import { catalogRouteQuery, readCatalogQuery } from '@/utils/catalog-query'
 import { formatDateTime } from '@/utils/format'
 
@@ -47,20 +46,35 @@ const resultQuery = ref(readCatalogQuery(route.query))
 const filtersChanged = computed(() => JSON.stringify(resolveExportFilter(filters)) !== JSON.stringify(resolveExportFilter(resultQuery.value)))
 const detailQuery = computed(() => catalogRouteQuery(resultQuery.value))
 
-/** 下拉选择以 ALL 表示不过滤，提交前映射回空字符串。 */
-const achievementTypeModel = computed<string>({
-  get: () => filters.achievementType || 'ALL',
-  set: (value) => { filters.achievementType = value === 'ALL' ? '' : value },
+const searchFields = [
+  { value: 'title', label: '题名' }, { value: 'author', label: '作者', collection: 'authors' },
+  { value: 'organization', label: '机构', collection: 'organizations' },
+  { value: 'venue', label: '期刊', collection: 'venues' }, { value: 'topic', label: '主题', collection: 'topics' },
+] as const satisfies readonly { value: string; label: string; collection?: CatalogCollection }[]
+type SearchField = typeof searchFields[number]['value']
+const searchField = ref<SearchField>('title')
+const searchIds = { author: 'authorId', organization: 'organizationId', venue: 'venueId', topic: 'topicId' } as const
+const searchText = computed({ get: () => filters[searchField.value] ?? '', set: (value: string) => { filters[searchField.value] = value } })
+const searchEntityId = computed({
+  get: () => searchField.value === 'title' ? undefined : filters[searchIds[searchField.value]],
+  set: (value: number | undefined) => { if (searchField.value !== 'title') filters[searchIds[searchField.value]] = value },
 })
-const sourceCodeModel = computed<string>({
-  get: () => filters.sourceCode || 'ALL',
-  set: (value) => { filters.sourceCode = value === 'ALL' ? '' : value },
-})
+const appliedConditions = computed(() => searchFields.flatMap(field => {
+  const value = resultQuery.value[field.value]
+  const id = field.value === 'title' ? undefined : resultQuery.value[searchIds[field.value]]
+  return value || id ? [`${field.label}：${value || `#${id}`}${value && id ? ` (#${id})` : ''}`] : []
+}))
+function changeSearchField(value: string): void {
+  for (const field of searchFields) filters[field.value] = ''
+  for (const key of Object.values(searchIds)) filters[key] = undefined
+  searchField.value = value as SearchField
+}
+function changeYear(value: number | undefined): void { filters.publicationYear = value; void load() }
 
 const columns: DataTableColumn<AchievementSummary>[] = [
   { accessorKey: 'title', header: '题名', enableSorting: false, meta: { minWidth: 320 } },
   { id: 'authors', accessorFn: (row) => row.authors.join('；'), header: '作者', enableSorting: false },
-  { accessorKey: 'publicationDate', header: '发表日期', enableSorting: false, meta: { width: 110 } },
+  { accessorKey: 'publicationDate', header: '发表日期', enableSorting: false, meta: { width: 160 } },
   { accessorKey: 'primaryVenue', header: '期刊/来源', enableSorting: false },
   { id: 'topics', accessorFn: (row) => row.topics.join('，'), header: '主题', enableSorting: false },
 ]
@@ -172,6 +186,7 @@ watch(() => route.query, (routeQuery) => {
   if (route.name !== 'catalog') return
   const query = readCatalogQuery(routeQuery)
   Object.assign(filters, query)
+  searchField.value = searchFields.find(field => query[field.value] || (field.value !== 'title' && query[searchIds[field.value]]))?.value ?? 'title'
   void fetchResults(query)
 }, { immediate: true })
 function disposeExport(): void {
@@ -185,132 +200,34 @@ useSessionCleanup(disposeExport)
 </script>
 
 <template>
-  <section class="page-stack">
-    <PageHeader
-      title="成果目录"
-      description="检索规范化成果，进入详情核对作者、来源记录和字段级血缘。"
-    />
-
+  <section class="page-stack catalog-page">
+    <header class="catalog-toolbar">
+      <div class="catalog-heading"><h1>成果目录</h1><span>{{ loading ? '正在读取…' : `共 ${result.totalElements.toLocaleString('zh-CN')} 条` }}</span></div>
+      <div class="catalog-actions">
+        <CompactFieldSearch v-model="searchText" v-model:entity-id="searchEntityId" :field="searchField" :fields="searchFields" :loading="loading" @update:field="changeSearchField" @submit="load()" />
+        <ElButton text size="small" @click="reset">重置</ElButton>
+        <ElPopover v-if="hasPermission('EXPORT_CREATE')" trigger="click" placement="bottom-end" :width="350">
+          <template #reference><ElButton size="small" aria-label="导出成果"><Download :size="14" class="mr-1" />导出</ElButton></template>
+          <div class="catalog-export" aria-live="polite">
+            <p class="text-xs text-muted-foreground">导出当前查询结果的全部记录</p>
+            <div class="flex gap-2 my-3"><ElButton size="small" :loading="exportCreating === 'CSV'" :disabled="exportCreating !== null || loading || !!errorMessage" @click="createExport('CSV')">导出 CSV</ElButton><ElButton size="small" :loading="exportCreating === 'JSON'" :disabled="exportCreating !== null || loading || !!errorMessage" @click="createExport('JSON')">导出 JSON</ElButton></div>
+            <ElAlert v-if="exportErrorMessage" type="error" :closable="false" :title="exportErrorMessage" />
+            <template v-if="exportTask">
+              <div class="flex items-center gap-2"><strong>{{ exportStatusText(exportTask.status) }}</strong><StatusPill :status="exportTask.status" /></div>
+              <p class="text-xs my-2">任务 {{ exportTask.id }} · {{ exportTask.exportedCount }} / {{ exportTask.requestedCount }} 条</p>
+              <p class="text-xs text-muted-foreground">创建 {{ formatDateTime(exportTask.createdAt) }} · 到期 {{ formatDateTime(exportTask.expiresAt) }}</p>
+              <p v-if="exportTask.errorMessage" class="text-xs text-destructive">{{ exportTask.errorMessage }}</p>
+              <ElButton v-if="exportTask.downloadAvailable && exportTask.downloadToken" type="primary" size="small" class="mt-3" :loading="exportDownloading" @click="downloadExport">下载文件</ElButton>
+            </template>
+          </div>
+        </ElPopover>
+      </div>
+    </header>
+    <p v-if="appliedConditions.length" class="catalog-scope">当前结果：{{ appliedConditions.join(' · ') }}</p>
+    <p v-if="filtersChanged" class="catalog-scope" role="status">筛选条件已修改，搜索后更新结果；导出仍使用当前结果的条件。</p>
+    <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
     <SplitWorkspace :open="previewId !== null" title="成果快速预览" @update:open="previewId = null">
     <section class="catalog-workspace" aria-label="成果检索工作区">
-    <FilterBar :columns="4" :applying="loading" apply-text="查询成果" @apply="load()" @reset="reset">
-      <FilterField label="题名">
-        <ElInput v-model="filters.title" :maxlength="200" placeholder="按题名关键词模糊检索" clearable @keydown.enter="load()" />
-      </FilterField>
-      <FilterField label="作者">
-        <EntitySuggestInput v-model="filters.author!" v-model:entity-id="filters.authorId" collection="authors" label="作者" placeholder="输入作者名称后选择" @enter="load()" />
-      </FilterField>
-      <FilterField label="机构">
-        <EntitySuggestInput v-model="filters.organization!" v-model:entity-id="filters.organizationId" collection="organizations" label="机构" placeholder="输入机构名称后选择" @enter="load()" />
-      </FilterField>
-      <FilterField label="出版年份">
-        <YearPicker v-model="filters.publicationYear" aria-label="选择出版年份" />
-      </FilterField>
-      <FilterField label="成果类型">
-        <ElSelect v-model="achievementTypeModel" placeholder="全部类型" filterable>
-          <ElOption value="ALL" label="全部类型" />
-          <ElOption
-            v-for="item in achievementTypeOptions"
-            :key="item.value"
-            :value="item.value"
-            :label="item.label"
-          />
-        </ElSelect>
-      </FilterField>
-      <FilterField label="来源代码">
-        <ElSelect v-model="sourceCodeModel" placeholder="全部来源" filterable>
-          <ElOption value="ALL" label="全部来源" />
-          <ElOption
-            v-for="item in sourceCodeOptions"
-            :key="item.value"
-            :value="item.value"
-            :label="item.label"
-          />
-        </ElSelect>
-      </FilterField>
-      <FilterField label="期刊">
-        <EntitySuggestInput v-model="filters.venue!" v-model:entity-id="filters.venueId" collection="venues" label="期刊" placeholder="输入期刊名称后选择" @enter="load()" />
-      </FilterField>
-      <FilterField label="主题">
-        <EntitySuggestInput v-model="filters.topic!" v-model:entity-id="filters.topicId" collection="topics" label="主题" placeholder="输入主题名称后选择" @enter="load()" />
-      </FilterField>
-
-      <template #meta>输入名称可模糊检索，选择候选可精确匹配；导出使用当前结果的筛选条件</template>
-      <template #actions>
-        <template v-if="hasPermission('EXPORT_CREATE')">
-          <ElButton
-            plain
-            size="small"
-            :loading="exportCreating === 'CSV'"
-            :disabled="exportCreating !== null || loading || !!errorMessage"
-            @click="createExport('CSV')"
-          >
-            <FileSpreadsheet class="mr-1 size-4" aria-hidden="true" />导出 CSV
-          </ElButton>
-          <ElButton
-            plain
-            size="small"
-            :loading="exportCreating === 'JSON'"
-            :disabled="exportCreating !== null || loading || !!errorMessage"
-            @click="createExport('JSON')"
-          >
-            导出 JSON
-          </ElButton>
-        </template>
-      </template>
-    </FilterBar>
-
-    <p v-if="filtersChanged" class="text-sm text-muted-foreground" role="status">筛选条件已修改，查询后更新结果；导出仍使用当前结果的条件。</p>
-    <ElAlert v-if="errorMessage" type="error" :closable="false" :title="errorMessage" show-icon />
-    <ElAlert v-if="exportErrorMessage" type="error" :closable="false" :title="exportErrorMessage" show-icon />
-
-    <!-- 导出任务票据 -->
-    <section
-      v-if="exportTask"
-      aria-live="polite"
-      class="catalog-export grid gap-4 border-b border-border bg-muted/40 p-5 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.6fr)_auto] lg:items-center"
-    >
-      <div class="space-y-1">
-        <span class="text-xs text-muted-foreground">导出任务 · {{ exportTask.format }}</span>
-        <div class="flex items-center gap-2">
-          <strong class="text-lg font-semibold text-foreground">{{ exportStatusText(exportTask.status) }}</strong>
-          <StatusPill :status="exportTask.status" />
-        </div>
-        <span class="mono-evidence block text-xs text-muted-foreground">任务 {{ exportTask.id }}</span>
-      </div>
-      <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div class="space-y-0.5">
-          <dt class="text-xs text-muted-foreground">预计记录</dt>
-          <dd class="text-sm font-medium tabular-nums">{{ exportTask.requestedCount.toLocaleString('zh-CN') }}</dd>
-        </div>
-        <div class="space-y-0.5">
-          <dt class="text-xs text-muted-foreground">已导出</dt>
-          <dd class="text-sm font-medium tabular-nums">{{ exportTask.exportedCount.toLocaleString('zh-CN') }}</dd>
-        </div>
-        <div class="space-y-0.5">
-          <dt class="text-xs text-muted-foreground">创建时间</dt>
-          <dd class="text-sm">{{ formatDateTime(exportTask.createdAt) }}</dd>
-        </div>
-        <div class="space-y-0.5">
-          <dt class="text-xs text-muted-foreground">过期时间</dt>
-          <dd class="text-sm">{{ formatDateTime(exportTask.expiresAt) }}</dd>
-        </div>
-      </dl>
-      <div class="flex flex-col items-start gap-2 lg:items-end">
-        <span v-if="exportTask.errorMessage" class="text-xs text-destructive">{{ exportTask.errorMessage }}</span>
-        <ElButton
-          v-if="exportTask.downloadAvailable && exportTask.downloadToken"
-          type="primary"
-          :loading="exportDownloading"
-          @click="downloadExport"
-        >
-          <Download class="mr-1 size-4" aria-hidden="true" />下载文件
-        </ElButton>
-      </div>
-    </section>
-
-    <PanelSection title="检索结果" :subtitle="loading && !result.items.length ? '正在读取…' : `共 ${result.totalElements.toLocaleString('zh-CN')} 条`">
-      <template #actions><span class="text-xs text-muted-foreground">题名进入详情 · DOI 保留原始标识</span></template>
       <DataTable fill
         :columns="columns"
         :data="result.items"
@@ -323,6 +240,7 @@ useSessionCleanup(disposeExport)
         :get-row-id="(row) => String(row.id)"
         @update:page="load"
       >
+        <template #header-publicationDate><span class="date-heading">发表日期 <YearPicker :model-value="filters.publicationYear" compact aria-label="按发表年份筛选" @update:model-value="changeYear" /></span></template>
         <template #cell-title="{ row }">
           <RouterLink class="catalog-title" :to="{ path: `/catalog/achievements/${row.id}`, query: detailQuery }">
             {{ row.title }}
@@ -341,9 +259,26 @@ useSessionCleanup(disposeExport)
           </div>
         </template>
       </DataTable>
-    </PanelSection>
     </section>
     <template #detail><AchievementPreview v-if="previewId !== null" :id="previewId" :return-query="detailQuery" /></template>
     </SplitWorkspace>
   </section>
 </template>
+
+<style scoped>
+.catalog-page { padding: 8px 14px; gap: 7px; }
+.catalog-toolbar, .catalog-actions, .catalog-heading { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.catalog-toolbar { justify-content: space-between; flex-wrap: wrap; }
+.catalog-heading h1 { font-size: 17px; font-weight: 650; white-space: nowrap; }
+.catalog-heading > span, .catalog-scope { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.catalog-actions { justify-content: flex-end; }
+.catalog-actions > .el-button + .el-button { margin-left: 0; }
+.catalog-workspace > .data-table { flex: 1; min-height: 0; }
+.date-heading { display: flex; align-items: center; gap: 5px; }
+@media (max-width: 700px) {
+  .catalog-page { padding: 8px; }
+  .catalog-toolbar { gap: 7px; }
+  .catalog-actions { width: 100%; gap: 4px; }
+  .catalog-actions > .compact-search { flex: 1; }
+}
+</style>

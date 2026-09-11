@@ -1,5 +1,7 @@
 import {
   BookOpen,
+  CalendarDays,
+  Network,
   FileInput,
   ContactRound,
   LayoutDashboard,
@@ -21,6 +23,7 @@ export interface NavItem {
   activePaths?: readonly string[]
   icon: LucideIcon
   permission?: Permission
+  preserveAuthor?: boolean
   /** 用于命令面板搜索的关键词 */
   keywords?: string[]
   /** 父模块下的子模块入口，可独立展开或收起。 */
@@ -48,21 +51,15 @@ const allNavItems: NavItem[] = [
   { group: 'visualization', label: '成果目录', caption: 'Catalog', to: '/catalog', icon: Library, permission: 'CATALOG_READ', keywords: ['catalog', 'achievement'], children: [
     { label: '全部成果', to: '/catalog' },
   ] },
-  { group: 'visualization', label: '实体编目', caption: 'Entities', to: '/catalog/authors', icon: ContactRound, permission: 'CATALOG_READ', activePaths: ['/catalog/authors', '/catalog/organizations', '/catalog/venues', '/catalog/topics'], children: [
+  { group: 'visualization', label: '实体编目', caption: 'Entities', to: '/catalog/authors', icon: ContactRound, permission: 'CATALOG_READ', activePaths: ['/catalog/authors', '/catalog/organizations', '/catalog/venues', '/catalog/topics', '/catalog/patents', '/catalog/master-theses', '/catalog/doctoral-theses'], children: [
     { label: '作者', to: '/catalog/authors' }, { label: '机构', to: '/catalog/organizations' },
     { label: '期刊', to: '/catalog/venues' }, { label: '主题', to: '/catalog/topics' },
+    { label: '专利', to: '/catalog/patents' }, { label: '指导硕论', to: '/catalog/master-theses' },
+    { label: '指导博论', to: '/catalog/doctoral-theses' },
   ] },
-  {
-    group: 'visualization', label: '知识图谱', caption: 'Network', to: '/graph', icon: BookOpen, permission: 'GRAPH_READ', keywords: ['graph', 'network'],
-    children: [
-      { label: '图谱概览', to: '/graph' },
-      { label: '节点样式', to: '/graph/settings/nodes', activePaths: ['/graph/settings/nodes', '/graph/entities'] },
-      { label: '关系样式', to: '/graph/settings/edges', activePaths: ['/graph/settings/edges', '/graph/relations'] },
-      { label: '高级查询', to: '/graph/explore' },
-      { label: '路径分析', to: '/graph/path' },
-      { label: '保存的查询', to: '/graph/queries' },
-    ],
-  },
+  { group: 'visualization', label: '学术关系图谱', caption: 'Relations', to: '/academic-relations', icon: Network, permission: 'GRAPH_READ', preserveAuthor: true, keywords: ['graph', '合作'] },
+  { group: 'visualization', label: '学术成果图谱', caption: 'Achievements', to: '/academic-achievements', icon: BookOpen, permission: 'GRAPH_READ', preserveAuthor: true, keywords: ['graph', '成果'] },
+  { group: 'visualization', label: '学术背景图谱', caption: 'Background', to: '/academic-background', icon: CalendarDays, permission: 'GRAPH_READ', preserveAuthor: true, keywords: ['graph', '时间线'] },
   { group: 'visualization', label: '统计分析', caption: 'Analytics', to: '/analytics', icon: TrendingUp, permission: 'ANALYTICS_READ', keywords: ['analytics', 'trend', 'chart'], children: [
     { label: '趋势与覆盖', to: '/analytics', activePaths: ['/analytics', '/analytics/coverage'] },
     { label: '成果分布', to: '/analytics/distributions', activePaths: ['/analytics/distributions', '/analytics/research'] },

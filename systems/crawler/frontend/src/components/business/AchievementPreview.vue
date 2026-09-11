@@ -6,6 +6,7 @@ import { catalogApi } from '@/services/business'
 import { toErrorMessage } from '@/services/api'
 import type { AchievementDetail } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
+import { achievementTypeLabel } from '@/utils/filter-options'
 
 const props = defineProps<{ id: number; returnQuery?: LocationQueryRaw }>()
 const detail = ref<AchievementDetail | null>(null)
@@ -31,7 +32,7 @@ onBeforeUnmount(() => { sequence++ })
     <p v-if="loading" role="status" class="text-muted-foreground">正在读取成果…</p>
     <template v-else-if="error"><ElAlert :title="error" type="error" :closable="false" /><ElButton class="mt-3" @click="load">重新加载</ElButton></template>
     <template v-else-if="detail">
-      <span class="achievement-preview__eyebrow">{{ detail.summary.achievementType || '成果' }} · {{ detail.summary.publicationDate || '日期未知' }}</span>
+      <span class="achievement-preview__eyebrow">{{ achievementTypeLabel(detail.summary.achievementType || '', '成果') }} · {{ detail.summary.publicationDate || '日期未知' }}</span>
       <h3>{{ detail.summary.title }}</h3>
       <p class="text-muted-foreground">{{ detail.summary.authors.join('；') || '暂无作者信息' }}</p>
       <dl><dt>DOI</dt><dd class="mono-evidence">{{ detail.summary.doi || '未提供' }}</dd><dt>期刊 / 来源</dt><dd>{{ detail.summary.primaryVenue || '未提供' }}</dd></dl>

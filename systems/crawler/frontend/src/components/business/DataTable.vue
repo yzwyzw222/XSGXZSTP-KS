@@ -145,6 +145,7 @@ function handleSortChange(payload: { prop: string | null; order: 'ascending' | '
           :align="column.meta?.align"
           :sortable="column.enableSorting ? 'custom' : false"
         >
+          <template #header><slot :name="`header-${columnId(column, index)}`" :column="column">{{ column.header }}</slot></template>
           <template #default="{ row, $index }">
             <slot
               :name="`cell-${columnId(column, index)}`"

@@ -9,7 +9,7 @@ it('目录分页和实体选择可经 URL 往返恢复，导出沿用相同条�
 })
 it('未选择候选时保留模糊文本，无需重新解析唯一实体', () => {
   expect(resolveExportFilter(readCatalogQuery({ author: '王', organization: '科技', venue: 'Science', topic: '图', sourceCode: 'CROSSREF' })))
-    .toEqual({ author: '王', organization: '科技', venue: 'Science', topic: '图', sourceCode: 'CROSSREF' })
+    .toEqual({ author: '王', organization: '科技', venue: 'Science', topic: '图' })
 })
 it('忽略未知参数和非法边界，不把空条件传给导出', () => {
   const query = readCatalogQuery({ page: '-1', size: '101', authorId: '9007199254740992', venueId: '1.5', publicationYear: '999', title: ['a', 'b'], redirect: '/admin' })

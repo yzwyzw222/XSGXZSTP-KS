@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
   class?: string
   min?: number
   max?: number
+  compact?: boolean
 }>(), { placeholder: '不限年份', min: 1000, max: 9999 })
 
 const emit = defineEmits<{ (e: 'update:modelValue', value: number | undefined): void }>()
@@ -62,14 +63,15 @@ function clear(): void {
     <template #reference>
       <ElButton
         plain
-        :class="cn('w-full justify-between font-normal', !modelValue && 'aacv-year-empty', props.class)"
+        :size="compact ? 'small' : 'default'"
+        :class="cn(compact ? 'aacv-year-compact' : 'w-full justify-between font-normal', !modelValue && 'aacv-year-empty', props.class)"
         :aria-label="ariaLabel ?? `选择${placeholder}`"
       >
         <span class="flex min-w-0 items-center gap-2">
           <CalendarDays class="size-4 shrink-0 opacity-60" aria-hidden="true" />
-          <span class="truncate tabular-nums">{{ modelValue ?? placeholder }}</span>
+          <span v-if="!compact || modelValue" class="truncate tabular-nums">{{ modelValue ?? placeholder }}</span>
         </span>
-        <ChevronDown class="size-4 shrink-0 opacity-50" aria-hidden="true" />
+        <ChevronDown v-if="!compact" class="size-4 shrink-0 opacity-50" aria-hidden="true" />
       </ElButton>
     </template>
 
@@ -119,4 +121,5 @@ function clear(): void {
 .aacv-year-empty {
   --el-button-text-color: hsl(var(--muted-foreground));
 }
+.aacv-year-compact { padding-inline: 6px; }
 </style>

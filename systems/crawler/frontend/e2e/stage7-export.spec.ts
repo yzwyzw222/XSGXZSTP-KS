@@ -36,8 +36,6 @@ test('研究人员按当前目录筛选创建、轮询并下载CSV导出', async
         title: '可信计算',
         publicationYearFrom: 2026,
         publicationYearTo: 2026,
-        achievementType: 'article',
-        sourceCode: 'OPENALEX',
       },
     })
     await fulfill(route, {
@@ -80,19 +78,15 @@ test('研究人员按当前目录筛选创建、轮询并下载CSV导出', async
   }))
 
   await page.goto('/catalog')
-  await page.locator('label:has-text("题名") input').fill('可信计算')
-  await page.getByRole('button', { name: '选择出版年份' }).click()
+  await page.getByRole('textbox', { name: '题名搜索' }).fill('可信计算')
+  await page.getByRole('button', { name: '按发表年份筛选' }).click()
   await page.getByRole('button', { name: '2026', exact: true }).click()
-  await page.locator('label:has-text("成果类型")').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'article · 期刊论文' }).click()
-  await page.locator('label:has-text("来源代码")').getByRole('combobox').click()
-  await page.getByRole('option', { name: 'OpenAlex' }).click()
-  await page.getByRole('button', { name: '查询成果' }).click()
   await expect(page).toHaveURL(/title=/)
+  await page.getByRole('button', { name: '导出成果' }).click()
   await page.getByRole('button', { name: '导出 CSV' }).click()
 
   await expect(page.getByText('导出完成')).toBeVisible()
-  await expect(page.getByText(`任务 ${exportId}`)).toBeVisible()
+  await expect(page.getByText(`任务 ${exportId}`, { exact: false })).toBeVisible()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: '下载文件' }).click()
   const download = await downloadPromise

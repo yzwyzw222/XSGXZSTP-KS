@@ -62,7 +62,7 @@ async function nodePoint(page: Page, color: [number, number, number]) {
 test('真实画布双击、历史截断、返回及刷新使用正确后端中心，复用画布', async ({ page }) => {
   const state = await setup(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
   const history = page.getByRole('navigation', { name: '图谱浏览历史' })
   await expect(history).toHaveCount(0)
@@ -107,7 +107,7 @@ test('CSS 压缩后的秒单位动效在首次适配和刷新后仍能显示节�
     await page.addStyleTag({ content: ':root { --duration-slow: .28s; }' })
     await route.fulfill({ json: graph })
   })
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   await expect(page.getByRole('img', { name: '知识图谱，共20个节点和10条关系' })).toHaveAttribute('aria-busy', 'false')
   let paintedSamples = 0
   await expect.poll(async () => {
@@ -136,7 +136,7 @@ test('CSS 压缩后的秒单位动效在首次适配和刷新后仍能显示节�
 test('节点和关系右键菜单、完整名称、扩展字段与只读入口可用', async ({ page }) => {
   const state = await setup(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   const author = await nodePoint(page, [37, 140, 163])
   await page.mouse.click(author.x, author.y, { button: 'right' })
   const menu = page.getByRole('menu', { name: '图谱操作' })
@@ -179,7 +179,7 @@ test('1024px 子图历史与合作详情同时显示时操作栏不重叠', asyn
     ],
   })
   await page.setViewportSize({ width: 1024, height: 900 })
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   const work = await nodePoint(page, [35, 99, 184])
   await page.mouse.dblclick(work.x, work.y)
   const history = page.getByRole('navigation', { name: '图谱浏览历史' })
@@ -204,7 +204,7 @@ test('1024px 子图历史与合作详情同时显示时操作栏不重叠', asyn
 
 test('空态、非法响应、快速筛选和容器缩放后视图保持一致', async ({ page }) => {
   const state = await setup(page)
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
   const search = page.getByRole('textbox', { name: '搜索当前图谱' })
   await search.fill('不存在')
@@ -229,11 +229,17 @@ test('空态、非法响应、快速筛选和容器缩放后视图保持一致',
   await expect.poll(async () => page.locator('.graph-canvas canvas').last().evaluate(element => Math.abs(element.getBoundingClientRect().width - element.parentElement!.getBoundingClientRect().width))).toBeLessThan(2)
   await page.screenshot({ path: 'test-results/graph-vis-mobile-dark.png', fullPage: true })
   for (let i = 0; i < 2; i++) {
+    await page.getByRole('navigation', { name: '模块页面', exact: true }).getByRole('link', { name: '学术关系图谱', exact: true }).click()
+    await page.locator('summary').filter({ hasText: '图谱工具' }).click()
     await page.getByRole('link', { name: '高级查询', exact: true }).click()
     await expect(page).toHaveURL(/\/graph\/explore$/)
     await page.getByRole('button', { name: '打开导航菜单' }).click()
-    await page.getByRole('dialog').getByRole('navigation', { name: '业务导航' }).getByRole('link', { name: '图谱概览', exact: true }).click()
-    await expect(page).toHaveURL(/\/graph$/)
+    const graphMenu = page.getByRole('dialog').getByRole('button', { name: '知识图谱', exact: true })
+    if (await graphMenu.getAttribute('aria-expanded') !== 'true') await graphMenu.click()
+    await page.getByRole('dialog').getByRole('navigation', { name: '业务导航' }).getByRole('link', { name: '学术关系图谱', exact: true }).click()
+    await page.locator('summary').filter({ hasText: '图谱工具' }).click()
+    await page.getByRole('link', { name: '全局图谱', exact: true }).click()
+    await expect(page).toHaveURL(/\/graph\/overview$/)
     await expect(page.locator('.graph-canvas canvas').last()).toHaveCount(1)
     await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toHaveAttribute('aria-busy', 'false')
   }
@@ -242,7 +248,7 @@ test('空态、非法响应、快速筛选和容器缩放后视图保持一致',
 
 test('图谱概览在桌面和窄屏均保持单屏，统计靠上且不遮挡画布操作', async ({ page }) => {
   const state = await setup(page)
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   await expect(page.getByRole('img', { name: '知识图谱，共2个节点和1条关系' })).toBeVisible()
   await expect(page.locator('.overview-navigation, .scope-description, .overview-write-actions')).toHaveCount(0)
   await expect(page.getByText('筛选仅作用于当前读取范围。双击节点可查看两跳子图；右键查看操作。全局统计暂未提供。')).toHaveCount(0)
@@ -275,7 +281,7 @@ test('图谱概览在桌面和窄屏均保持单屏，统计靠上且不遮挡�
 test('画布支持节点拖动、平移、滚轮缩放和完整名称悬停提示', async ({ page }) => {
   const state = await setup(page)
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   const point = await nodePoint(page, [35, 99, 184])
   await page.mouse.move(point.x, point.y)
   await expect(page.locator('.graph-canvas')).toHaveAttribute('title', fullName)
@@ -321,7 +327,7 @@ for (const reducedMotion of ['reduce', 'no-preference'] as const) test(`密集�
   }
   await page.route('**/api/v1/graph/overview', route => route.fulfill({ json: graph }))
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto('/graph')
+  await page.goto('/graph/overview')
   await expect(page.getByRole('img', { name: '知识图谱，共80个节点和120条关系' })).toBeVisible()
   const geometry = () => page.locator('.graph-canvas canvas').last().evaluate(element => {
     const canvas = element as HTMLCanvasElement

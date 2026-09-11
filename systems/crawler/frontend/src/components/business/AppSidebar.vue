@@ -80,7 +80,7 @@ function activeChild(item: NavItem): string | undefined {
           </button>
           <RouterLink
             v-else
-            :to="item.to"
+            :to="item.preserveAuthor ? { path: item.to, query: { authorId: route.query.authorId } } : item.to"
             :aria-label="item.label"
             :aria-current="isActive(item.to) ? 'page' : undefined"
             :title="collapsed ? item.label : undefined"
