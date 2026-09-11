@@ -23,11 +23,19 @@ public class GraphPresentationService {
 
     /** 拓扑只取自本次 Neo4j 结果，样式与类型审核状态每次从 MySQL 批量读取。 */
     public GraphView present(GraphView graph, boolean includeCoauthors) {
+        return present(graph, includeCoauthors, null);
+    }
+
+    public GraphView presentAuthor(GraphView graph, boolean includeCoauthors) {
+        return present(graph, includeCoauthors, graph.rootNodeId());
+    }
+
+    private GraphView present(GraphView graph, boolean includeCoauthors, String centerId) {
         List<GraphTypeDefinition> definitions = typeService.list();
         definitions.forEach(GraphTypeService::validate);
         Set<String> configured = definitions.stream().map(value -> value.kind() + ":" + value.code())
                 .collect(Collectors.toSet());
-        Derived derived = includeCoauthors ? coauthors(graph) : new Derived(List.of(), false);
+        Derived derived = includeCoauthors ? coauthors(graph, centerId) : new Derived(List.of(), false);
         List<Edge> edges = new ArrayList<>(graph.edges());
         edges.addAll(derived.edges());
         if (graph.nodes().stream().anyMatch(node -> !configured.contains("NODE:" + node.type()))
@@ -45,6 +53,10 @@ public class GraphPresentationService {
 
     /** 共同作品是当前受限子图内的证据，不推断全库合作数量，不写回 Neo4j。 */
     static Derived coauthors(GraphView graph) {
+        return coauthors(graph, null);
+    }
+
+    private static Derived coauthors(GraphView graph, String centerId) {
         Map<String, GraphNodeType> nodeTypes = graph.nodes().stream()
                 .collect(Collectors.toMap(GraphView.Node::id, GraphView.Node::type));
         Map<String, Set<String>> authorsByWork = new LinkedHashMap<>();
@@ -57,6 +69,19 @@ public class GraphPresentationService {
         Map<Pair, Set<String>> worksByPair = new LinkedHashMap<>();
         boolean truncated = false;
         for (var entry : authorsByWork.entrySet()) {
+            if (centerId != null) {
+                if (!entry.getValue().contains(centerId)) continue;
+                for (String other : entry.getValue()) {
+                    if (other.equals(centerId)) continue;
+                    Pair pair = centerId.compareTo(other) < 0 ? new Pair(centerId, other) : new Pair(other, centerId);
+                    if (!worksByPair.containsKey(pair) && worksByPair.size() >= COAUTHOR_LIMIT) {
+                        truncated = true;
+                        continue;
+                    }
+                    worksByPair.computeIfAbsent(pair, ignored -> new LinkedHashSet<>()).add(entry.getKey());
+                }
+                continue;
+            }
             List<String> authors = new ArrayList<>(entry.getValue());
             for (int left = 0; left < authors.size(); left++) {
                 for (int right = left + 1; right < authors.size(); right++) {

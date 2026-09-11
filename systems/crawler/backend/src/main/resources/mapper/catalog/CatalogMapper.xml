@@ -434,8 +434,34 @@
             ))
         </if>
     </sql>
+    <sql id="workEntityScope">
+        FROM achievement e
+        LEFT JOIN canonical_entity_link entity_link
+               ON entity_link.entity_type = 'ACHIEVEMENT' AND entity_link.entity_id = e.id
+        LEFT JOIN manual_field_override title_override
+               ON title_override.achievement_id = e.id AND title_override.field_name = 'title' AND title_override.active = TRUE
+        LEFT JOIN manual_field_override type_override
+               ON type_override.achievement_id = e.id AND type_override.field_name = 'type' AND type_override.active = TRUE
+        WHERE entity_link.entity_id IS NULL
+          AND COALESCE(JSON_UNQUOTE(type_override.field_value), e.achievement_type) = LOWER(REPLACE(#{kind}, '_', '-'))
+        <if test="kind == 'MASTER_THESIS' or kind == 'DOCTORAL_THESIS'">
+            AND EXISTS (
+                SELECT 1 FROM achievement_advisor advisor
+                LEFT JOIN canonical_entity_link work_link
+                       ON work_link.entity_type = 'ACHIEVEMENT' AND work_link.entity_id = advisor.achievement_id
+                WHERE COALESCE(work_link.canonical_entity_id, advisor.achievement_id) = e.id
+            )
+        </if>
+        <if test="name != null">
+            AND LOCATE(LOWER(#{name}), LOWER(COALESCE(JSON_UNQUOTE(title_override.field_value), e.title_original, e.title_normalized))) &gt; 0
+        </if>
+    </sql>
+
     <select id="countEntities" resultType="long">
         <choose>
+            <when test="kind == 'PATENT' or kind == 'MASTER_THESIS' or kind == 'DOCTORAL_THESIS'">
+                SELECT COUNT(*) <include refid="workEntityScope"/>
+            </when>
             <when test="kind == 'AUTHOR'">
                 SELECT COUNT(*) FROM author e
                 LEFT JOIN canonical_entity_link entity_link
@@ -467,6 +493,12 @@
     <select id="findEntityPage"
             resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
         <choose>
+            <when test="kind == 'PATENT' or kind == 'MASTER_THESIS' or kind == 'DOCTORAL_THESIS'">
+                SELECT e.id, e.doi_normalized AS external_id,
+                       COALESCE(JSON_UNQUOTE(title_override.field_value), e.title_original, e.title_normalized) AS display_name,
+                       #{kind} AS entity_type, 1 AS achievement_count
+                <include refid="workEntityScope"/>
+            </when>
             <when test="kind == 'AUTHOR'">
                 SELECT e.id, openalex.external_id, e.display_name, 'AUTHOR' AS entity_type,
                        COUNT(DISTINCT relation_value.achievement_id) AS achievement_count

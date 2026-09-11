@@ -488,14 +488,15 @@ paths:
   /api/v1/catalog/{collection}:
     get:
       tags: [Catalog]
-      summary: 分页查询作者、机构、载体或主题
+      summary: 分页查询作者、机构、期刊、主题、专利及指导硕博论文
+      description: 专利按规范成果类型查询；指导硕博论文要求存在导师关联，合并成员及多人指导不重复计数。新增成果编目的 id 用于已有成果详情接口。
       operationId: listCatalogEntities
       security: [{sessionCookie: []}]
       parameters:
         - name: collection
           in: path
           required: true
-          schema: {type: string, enum: [authors, organizations, venues, topics]}
+          schema: {type: string, enum: [authors, organizations, venues, topics, patents, master-theses, doctoral-theses]}
         - {name: name, in: query, schema: {type: string, maxLength: 200}}
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Size'
@@ -593,6 +594,40 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '503': {$ref: '#/components/responses/GraphUnavailable'}
+        '504': {$ref: '#/components/responses/GraphQueryTimeout'}
+  /api/v1/graph/authors/{authorId}:
+    get:
+      tags: [Graph]
+      summary: 按作者分页浏览合作、成果与时间线
+      operationId: getAuthorAcademicGraph
+      x-required-permission: GRAPH_READ
+      description: 复用托管 Neo4j 投影。论文包含 article、review、preprint、proceedings-article；论文与专利须本人 AUTHORED，硕博须本人 SUPERVISED。按成果分页，先保留中心及当前页全部作品，再读取最多1200条共同署名证据，整图最多300节点。合作边只关联中心作者，数量仅覆盖当前页。日期默认倒序，chronological=true 时正序；缺失日期始终末尾，同日期按业务ID升序。单次事务超时3秒，不修改业务数据。科技成果等其他类型保留在目录。作者不存在或未同步返回404，孤立作者返回单节点与0条成果。
+      security: [{sessionCookie: []}]
+      parameters:
+        - {name: authorId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+        - {name: category, in: query, schema: {type: string, enum: [PAPER, PATENT, MASTER_THESIS, DOCTORAL_THESIS]}}
+        - {name: collaborationsOnly, in: query, schema: {type: boolean, default: false}}
+        - {name: chronological, in: query, schema: {type: boolean, default: false}}
+        - {name: page, in: query, schema: {type: integer, minimum: 0, maximum: 1000000, default: 0}}
+        - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
+      responses:
+        '200':
+          description: 成果分页及当前页图谱；truncated 仅表示当前页合作证据未全部展示
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [graph, page, size, totalWorks]
+                properties:
+                  graph: {$ref: '#/components/schemas/GraphResponse'}
+                  page: {type: integer, minimum: 0}
+                  size: {type: integer, minimum: 1, maximum: 50}
+                  totalWorks: {type: integer, format: int64, minimum: 0}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
         '503': {$ref: '#/components/responses/GraphUnavailable'}
         '504': {$ref: '#/components/responses/GraphQueryTimeout'}
   /api/v1/graph/subgraph:

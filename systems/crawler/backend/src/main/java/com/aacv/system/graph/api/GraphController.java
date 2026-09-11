@@ -5,11 +5,14 @@ import com.aacv.system.graph.application.GraphPresentationService;
 import com.aacv.system.graph.domain.GraphNodeType;
 import com.aacv.system.graph.domain.GraphRelationshipType;
 import com.aacv.system.graph.domain.GraphView;
+import com.aacv.system.graph.domain.AuthorGraphView;
+import com.aacv.system.graph.domain.AuthorGraphView.WorkCategory;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +51,19 @@ public class GraphController {
         return presentationService.present(queryService.subgraph(
                 centerType, centerId, depth, nodeLimit, relationshipTypes, nodeTypes,
                 publicationYearFrom, publicationYearTo, achievementTypes), includeCoauthors);
+    }
+
+    @GetMapping("/authors/{authorId}")
+    public AuthorGraphView authorGraph(
+            @PathVariable @Min(1) long authorId,
+            @RequestParam(required = false) WorkCategory category,
+            @RequestParam(defaultValue = "false") boolean collaborationsOnly,
+            @RequestParam(defaultValue = "false") boolean chronological,
+            @RequestParam(defaultValue = "0") @Min(0) @Max(1000000) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+        AuthorGraphView result = queryService.authorGraph(authorId, category, collaborationsOnly, chronological, page, size);
+        return new AuthorGraphView(presentationService.presentAuthor(result.graph(), collaborationsOnly),
+                result.page(), result.size(), result.totalWorks());
     }
 
     @GetMapping("/path")

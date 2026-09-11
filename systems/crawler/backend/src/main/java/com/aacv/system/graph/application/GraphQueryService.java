@@ -3,6 +3,8 @@ package com.aacv.system.graph.application;
 import com.aacv.system.graph.domain.GraphNodeType;
 import com.aacv.system.graph.domain.GraphRelationshipType;
 import com.aacv.system.graph.domain.GraphView;
+import com.aacv.system.graph.domain.AuthorGraphView;
+import com.aacv.system.graph.domain.AuthorGraphView.WorkCategory;
 import com.aacv.system.graph.domain.GraphView.AppliedLimits;
 import com.aacv.system.graph.domain.GraphView.Edge;
 import com.aacv.system.graph.domain.GraphView.Node;
@@ -84,6 +86,9 @@ public class GraphQueryService {
         List<String> relations = names(relationshipTypes, EnumSet.allOf(GraphRelationshipType.class));
         List<String> labels = labels(nodeTypes, EnumSet.allOf(GraphNodeType.class));
         List<String> types = checkedAchievementTypes(achievementTypes);
+        // 作者成果较多时，按作品保留共同作者证据，避免一跳论文先占满全部节点额度。
+        String evidenceOrder = centerType == GraphNodeType.AUTHOR
+                ? "coalesce([related IN nodes(path) WHERE related:Achievement | related.businessId][0], -1), " : "";
         String cypher = "MATCH path=(root:" + label(centerType) + " {businessId: $centerId})-[rels*0.."
                 + depth + "]-(node) "
                 + "WHERE root.aacvManaged = true AND node.aacvManaged = true "
@@ -95,7 +100,7 @@ public class GraphQueryService {
                 + "OR node.publicationDate < date({year: $yearTo + 1, month: 1, day: 1})) "
                 + "AND (NOT 'Achievement' IN labels(node) OR size($achievementTypes) = 0 "
                 + "OR node.achievementType IN $achievementTypes) "
-                + "RETURN path ORDER BY length(path), elementId(node) LIMIT $pathLimit";
+                + "RETURN path ORDER BY " + evidenceOrder + "length(path), elementId(node) LIMIT $pathLimit";
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("centerId", centerId);
         parameters.put("relationshipTypes", relations);
@@ -125,6 +130,110 @@ public class GraphQueryService {
                 + "RETURN path ORDER BY reduce(key = '', rel IN relationships(path) | key + '|' + elementId(rel)) LIMIT 1";
         return execute(cypher, Map.of("sourceId", sourceId, "targetId", targetId),
                 stableNodeId(sourceType, sourceId), 0, HARD_NODE_LIMIT, maxHops);
+    }
+
+    /** 先对成果分页，再补齐共同作者；导师关系不作为共同署名的证据。 */
+    @PreAuthorize("hasAuthority('GRAPH_READ')")
+    public AuthorGraphView authorGraph(long authorId, WorkCategory category, boolean collaborationsOnly,
+            boolean chronological, int page, int size) {
+        validateNode(GraphNodeType.AUTHOR, authorId);
+        if (page < 0 || page > 1000000 || size < 1 || size > 50) {
+            throw new IllegalArgumentException("作者图谱分页参数无效");
+        }
+        if (operationsService.rebuildInProgress()) throw new GraphRebuildInProgressException();
+        if (!schemaState.isReady()) throw new GraphUnavailableException();
+
+        String match = """
+                MATCH (root:Author {businessId: $authorId, aacvManaged: true})
+                      -[link:AUTHORED|SUPERVISED]->(work:Achievement)
+                WHERE link.aacvManaged = true AND work.aacvManaged = true
+                  AND ((type(link) = 'AUTHORED' AND work.achievementType IN $authoredTypes)
+                    OR (type(link) = 'SUPERVISED' AND work.achievementType IN $thesisTypes))
+                  AND (size($categoryTypes) = 0 OR work.achievementType IN $categoryTypes)
+                """;
+        if (collaborationsOnly) {
+            match += """
+                      AND type(link) = 'AUTHORED' AND EXISTS {
+                        MATCH (other:Author)-[shared:AUTHORED]->(work)
+                        WHERE other.aacvManaged = true AND shared.aacvManaged = true AND other <> root
+                      }
+                    """;
+        }
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("authorId", authorId);
+        parameters.put("authoredTypes", List.of("article", "review", "preprint", "proceedings-article", "patent"));
+        parameters.put("thesisTypes", List.of("master-thesis", "doctoral-thesis"));
+        parameters.put("categoryTypes", category == null ? List.of() : category.achievementTypes());
+        parameters.put("offset", (long) page * size);
+        parameters.put("size", size);
+        String workMatch = match;
+        String direction = chronological ? "ASC" : "DESC";
+        try (var session = driver.session()) {
+            return session.executeRead(transaction -> {
+                var roots = transaction.run("MATCH (root:Author {businessId: $authorId, aacvManaged: true}) RETURN root",
+                        parameters).list();
+                if (roots.isEmpty()) throw new ResourceNotFoundException("作者尚未进入图谱或不存在，请确认导入及同步状态");
+                Node root = node(roots.getFirst().get("root").asNode());
+                long total = transaction.run(workMatch + " RETURN count(DISTINCT work) AS total", parameters)
+                        .single().get("total").asLong();
+                List<Record> works = transaction.run(workMatch + """
+                         WITH DISTINCT work
+                         RETURN work ORDER BY work.publicationDate IS NULL, work.publicationDate
+                        """ + direction + ", work.businessId ASC SKIP $offset LIMIT $size", parameters).list();
+                LinkedHashMap<String, Node> nodes = new LinkedHashMap<>();
+                LinkedHashMap<String, Edge> edges = new LinkedHashMap<>();
+                nodes.put(root.id(), root);
+                List<Long> workIds = new ArrayList<>();
+                for (Record record : works) {
+                    Node work = node(record.get("work").asNode());
+                    nodes.put(work.id(), work);
+                    workIds.add(Long.valueOf(work.businessId()));
+                }
+                boolean truncated = false;
+                if (!workIds.isEmpty()) {
+                    Map<String, Object> pageParameters = new LinkedHashMap<>(parameters);
+                    pageParameters.put("workIds", workIds);
+                    List<Record> links = transaction.run(workMatch
+                            + " AND work.businessId IN $workIds RETURN root, link, work", pageParameters).list();
+                    for (Record record : links) {
+                        Node work = node(record.get("work").asNode());
+                        Edge edge = edge(record.get("link").asRelationship(), root.id(), work.id());
+                        edges.putIfAbsent(edge.id(), edge);
+                    }
+                    if (collaborationsOnly) {
+                        List<Record> partners = transaction.run("""
+                                MATCH (other:Author)-[link:AUTHORED]->(work:Achievement)
+                                WHERE other.aacvManaged = true AND link.aacvManaged = true
+                                  AND work.aacvManaged = true AND work.businessId IN $workIds
+                                  AND other.businessId <> $authorId
+                                RETURN other, link, work ORDER BY other.businessId, work.businessId LIMIT 1201
+                                """, pageParameters).list();
+                        truncated = partners.size() > 1200;
+                        for (Record record : partners.subList(0, Math.min(partners.size(), 1200))) {
+                            Node other = node(record.get("other").asNode());
+                            if (!nodes.containsKey(other.id()) && nodes.size() >= HARD_NODE_LIMIT) {
+                                truncated = true;
+                                continue;
+                            }
+                            nodes.putIfAbsent(other.id(), other);
+                            Node work = node(record.get("work").asNode());
+                            Edge edge = edge(record.get("link").asRelationship(), other.id(), work.id());
+                            edges.putIfAbsent(edge.id(), edge);
+                        }
+                    }
+                }
+                Instant syncedAt = operationsService.latestProjectedAt();
+                Long lag = syncedAt == null ? null : Math.max(0, Duration.between(syncedAt, Instant.now()).toSeconds());
+                GraphView graph = new GraphView(new ArrayList<>(nodes.values()), new ArrayList<>(edges.values()),
+                        root.id(), truncated, truncated ? "当前页共同作者较多，部分合作证据未展示；请缩小每页成果数量" : null,
+                        new AppliedLimits(collaborationsOnly ? 2 : 1, HARD_NODE_LIMIT, 0), syncedAt, lag,
+                        TraceContext.current(), List.of());
+                return new AuthorGraphView(graph, page, size, total);
+            }, TransactionConfig.builder().withTimeout(QUERY_TIMEOUT).build());
+        } catch (Neo4jException exception) {
+            if (isTimeout(exception)) throw new GraphQueryTimeoutException();
+            throw new GraphUnavailableException();
+        }
     }
 
     private GraphView execute(

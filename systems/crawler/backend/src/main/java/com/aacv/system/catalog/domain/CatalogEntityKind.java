@@ -4,5 +4,8 @@ public enum CatalogEntityKind {
     AUTHOR,
     ORGANIZATION,
     VENUE,
-    TOPIC
+    TOPIC,
+    PATENT,
+    MASTER_THESIS,
+    DOCTORAL_THESIS
 }

@@ -51,7 +51,7 @@ public class CatalogController {
         return AchievementDetailResponse.from(service.requireAchievement(achievementId));
     }
 
-    @GetMapping("/{collection:authors|organizations|venues|topics}")
+    @GetMapping("/{collection:authors|organizations|venues|topics|patents|master-theses|doctoral-theses}")
     public CatalogEntityPageResponse findEntities(
             @PathVariable String collection,
             @RequestParam(required = false) String name,
@@ -84,6 +84,9 @@ public class CatalogController {
             case "organizations" -> CatalogEntityKind.ORGANIZATION;
             case "venues" -> CatalogEntityKind.VENUE;
             case "topics" -> CatalogEntityKind.TOPIC;
+            case "patents" -> CatalogEntityKind.PATENT;
+            case "master-theses" -> CatalogEntityKind.MASTER_THESIS;
+            case "doctoral-theses" -> CatalogEntityKind.DOCTORAL_THESIS;
             default -> throw new IllegalArgumentException("目录实体类型无效");
         };
     }

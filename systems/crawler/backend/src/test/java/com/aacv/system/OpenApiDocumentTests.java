@@ -46,6 +46,7 @@ class OpenApiDocumentTests {
         assertFalse(paths.containsKey("/api/v1/quality-metrics"));
         assertFalse(paths.containsKey("/api/v1/quality-metrics/{metricId}"));
         assertTrue(paths.containsKey("/api/v1/graph/subgraph"));
+        assertTrue(paths.containsKey("/api/v1/graph/authors/{authorId}"));
         assertTrue(paths.containsKey("/api/v1/graph/path"));
         assertTrue(paths.containsKey("/api/v1/graph/sync-status"));
         assertTrue(paths.containsKey("/api/v1/operations/graph-events"));

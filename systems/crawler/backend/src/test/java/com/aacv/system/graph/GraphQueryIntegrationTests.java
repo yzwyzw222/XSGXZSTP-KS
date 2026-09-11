@@ -198,6 +198,29 @@ class GraphQueryIntegrationTests {
 
     @Test
     @WithMockUser(authorities = "GRAPH_READ")
+    void authorWithManyWorksKeepsCoauthorEvidenceWithinNodeLimit() throws Exception {
+        neo4jClient.query("""
+                MATCH (author:Author {businessId: 2}), (work:Achievement {businessId: 1})
+                CREATE (partner:Author {businessId: 900, name: '合作作者', aacvManaged: true})
+                CREATE (partner)-[:AUTHORED {aacvManaged: true}]->(work)
+                WITH author
+                UNWIND range(901, 920) AS id
+                CREATE (extra:Achievement {businessId: id, title: '大量成果', aacvManaged: true})
+                CREATE (author)-[:AUTHORED {aacvManaged: true}]->(extra)
+                """).run();
+        try {
+            mvc.perform(get("/api/v1/graph/subgraph").param("centerType", "AUTHOR").param("centerId", "2")
+                    .param("depth", "2").param("nodeLimit", "10").param("includeCoauthors", "true"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.nodes.length()").value(10))
+                    .andExpect(jsonPath("$.edges[?(@.type == 'COAUTHORED')].properties.sharedWorkCount").value(1))
+                    .andExpect(jsonPath("$.truncated").value(true));
+        } finally {
+            neo4jClient.query("MATCH (node) WHERE node.businessId >= 900 AND node.businessId <= 920 DETACH DELETE node").run();
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = "GRAPH_READ")
     void overviewReturnsAnEmptyGraphWhenNoManagedDomainNodesExist() throws Exception {
         neo4jClient.query("MATCH (node) WHERE node:Author OR node:Achievement SET node.aacvManaged = false").run();
         try {
