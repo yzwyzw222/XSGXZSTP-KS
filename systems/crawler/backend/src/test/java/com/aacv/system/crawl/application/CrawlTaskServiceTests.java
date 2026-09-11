@@ -70,6 +70,17 @@ class CrawlTaskServiceTests {
     }
 
     @Test
+    void batchActivityRejectsInvalidInputAndDeduplicatesIds() {
+        assertThrows(IllegalArgumentException.class, () -> service.findLatestRuns(List.of()));
+        assertThrows(IllegalArgumentException.class, () -> service.findSchedules(List.of(0L)));
+        assertThrows(IllegalArgumentException.class, () -> service.findLatestRuns(java.util.Collections.nCopies(101, 1L)));
+        service.findLatestRuns(List.of(1L, 1L, 2L));
+        service.findSchedules(List.of(1L, 2L));
+        verify(repository).findLatestRuns(List.of(1L, 2L));
+        verify(repository).findSchedules(List.of(1L, 2L));
+    }
+
+    @Test
     void createNormalizesNameAndBindsTaskToEnabledSource() {
         CrawlScope scope = scope();
         when(sourceRepository.lockById(1)).thenReturn(Optional.of(source(true)));

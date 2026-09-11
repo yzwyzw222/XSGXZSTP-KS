@@ -17,7 +17,7 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 class OpenApiDocumentTests {
 
     @Test
-    void openApiDocumentIsValidYamlAndContainsStageSevenContracts() throws Exception {
+    void openApiDocumentIsValidYamlAndContainsAuthorImportContracts() throws Exception {
         Path document = Path.of("..", "docs", "openapi.yaml").normalize();
         Map<String, Object> root;
         try (InputStream input = Files.newInputStream(document)) {
@@ -29,22 +29,22 @@ class OpenApiDocumentTests {
         assertTrue(paths.containsKey("/api/v1/auth/login"));
         assertTrue(paths.containsKey("/api/v1/users"));
         assertTrue(paths.containsKey("/api/v1/operations/audits"));
-        assertTrue(paths.containsKey("/api/v1/sources"));
-        assertTrue(paths.containsKey("/api/v1/crawl/tasks"));
-        assertTrue(paths.containsKey("/api/v1/crawl/runs/{runId}"));
-        assertTrue(paths.containsKey("/api/v1/crawl/runs/{runId}/failures"));
-        assertTrue(paths.containsKey("/api/v1/crawl/runs/{runId}/retry-failures"));
+        assertFalse(paths.containsKey("/api/v1/sources"));
+        assertFalse(paths.containsKey("/api/v1/crawl/tasks"));
+        assertFalse(paths.containsKey("/api/v1/crawl/runs/{runId}"));
+        assertFalse(paths.containsKey("/api/v1/crawl/runs/{runId}/failures"));
+        assertFalse(paths.containsKey("/api/v1/crawl/runs/{runId}/retry-failures"));
         assertTrue(paths.containsKey("/api/v1/catalog/achievements"));
         assertTrue(paths.containsKey("/api/v1/catalog/achievements/{achievementId}"));
         assertTrue(paths.containsKey("/api/v1/catalog/{collection}"));
         assertTrue(paths.containsKey("/api/v1/catalog/{collection}/{entityId}/achievements"));
-        assertTrue(paths.containsKey("/api/v1/duplicate-candidates"));
-        assertTrue(paths.containsKey("/api/v1/duplicate-candidates/{candidateId}/accept"));
-        assertTrue(paths.containsKey("/api/v1/duplicate-candidates/{candidateId}/reject"));
-        assertTrue(paths.containsKey("/api/v1/merge-decisions/{decisionId}/revert"));
-        assertTrue(paths.containsKey("/api/v1/catalog/achievements/{achievementId}/field-overrides"));
-        assertTrue(paths.containsKey("/api/v1/quality-metrics"));
-        assertTrue(paths.containsKey("/api/v1/quality-metrics/{metricId}"));
+        assertFalse(paths.containsKey("/api/v1/duplicate-candidates"));
+        assertFalse(paths.containsKey("/api/v1/duplicate-candidates/{candidateId}/accept"));
+        assertFalse(paths.containsKey("/api/v1/duplicate-candidates/{candidateId}/reject"));
+        assertFalse(paths.containsKey("/api/v1/merge-decisions/{decisionId}/revert"));
+        assertFalse(paths.containsKey("/api/v1/catalog/achievements/{achievementId}/field-overrides"));
+        assertFalse(paths.containsKey("/api/v1/quality-metrics"));
+        assertFalse(paths.containsKey("/api/v1/quality-metrics/{metricId}"));
         assertTrue(paths.containsKey("/api/v1/graph/subgraph"));
         assertTrue(paths.containsKey("/api/v1/graph/path"));
         assertTrue(paths.containsKey("/api/v1/graph/sync-status"));
@@ -69,6 +69,12 @@ class OpenApiDocumentTests {
         assertFalse(paths.keySet().stream().map(Object::toString).anyMatch(path ->
                 path.contains("resolution")));
 
+        for (String path : List.of("/api/v1/author-import", "/api/v1/author-import/preview", "/api/v1/author-import/confirm",
+                "/api/v1/author-import/files/preview", "/api/v1/author-import/files/confirm", "/api/v1/author-import/achievements/{id}/evidence")) {
+            assertTrue(paths.containsKey(path));
+        }
+        Map<?, ?> importPost = (Map<?, ?>) ((Map<?, ?>) paths.get("/api/v1/author-import/confirm")).get("post");
+        assertEquals("AUTHOR_IMPORT", importPost.get("x-required-permission"));
         Map<?, ?> analyticsOverview = (Map<?, ?>) paths.get("/api/v1/analytics/overview");
         Map<?, ?> analyticsGet = (Map<?, ?>) analyticsOverview.get("get");
         assertEquals("ANALYTICS_READ", analyticsGet.get("x-required-permission"));
@@ -84,6 +90,6 @@ class OpenApiDocumentTests {
         Map<?, ?> permission = (Map<?, ?>) schemas.get("Permission");
         List<?> permissions = (List<?>) permission.get("enum");
         assertTrue(permissions.containsAll(List.of(
-                "ANALYTICS_READ", "EXPORT_CREATE", "EXPORT_READ", "OPERATIONS_READ", "ALERT_MANAGE")));
+                "AUTHOR_IMPORT", "ANALYTICS_READ", "EXPORT_CREATE", "EXPORT_READ", "OPERATIONS_READ", "ALERT_MANAGE")));
     }
 }

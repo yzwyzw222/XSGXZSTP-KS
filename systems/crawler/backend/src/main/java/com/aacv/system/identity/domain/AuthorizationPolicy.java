@@ -47,6 +47,7 @@ public final class AuthorizationPolicy {
                 Permission.GOVERNANCE_READ,
                 Permission.GOVERNANCE_MANAGE,
                 Permission.CATALOG_READ,
+                Permission.AUTHOR_IMPORT,
                 Permission.GRAPH_READ,
                 Permission.GRAPH_SYNC_READ,
                 Permission.GRAPH_SYNC_MANAGE,

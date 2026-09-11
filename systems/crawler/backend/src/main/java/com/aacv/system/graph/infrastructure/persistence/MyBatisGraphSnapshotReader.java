@@ -30,7 +30,9 @@ public class MyBatisGraphSnapshotReader {
         return new GraphAchievementSnapshot(
                 row.achievementId(), row.title(), row.achievementType(), row.language(),
                 row.publicationDate(), row.doi(), venue,
-                mapper.findAuthors(canonicalId), mapper.findAffiliations(canonicalId),
-                mapper.findTopics(canonicalId), mapper.findReferences(canonicalId));
+                mapper.findAuthors(canonicalId), java.util.stream.Stream.concat(mapper.findAffiliations(canonicalId).stream(),
+                        mapper.findImportAffiliations(canonicalId).stream()).distinct().toList(),
+                mapper.findTopics(canonicalId), mapper.findReferences(canonicalId), mapper.findAbstract(canonicalId),
+                mapper.findAdvisors(canonicalId), mapper.findInstitutions(canonicalId));
     }
 }

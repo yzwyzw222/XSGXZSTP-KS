@@ -14,7 +14,19 @@ public record GraphAchievementSnapshot(
         List<Author> authors,
         List<Affiliation> affiliations,
         List<Topic> topics,
-        List<ReferencedAchievement> references) {
+        List<ReferencedAchievement> references,
+        String abstractText,
+        List<Author> advisors,
+        List<Institution> institutions) {
+
+    public GraphAchievementSnapshot(long achievementId, String title, String achievementType, String language,
+            LocalDate publicationDate, String doi, Venue venue, List<Author> authors, List<Affiliation> affiliations,
+            List<Topic> topics, List<ReferencedAchievement> references) {
+        this(achievementId, title, achievementType, language, publicationDate, doi, venue, authors,
+                affiliations, topics, references, null, List.of(), List.of());
+    }
+
+    public record Institution(long id, String name) { }
 
     public record Venue(long id, String name, String venueType, String issn) {
     }

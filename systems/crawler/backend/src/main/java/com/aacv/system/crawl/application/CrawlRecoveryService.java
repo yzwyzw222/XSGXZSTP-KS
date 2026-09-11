@@ -8,11 +8,7 @@ import com.aacv.system.crawl.domain.CrawlRunStatus;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
-@Component
 public class CrawlRecoveryService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrawlRecoveryService.class);
@@ -34,7 +30,6 @@ public class CrawlRecoveryService {
         this.schedulePort = schedulePort;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
     public void reconcileAfterRestart() {
         repository.findEnabledSchedules().forEach(schedulePort::synchronizeAfterCommit);
         for (CrawlRecoveryCandidate candidate : repository.findRecoveryCandidates()) {

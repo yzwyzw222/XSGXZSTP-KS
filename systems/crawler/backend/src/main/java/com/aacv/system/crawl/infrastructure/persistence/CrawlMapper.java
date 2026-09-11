@@ -8,6 +8,8 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface CrawlMapper {
+    List<CrawlRunRow> findLatestRuns(@Param("taskIds") List<Long> taskIds);
+    List<CrawlScheduleRow> findSchedules(@Param("taskIds") List<Long> taskIds);
     long countTasks();
     CrawlWindowRow findRunWindow(@Param("runId") long runId);
     Long findLatestWindowRun(@Param("taskId") long taskId, @Param("mode") String mode);

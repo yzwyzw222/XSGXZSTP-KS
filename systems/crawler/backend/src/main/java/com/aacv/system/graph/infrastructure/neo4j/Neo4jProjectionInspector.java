@@ -25,22 +25,30 @@ public class Neo4jProjectionInspector {
                     OPTIONAL MATCH (:Author)-[authored:AUTHORED]->(achievement)
                     WHERE authored.aacvManaged = true AND authored.achievementBusinessId = $id
                     WITH achievement, count(DISTINCT authored) AS authors
+                    OPTIONAL MATCH (:Author)-[supervised:SUPERVISED]->(achievement)
+                    WHERE supervised.aacvManaged = true AND supervised.achievementBusinessId = $id
+                    WITH achievement, authors, count(DISTINCT supervised) AS advisors
+                    OPTIONAL MATCH (achievement)-[produced:PRODUCED_AT]->(:Institution)
+                    WHERE produced.aacvManaged = true AND produced.achievementBusinessId = $id
+                    WITH achievement, authors, advisors, count(DISTINCT produced) AS institutions
                     OPTIONAL MATCH (:Author)-[affiliation:AFFILIATED_WITH]->(:Institution)
                     WHERE affiliation.aacvManaged = true AND affiliation.achievementBusinessId = $id
-                    WITH achievement, authors, count(DISTINCT affiliation) AS affiliations
+                    WITH achievement, authors, advisors, institutions, count(DISTINCT affiliation) AS affiliations
                     OPTIONAL MATCH (achievement)-[venue:PUBLISHED_IN]->(:Venue)
                     WHERE venue.aacvManaged = true AND venue.achievementBusinessId = $id
-                    WITH achievement, authors, affiliations, count(DISTINCT venue) AS venues
+                    WITH achievement, authors, advisors, institutions, affiliations, count(DISTINCT venue) AS venues
                     OPTIONAL MATCH (achievement)-[topic:HAS_TOPIC]->(:Topic)
                     WHERE topic.aacvManaged = true AND topic.achievementBusinessId = $id
-                    WITH achievement, authors, affiliations, venues, count(DISTINCT topic) AS topics
+                    WITH achievement, authors, advisors, institutions, affiliations, venues, count(DISTINCT topic) AS topics
                     OPTIONAL MATCH (achievement)-[citation:CITES]->(:Achievement)
                     WHERE citation.aacvManaged = true AND citation.achievementBusinessId = $id
-                    RETURN achievement.projectionVersion AS version, authors, affiliations, venues,
+                    RETURN achievement.projectionVersion AS version, authors, advisors, institutions, affiliations, venues,
                            topics, count(DISTINCT citation) AS citations
                     """, Map.of("id", snapshot.achievementId())).single().asMap(), TIMEOUT);
             return ((Number) counts.get("version")).longValue() == desiredVersion
                     && ((Number) counts.get("authors")).longValue() == snapshot.authors().size()
+                    && ((Number) counts.get("advisors")).longValue() == snapshot.advisors().size()
+                    && ((Number) counts.get("institutions")).longValue() == snapshot.institutions().size()
                     && ((Number) counts.get("affiliations")).longValue() == snapshot.affiliations().size()
                     && ((Number) counts.get("venues")).longValue() == (snapshot.venue() == null ? 0 : 1)
                     && ((Number) counts.get("topics")).longValue() == snapshot.topics().size()

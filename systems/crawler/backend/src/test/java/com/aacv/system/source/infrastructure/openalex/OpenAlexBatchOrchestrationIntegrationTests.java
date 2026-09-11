@@ -237,7 +237,8 @@ class OpenAlexBatchOrchestrationIntegrationTests {
         assertEquals(CrawlRunStatus.CANCELLED, cancelledResult.status());
         assertEquals(CrawlCompletionReason.USER_CANCELLED, cancelledResult.completionReason());
         assertNotNull(cancelledResult.finishedAt());
-        assertTrue(scheduler.checkExists(TriggerKey.triggerKey("quota-resume", "aacv-crawl")));
+        // 采集入口退场后不再注册自动额度恢复触发器。
+        assertFalse(scheduler.checkExists(TriggerKey.triggerKey("quota-resume", "aacv-crawl")));
 
         CrawlRun launchFailure = crawlRepository.insertPendingRun(task, java.util.UUID.randomUUID().toString(), actorId);
         var category = com.aacv.system.crawl.domain.CrawlLaunchFailure.EXECUTOR_BUSY;

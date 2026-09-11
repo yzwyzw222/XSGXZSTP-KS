@@ -31,6 +31,16 @@ public class MyBatisCrawlRepository implements CrawlRepository {
     }
 
     @Override
+    public java.util.List<CrawlRun> findLatestRuns(java.util.List<Long> taskIds) {
+        return mapper.findLatestRuns(taskIds).stream().map(this::toRun).toList();
+    }
+
+    @Override
+    public java.util.List<CrawlSchedule> findSchedules(java.util.List<Long> taskIds) {
+        return mapper.findSchedules(taskIds).stream().map(this::toSchedule).toList();
+    }
+
+    @Override
     public PageResult<CrawlTask> findTaskPage(int page, int size) {
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException("分页参数无效");

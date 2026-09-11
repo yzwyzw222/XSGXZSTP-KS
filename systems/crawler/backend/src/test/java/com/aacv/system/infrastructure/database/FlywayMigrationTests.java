@@ -50,7 +50,7 @@ class FlywayMigrationTests {
         }
         Flyway upgraded = Flyway.configure().dataSource(PROFILE_MYSQL.getJdbcUrl(), PROFILE_MYSQL.getUsername(),
                 PROFILE_MYSQL.getPassword()).locations("classpath:db/migration").load();
-        assertEquals(3, upgraded.migrate().migrationsExecuted);
+        assertEquals(4, upgraded.migrate().migrationsExecuted);
         assertTrue(upgraded.validateWithResult().validationSuccessful);
         try (Connection connection = PROFILE_MYSQL.createConnection(""); Statement statement = connection.createStatement()) {
             assertEquals(1, scalarCount(statement, "SELECT COUNT(*) FROM sys_user WHERE id=99 AND username='legacy-user' AND version=7 AND security_version=0 AND real_name IS NULL AND email IS NULL"));
@@ -66,14 +66,15 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(16, flyway.migrate().migrationsExecuted);
+        assertEquals(17, flyway.migrate().migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
 
         try (Connection connection = MYSQL.createConnection("");
                 Statement statement = connection.createStatement()) {
             Set<String> tables = tableNames(statement);
             assertTrue(tables.contains("graph_type_definition"));
-            assertEquals(11, scalarCount(statement, "SELECT COUNT(*) FROM graph_type_definition WHERE review_status = 'PENDING' AND version = 0"));
+            assertTrue(tables.containsAll(Set.of("author_import_batch", "author_import_record", "achievement_advisor", "achievement_institution", "author_import_affiliation")));
+            assertEquals(13, scalarCount(statement, "SELECT COUNT(*) FROM graph_type_definition WHERE review_status = 'PENDING' AND version = 0"));
             assertThrows(java.sql.SQLException.class, () -> statement.executeUpdate("UPDATE graph_type_definition SET size=0 WHERE kind='NODE' AND code='AUTHOR'"));
             assertThrows(java.sql.SQLException.class, () -> statement.executeUpdate("UPDATE graph_type_definition SET review_status='INVALID' WHERE kind='NODE' AND code='AUTHOR'"));
             assertTrue(tables.containsAll(Set.of(
@@ -190,7 +191,7 @@ class FlywayMigrationTests {
                 .dataSource(UPGRADE_MYSQL.getJdbcUrl(), UPGRADE_MYSQL.getUsername(), UPGRADE_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(13, stageThree.migrate().migrationsExecuted);
+        assertEquals(14, stageThree.migrate().migrationsExecuted);
         assertTrue(stageThree.validateWithResult().validationSuccessful);
     }
 
@@ -251,7 +252,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(9, stageFour.migrate().migrationsExecuted);
+        assertEquals(10, stageFour.migrate().migrationsExecuted);
         assertTrue(stageFour.validateWithResult().validationSuccessful);
         try (Connection connection = STAGE_THREE_MYSQL.createConnection("");
                 Statement statement = connection.createStatement()) {
@@ -294,7 +295,7 @@ class FlywayMigrationTests {
                         STAGE_FOUR_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(8, stageFive.migrate().migrationsExecuted);
+        assertEquals(9, stageFive.migrate().migrationsExecuted);
         assertTrue(stageFive.validateWithResult().validationSuccessful);
 
         try (Connection connection = STAGE_FOUR_MYSQL.createConnection("");

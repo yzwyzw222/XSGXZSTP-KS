@@ -67,6 +67,26 @@ public class CrawlTaskService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CRAWL_RUN_READ')")
+    public java.util.List<CrawlRun> findLatestRuns(java.util.List<Long> taskIds) {
+        return repository.findLatestRuns(validateTaskIds(taskIds));
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAuthority('CRAWL_SCHEDULE_MANAGE')")
+    public java.util.List<CrawlSchedule> findSchedules(java.util.List<Long> taskIds) {
+        return repository.findSchedules(validateTaskIds(taskIds));
+    }
+
+    private java.util.List<Long> validateTaskIds(java.util.List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty() || taskIds.size() > 100
+                || taskIds.stream().anyMatch(id -> id == null || id < 1)) {
+            throw new IllegalArgumentException("任务编号必须为正整数，每次查询 1 至 100 个任务");
+        }
+        return taskIds.stream().distinct().toList();
+    }
+
+    @Transactional(readOnly = true)
     @PreAuthorize("hasAuthority('CRAWL_TASK_READ')")
     public PageResult<CrawlTask> findPage(int page, int size) {
         return repository.findTaskPage(page, size);

@@ -52,7 +52,7 @@
             <if test="query.organizationId != null">
                 AND achievement.id IN (SELECT matched_organization.achievement_id FROM (
                     SELECT DISTINCT COALESCE(organization_achievement_link.canonical_entity_id, organization_relation.achievement_id) AS achievement_id
-                    FROM authorship_organization organization_relation
+                    FROM (SELECT achievement_id, organization_id FROM authorship_organization UNION SELECT achievement_id, organization_id FROM achievement_institution UNION SELECT achievement_id, organization_id FROM author_import_affiliation) organization_relation
                     LEFT JOIN canonical_entity_link organization_achievement_link
                            ON organization_achievement_link.entity_type = 'ACHIEVEMENT'
                           AND organization_achievement_link.entity_id = organization_relation.achievement_id
@@ -100,7 +100,7 @@
                                 AS achievement_id,
                             COALESCE(organization_link.canonical_entity_id, relation_value.organization_id)
                                 AS organization_id
-            FROM authorship_organization relation_value
+            FROM (SELECT achievement_id, organization_id FROM authorship_organization UNION SELECT achievement_id, organization_id FROM achievement_institution UNION SELECT achievement_id, organization_id FROM author_import_affiliation) relation_value
             LEFT JOIN canonical_entity_link achievement_link
                    ON achievement_link.entity_type = 'ACHIEVEMENT'
                   AND achievement_link.entity_id = relation_value.achievement_id
@@ -148,9 +148,13 @@
         <include refid="sourceRelationCte"/>
         <!-- 各关系已限定到同一成果范围，分别计数避免作者、机构与来源连接后相乘。 -->
         SELECT (SELECT COUNT(*) FROM scoped_achievement) AS achievement_count,
-               (SELECT COUNT(DISTINCT author_id) FROM author_relation) AS author_count,
+               (SELECT COUNT(DISTINCT persons.author_id) FROM (
+                   SELECT author_id FROM author_relation
+                   UNION SELECT advisor_id AS author_id FROM achievement_advisor WHERE achievement_id IN (SELECT id FROM scoped_achievement)
+               ) persons) AS author_count,
                (SELECT COUNT(DISTINCT organization_id) FROM organization_relation) AS organization_count,
-               (SELECT COUNT(DISTINCT source_id) FROM source_relation) AS source_count
+               (SELECT COUNT(DISTINCT source_id) FROM source_relation)
+                   + EXISTS (SELECT 1 FROM author_import_record imported JOIN scoped_achievement scoped ON scoped.id = imported.achievement_id) AS source_count
     </select>
 
     <select id="coverage" resultType="com.aacv.system.analytics.infrastructure.persistence.AnalyticsRow">
@@ -212,6 +216,10 @@
         JOIN source_relation relation_value ON relation_value.achievement_id = scoped.id
         JOIN data_source source_value ON source_value.id = relation_value.source_id
         GROUP BY source_value.id, source_value.source_code
+        UNION ALL
+        SELECT 'CNKI' AS item_key, '知网信息表' AS item_label, COUNT(DISTINCT scoped.id) AS achievement_count
+        FROM scoped_achievement scoped JOIN author_import_record imported ON imported.achievement_id = scoped.id
+        HAVING COUNT(DISTINCT scoped.id) > 0
         ORDER BY achievement_count DESC, item_key
     </select>
 

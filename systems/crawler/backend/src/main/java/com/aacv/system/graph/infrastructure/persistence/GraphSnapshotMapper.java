@@ -21,4 +21,12 @@ interface GraphSnapshotMapper {
     List<Topic> findTopics(long achievementId);
 
     List<ReferencedAchievement> findReferences(long achievementId);
+
+    String findAbstract(long achievementId);
+
+    List<Author> findAdvisors(long achievementId);
+
+    List<com.aacv.system.graph.domain.GraphAchievementSnapshot.Institution> findInstitutions(long achievementId);
+
+    List<Affiliation> findImportAffiliations(long achievementId);
 }

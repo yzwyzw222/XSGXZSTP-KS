@@ -17,7 +17,8 @@ class Neo4jProjectionTransaction {
             WHERE coalesce(node.projectionVersion, 0) <= $projectionVersion
             SET node.aacvManaged = true, node.projectionVersion = $projectionVersion,
                 node.title = $title, node.achievementType = $achievementType,
-                node.language = $language, node.publicationDate = $publicationDate, node.doi = $doi
+                node.language = $language, node.publicationDate = $publicationDate, node.doi = $doi,
+                node.abstractText = $abstractText
             RETURN count(node) AS changed
             """;
     private static final String DELETE_MANAGED_RELATIONSHIPS = """
@@ -43,6 +44,24 @@ class Neo4jProjectionTransaction {
             MERGE (author)-[rel:AFFILIATED_WITH {
                 achievementBusinessId: $businessId, institutionBusinessId: row.institutionId
             }]->(institution)
+            SET rel.aacvManaged = true
+            """;
+    private static final String UPSERT_ADVISORS = """
+            UNWIND $rows AS row
+            MERGE (advisor:Author {businessId: row.id})
+            SET advisor.aacvManaged = true, advisor.name = row.name
+            WITH advisor
+            MATCH (achievement:Achievement {businessId: $businessId})
+            MERGE (advisor)-[rel:SUPERVISED {achievementBusinessId: $businessId}]->(achievement)
+            SET rel.aacvManaged = true
+            """;
+    private static final String UPSERT_INSTITUTIONS = """
+            UNWIND $rows AS row
+            MERGE (institution:Institution {businessId: row.id})
+            SET institution.aacvManaged = true, institution.name = row.name
+            WITH institution
+            MATCH (achievement:Achievement {businessId: $businessId})
+            MERGE (achievement)-[rel:PRODUCED_AT {achievementBusinessId: $businessId}]->(institution)
             SET rel.aacvManaged = true
             """;
     private static final String UPSERT_VENUE = """
@@ -101,6 +120,7 @@ class Neo4jProjectionTransaction {
         achievement.put("language", snapshot.language());
         achievement.put("publicationDate", snapshot.publicationDate());
         achievement.put("doi", snapshot.doi());
+        achievement.put("abstractText", snapshot.abstractText());
         long changed = neo4jClient.query(UPSERT_ACHIEVEMENT)
                 .bindAll(achievement)
                 .fetchAs(Long.class)
@@ -116,6 +136,10 @@ class Neo4jProjectionTransaction {
                 .map(row -> Map.of(
                         "id", row.id(), "name", nullable(row.name()), "orcid", nullable(row.orcid())))
                 .toList());
+        runRows(UPSERT_ADVISORS, snapshot.achievementId(), snapshot.advisors().stream()
+                .map(row -> Map.of("id", row.id(), "name", nullable(row.name()))).toList());
+        runRows(UPSERT_INSTITUTIONS, snapshot.achievementId(), snapshot.institutions().stream()
+                .map(row -> Map.of("id", row.id(), "name", nullable(row.name()))).toList());
         runRows(UPSERT_AFFILIATIONS, snapshot.achievementId(), snapshot.affiliations().stream()
                 .map(row -> Map.of(
                         "authorId", row.authorId(),

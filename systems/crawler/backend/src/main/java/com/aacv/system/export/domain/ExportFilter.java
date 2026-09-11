@@ -11,9 +11,25 @@ public record ExportFilter(
         String achievementType,
         SourceType sourceType,
         Long venueId,
-        Long topicId) {
+        Long topicId,
+        String author,
+        String organization,
+        String venue,
+        String topic,
+        String sourceCode) {
+
+    public ExportFilter(String title, Long authorId, Long organizationId, Integer publicationYearFrom,
+            Integer publicationYearTo, String achievementType, SourceType sourceType, Long venueId, Long topicId) {
+        this(title, authorId, organizationId, publicationYearFrom, publicationYearTo, achievementType,
+                sourceType, venueId, topicId, null, null, null, null, null);
+    }
 
     public ExportFilter {
+        author = normalize(author, 200, "作者条件长度超出限制");
+        organization = normalize(organization, 200, "机构条件长度超出限制");
+        venue = normalize(venue, 200, "期刊条件长度超出限制");
+        topic = normalize(topic, 200, "主题条件长度超出限制");
+        sourceCode = normalize(sourceCode, 200, "来源条件长度超出限制");
         title = normalize(title, 512, "题名条件长度超出限制");
         achievementType = normalize(achievementType, 64, "成果类型长度超出限制");
         if (publicationYearFrom != null && (publicationYearFrom < 1000 || publicationYearFrom > 9999)

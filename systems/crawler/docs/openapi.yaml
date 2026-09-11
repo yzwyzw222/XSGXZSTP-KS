@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: AACV System API
-  version: 7.1.0
-  description: 本契约描述认证、用户、审计、双源采集、MySQL 数据治理、规范目录、事务 Outbox、Neo4j 可重建投影、受限图查询、MySQL 聚合统计、异步导出和管理员运维接口；不包含服务器部署能力。
+  version: 7.2.0
+  description: 本契约描述认证、用户、审计、知网作者信息表导入、规范目录、事务 Outbox、Neo4j 可重建投影、受限图查询、MySQL 聚合统计、异步导出和管理员运维接口；不包含服务器部署能力。
 servers:
   - url: http://127.0.0.1:8080
     description: Windows 本地开发后端
@@ -10,18 +10,158 @@ tags:
   - name: Auth
   - name: Users
   - name: Audits
-  - name: Sources
-  - name: Crawl Tasks
-  - name: Crawl Runs
   - name: Catalog
-  - name: Governance
-  - name: Quality
+  - name: Author Import
   - name: Graph
   - name: Graph Operations
   - name: Analytics
   - name: Exports
   - name: Operations
 paths:
+  /api/v1/author-import:
+    get:
+      tags: [Author Import]
+      summary: 最近 20 次成功导入
+      x-required-permission: AUTHOR_IMPORT
+      responses:
+        '200':
+          description: 导入批次，按创建顺序倒序
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/AuthorImportSummary'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/author-import/preview:
+    post:
+      tags: [Author Import]
+      summary: 解析信息表并预览前 20 条记录及全部问题行
+      x-required-permission: AUTHOR_IMPORT
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthorImportUpload'
+      responses:
+        '200':
+          description: 解析结果，不写入业务数据
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorImportPreview'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '413': {description: 文件超过 10 MB}
+  /api/v1/author-import/confirm:
+    post:
+      tags: [Author Import]
+      summary: 确认已预览的信息表，原子写入 MySQL 并提交图谱 Outbox
+      description: 必须重新提交同一文件和设置及 previewKey。存在错误行时整批拒绝；相同内容与设置重复确认返回同一批次。Neo4j 后台同步。
+      x-required-permission: AUTHOR_IMPORT
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AuthorImportUpload'
+                - type: object
+                  required: [previewKey]
+                  properties:
+                    previewKey: {type: string, description: 预览返回的内容与设置摘要}
+      responses:
+        '200':
+          description: 导入成功或返回已成功的相同批次
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorImportSummary'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {description: 文件超过 10 MB}
+  /api/v1/author-import/files/preview:
+    post:
+      tags: [Author Import]
+      summary: 从同一学者的多份文件自动识别姓名、机构列表和署名或指导关系
+      description: 本人署名成果取完整作者交集，唯一时自动选定，多人时返回候选。硕博固定按同一学者导师姓名筛选导出；仅有硕博文件无法识别导师。来源库缺失、署名不完整或问题行阻止确认。
+      x-required-permission: AUTHOR_IMPORT
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: {$ref: '#/components/schemas/AuthorImportBundleUpload'}
+      responses:
+        '200':
+          description: 自动识别和各文件预览，不写入业务数据
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorImportBundlePreview'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '413': {description: 本批文件合计超过 10 MB}
+  /api/v1/author-import/files/confirm:
+    post:
+      tags: [Author Import]
+      summary: 在一个事务中确认同一学者的全部文件及图谱同步请求
+      description: 按同一顺序重传文件、设置和 previewKey。来源库逐行区分署名、硕士指导、博士指导；所有文件一起提交或回滚。机构只建立成果所属关系；有共同成果时复用学者身份，没有共同成果时不按姓名强行合并。相同文件内容与设置重试返回既有批次。指导约定记录到审计。
+      x-required-permission: AUTHOR_IMPORT
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/AuthorImportBundleUpload'
+                - type: object
+                  required: [previewKey]
+                  properties:
+                    previewKey: {type: string}
+      responses:
+        '200':
+          description: 本批学者、合计数量和各文件各关系类型的成功批次
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorImportBundleSummary'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '413': {description: 本批文件合计超过 10 MB}
+  /api/v1/author-import/achievements/{id}/evidence:
+    get:
+      tags: [Author Import]
+      summary: 成果最近 50 条导入来源记录
+      x-required-permission: CATALOG_READ
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: integer, format: int64, minimum: 1}
+      responses:
+        '200':
+          description: 原始列与文件、工作表、行号，无导入记录时返回空数组
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    batchId: {type: integer, format: int64}
+                    fileName: {type: string}
+                    sheetName: {type: string}
+                    importMode: {type: string}
+                    scholarName: {type: string}
+                    rowNumber: {type: integer}
+                    originalColumns: {type: object, additionalProperties: {type: string}}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/v1/auth/csrf:
     get:
       tags: [Auth]
@@ -307,301 +447,6 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
-  /api/v1/sources:
-    get:
-      tags: [Sources]
-      summary: 分页查询受控数据源
-      operationId: listSources
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: 数据源分页
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DataSourcePage'
-        '403': {$ref: '#/components/responses/Forbidden'}
-    post:
-      tags: [Sources]
-      summary: 创建唯一的受控 OpenAlex 或 Crossref 数据源配置
-      operationId: createSource
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/SourceConfigurationRequest'}
-      responses:
-        '201':
-          description: 数据源已创建
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DataSource'}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/sources/{sourceId}:
-    get:
-      tags: [Sources]
-      summary: 查询数据源详情
-      operationId: getSource
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/SourceId'
-      responses:
-        '200':
-          description: 数据源详情
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DataSource'}
-        '404': {$ref: '#/components/responses/NotFound'}
-    put:
-      tags: [Sources]
-      summary: 更新数据源受控配置
-      operationId: updateSource
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/SourceId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/SourceConfigurationRequest'}
-      responses:
-        '200':
-          description: 数据源已更新
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DataSource'}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/sources/{sourceId}/enable:
-    post:
-      tags: [Sources]
-      summary: 启用数据源
-      operationId: enableSource
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/SourceId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody: {$ref: '#/components/requestBodies/VersionRequest'}
-      responses:
-        '200':
-          description: 数据源已启用
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DataSource'}
-  /api/v1/sources/{sourceId}/disable:
-    post:
-      tags: [Sources]
-      summary: 停用数据源
-      operationId: disableSource
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/SourceId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody: {$ref: '#/components/requestBodies/VersionRequest'}
-      responses:
-        '200':
-          description: 数据源已停用
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DataSource'}
-  /api/v1/sources/{sourceId}/probe:
-    post:
-      tags: [Sources]
-      summary: 对来源对应的固定官方地址执行无数据写入探测
-      operationId: probeSource
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/SourceId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      responses:
-        '200':
-          description: 探测结果
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/SourceProbe'}
-  /api/v1/crawl/tasks:
-    get:
-      tags: [Crawl Tasks]
-      summary: 分页查询采集任务
-      operationId: listCrawlTasks
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: 任务分页
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlTaskPage'}
-    post:
-      tags: [Crawl Tasks]
-      summary: 创建有界 OpenAlex 或 Crossref 采集任务
-      operationId: createCrawlTask
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/CreateCrawlTaskRequest'}
-      responses:
-        '201':
-          description: 任务已创建
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlTask'}
-  /api/v1/crawl/tasks/{taskId}:
-    get:
-      tags: [Crawl Tasks]
-      summary: 查询采集任务详情
-      operationId: getCrawlTask
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/TaskId'
-      responses:
-        '200':
-          description: 任务详情
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlTask'}
-    put:
-      tags: [Crawl Tasks]
-      summary: 更新尚未运行的采集任务
-      operationId: updateCrawlTask
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/TaskId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/UpdateCrawlTaskRequest'}
-      responses:
-        '200':
-          description: 任务已更新
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlTask'}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/crawl/tasks/{taskId}/trigger:
-    post:
-      tags: [Crawl Tasks]
-      summary: 手动触发一次采集运行
-      operationId: triggerCrawlTask
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/TaskId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      responses:
-        '202':
-          description: 运行已创建
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlRun'}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/crawl/tasks/{taskId}/schedule:
-    put:
-      tags: [Crawl Tasks]
-      summary: 配置每日固定查询范围复查计划
-      operationId: configureDailySchedule
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/TaskId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/DailyScheduleRequest'}
-      responses:
-        '200':
-          description: 每日计划已配置
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlSchedule'}
-  /api/v1/crawl/runs/{runId}:
-    get:
-      tags: [Crawl Runs]
-      summary: 查询运行详情和检查点统计
-      operationId: getCrawlRun
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/RunId'
-      responses:
-        '200':
-          description: 运行详情
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlRun'}
-  /api/v1/crawl/runs/{runId}/failures:
-    get:
-      tags: [Crawl Runs]
-      summary: 分页查询运行失败记录
-      operationId: listCrawlFailures
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/RunId'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: 失败记录分页
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CrawlFailurePage'}
-  /api/v1/crawl/runs/{runId}/pause:
-    post:
-      tags: [Crawl Runs]
-      summary: 请求在当前 Chunk 提交后暂停
-      operationId: pauseCrawlRun
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/RunId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      responses:
-        '202': {description: 暂停意图已记录}
-  /api/v1/crawl/runs/{runId}/resume:
-    post:
-      tags: [Crawl Runs]
-      summary: 从最近成功检查点恢复运行
-      operationId: resumeCrawlRun
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/RunId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      responses:
-        '202': {description: 恢复已请求}
-  /api/v1/crawl/runs/{runId}/cancel:
-    post:
-      tags: [Crawl Runs]
-      summary: 请求在当前 Chunk 提交后取消
-      operationId: cancelCrawlRun
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/RunId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      responses:
-        '202': {description: 取消意图已记录}
-  /api/v1/crawl/runs/{runId}/retry-failures:
-    post:
-      tags: [Crawl Runs]
-      summary: 有限重试失败记录并保留原运行证据
-      operationId: retryCrawlFailures
-      security: [{sessionCookie: []}]
-      parameters:
-        - $ref: '#/components/parameters/RunId'
-        - $ref: '#/components/parameters/CsrfHeader'
-      responses:
-        '202': {description: 重试运行已创建}
   /api/v1/catalog/achievements:
     get:
       tags: [Catalog]
@@ -701,180 +546,6 @@ paths:
               schema: {$ref: '#/components/schemas/CatalogEntityEvidence'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/v1/duplicate-candidates:
-    get:
-      tags: [Governance]
-      summary: 分页查询重复候选
-      operationId: listDuplicateCandidates
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: entityType, in: query, schema: {type: string, enum: [ACHIEVEMENT, AUTHOR, ORGANIZATION, VENUE]}}
-        - {name: status, in: query, schema: {type: string, enum: [PENDING, ACCEPTED, REJECTED]}}
-        - {name: sourceId, in: query, schema: {type: integer, format: int64, minimum: 1}}
-        - {name: ruleVersion, in: query, schema: {type: integer, minimum: 1}}
-        - {name: createdFrom, in: query, schema: {type: string, format: date-time}}
-        - {name: createdTo, in: query, schema: {type: string, format: date-time}}
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: 仅含有限匹配证据的候选分页
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DuplicateCandidatePage'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-  /api/v1/duplicate-candidates/{candidateId}:
-    get:
-      tags: [Governance]
-      summary: 查询重复候选详情
-      operationId: getDuplicateCandidate
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-      responses:
-        '200':
-          description: 候选详情
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/DuplicateCandidate'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/v1/duplicate-candidates/{candidateId}/comparison:
-    get:
-      tags: [Governance]
-      summary: 对照候选两侧当前字段与明确版本关系
-      operationId: compareDuplicateCandidate
-      x-required-permission: GOVERNANCE_READ
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-      responses:
-        '200':
-          description: 两侧实体的有限字段；未知值保留null，标题包含有效人工覆盖
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/CandidateComparison'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/v1/duplicate-candidates/{candidateId}/accept:
-    post:
-      tags: [Governance]
-      summary: 接受候选并建立逻辑规范关联
-      operationId: acceptDuplicateCandidate
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/CandidateAcceptRequest'}
-      responses:
-        '200': {description: 接受决定, content: {application/json: {schema: {$ref: '#/components/schemas/MergeDecision'}}}}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/duplicate-candidates/{candidateId}/reject:
-    post:
-      tags: [Governance]
-      summary: 拒绝候选并抑制同规则重复生成
-      operationId: rejectDuplicateCandidate
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: candidateId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/VersionReasonRequest'}
-      responses:
-        '200': {description: 拒绝决定, content: {application/json: {schema: {$ref: '#/components/schemas/MergeDecision'}}}}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/merge-decisions/{decisionId}/revert:
-    post:
-      tags: [Governance]
-      summary: 撤销当前生效且无后续依赖的治理决定
-      operationId: revertMergeDecision
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: decisionId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/VersionReasonRequest'}
-      responses:
-        '200': {description: 撤销决定, content: {application/json: {schema: {$ref: '#/components/schemas/MergeDecision'}}}}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/catalog/achievements/{achievementId}/field-overrides:
-    post:
-      tags: [Governance]
-      summary: 创建或更新成果人工字段修正
-      operationId: overrideAchievementField
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: achievementId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/FieldOverrideRequest'}
-      responses:
-        '200': {description: 人工字段修正, content: {application/json: {schema: {$ref: '#/components/schemas/FieldOverride'}}}}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/catalog/achievements/{achievementId}/field-overrides/{revisionId}/revert:
-    post:
-      tags: [Governance]
-      summary: 撤销当前人工字段修正
-      operationId: revertAchievementFieldOverride
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: achievementId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - {name: revisionId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - $ref: '#/components/parameters/CsrfHeader'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/VersionReasonRequest'}
-      responses:
-        '200': {description: 已撤销的字段修正, content: {application/json: {schema: {$ref: '#/components/schemas/FieldOverride'}}}}
-        '409': {$ref: '#/components/responses/Conflict'}
-  /api/v1/quality-metrics:
-    get:
-      tags: [Quality]
-      summary: 分页查询来源运行质量指标
-      operationId: listQualityMetrics
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: sourceId, in: query, schema: {type: integer, format: int64, minimum: 1}}
-        - {name: runId, in: query, schema: {type: integer, format: int64, minimum: 1}}
-        - {name: metricCode, in: query, schema: {$ref: '#/components/schemas/QualityMetricCode'}}
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/Size'
-      responses:
-        '200':
-          description: 质量指标分页；分母为0时metricValue为null
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/QualityMetricPage'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-  /api/v1/quality-metrics/{metricId}:
-    get:
-      tags: [Quality]
-      summary: 查询质量指标及有限问题样本
-      operationId: getQualityMetric
-      security: [{sessionCookie: []}]
-      parameters:
-        - {name: metricId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - {name: sampleLimit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 20}}
-      responses:
-        '200': {description: 指标详情, content: {application/json: {schema: {$ref: '#/components/schemas/QualityMetricDetail'}}}}
         '404': {$ref: '#/components/responses/NotFound'}
   /api/v1/graph/types:
     get:
@@ -1361,6 +1032,140 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
   schemas:
+    AuthorImportBundleUpload:
+      type: object
+      required: [files, options]
+      properties:
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: {type: string, format: binary}
+          description: 同一学者的 XLSX、XLS、CSV 文件；合计不超过 10 MB、2000 条记录，每份文件选择一张工作表。
+        options: {type: string, maxLength: 10000, description: AuthorImportBundleOptions 的 JSON 字符串}
+    AuthorImportBundleOptions:
+      type: object
+      required: [files]
+      properties:
+        scholarName: {type: string, maxLength: 200, default: '', description: 首次留空；多人候选时只能选择文件中返回的候选，不接受任意姓名。}
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required: [sheetIndex, headerRow]
+            properties:
+              sheetIndex: {type: integer, minimum: 0, maximum: 19}
+              headerRow: {type: integer, minimum: 1, maximum: 20}
+              mapping:
+                type: object
+                maxProperties: 20
+                additionalProperties: {type: integer, minimum: -1, maximum: 99}
+    AuthorImportBundlePreview:
+      type: object
+      properties:
+        previewKey: {type: string}
+        scholarName: {type: string}
+        candidates: {type: array, items: {type: string}}
+        organizations: {type: array, items: {type: string}, description: 全部表内机构，不等同于学者已确认所属机构。}
+        messages: {type: array, items: {type: string}}
+        canConfirm: {type: boolean}
+        totalRows: {type: integer, maximum: 2000}
+        validRows: {type: integer}
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              fileName: {type: string}
+              modes: {type: array, items: {type: string, enum: [AUTHOR, MASTER_SUPERVISION, DOCTOR_SUPERVISION]}}
+              preview: {$ref: '#/components/schemas/AuthorImportPreview'}
+    AuthorImportBundleSummary:
+      type: object
+      properties:
+        authorId: {type: integer, format: int64}
+        scholarName: {type: string}
+        importedCount: {type: integer}
+        linkedCount: {type: integer}
+        skippedCount: {type: integer}
+        batches: {type: array, items: {$ref: '#/components/schemas/AuthorImportSummary'}}
+    AuthorImportUpload:
+      type: object
+      required: [file, options]
+      properties:
+        file: {type: string, format: binary, description: XLSX、XLS 或 CSV，非空且最多 10 MB}
+        options:
+          type: string
+          description: AuthorImportOptions 的 JSON 字符串（普通表单字段，不是文件），最多 10000 字符
+    AuthorImportOptions:
+      type: object
+      required: [scholarName, headerRow]
+      properties:
+        scholarName: {type: string, minLength: 1, maxLength: 200}
+        scholarOrganization: {type: string, maxLength: 500, default: ''}
+        authorId: {type: integer, format: int64, minimum: 1, description: 已有作者 ID，必须与姓名一致}
+        sheetIndex: {type: integer, minimum: 0, maximum: 19, default: 0}
+        headerRow: {type: integer, minimum: 1, maximum: 20, default: 1}
+        mode: {type: string, enum: [AUTHOR, MASTER_SUPERVISION, DOCTOR_SUPERVISION], default: AUTHOR}
+        mapping:
+          type: object
+          description: 目标字段到零基列索引；-1 表示不映射。字段为 database、title、authors、organizations、venue、keywords、abstract、date、firstAuthor、year、issn、url、doi。
+          additionalProperties: {type: integer, minimum: -1, maximum: 99}
+    AuthorImportSummary:
+      type: object
+      properties:
+        id: {type: integer, format: int64}
+        authorId: {type: integer, format: int64}
+        scholarName: {type: string}
+        fileName: {type: string}
+        sheetName: {type: string}
+        importMode: {type: string, enum: [AUTHOR, MASTER_SUPERVISION, DOCTOR_SUPERVISION]}
+        totalRows: {type: integer}
+        importedCount: {type: integer}
+        linkedCount: {type: integer}
+        skippedCount: {type: integer}
+        createdAt: {type: string, format: date-time}
+    AuthorImportPreview:
+      type: object
+      properties:
+        previewKey: {type: string}
+        sheets: {type: array, items: {type: string}}
+        headers: {type: array, items: {type: string}}
+        mapping: {type: object, additionalProperties: {type: integer}}
+        totalRows: {type: integer, maximum: 2000}
+        validRows: {type: integer}
+        rows:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            properties:
+              rowNumber: {type: integer}
+              title: {type: string}
+              type: {type: string}
+              authors: {type: array, items: {type: string}}
+              organizations: {type: array, items: {type: string}}
+              keywords: {type: array, items: {type: string}}
+              abstractText: {type: string}
+              publicationDate: {type: [string, 'null'], format: date}
+              datePrecision: {type: [string, 'null']}
+              doi: {type: [string, 'null']}
+              venue: {type: string}
+              issn: {type: string}
+              url: {type: string}
+              original: {type: object, additionalProperties: {type: string}}
+              errors: {type: array, items: {type: string}}
+              warnings: {type: array, items: {type: string}}
+        issues:
+          type: array
+          maxItems: 2000
+          items:
+            type: object
+            properties:
+              rowNumber: {type: integer}
+              errors: {type: array, items: {type: string}}
+              warnings: {type: array, items: {type: string}}
     UpdateUserRequest:
       type: object
       additionalProperties: false
@@ -1433,6 +1238,7 @@ components:
         - GOVERNANCE_READ
         - GOVERNANCE_MANAGE
         - CATALOG_READ
+        - AUTHOR_IMPORT
         - GRAPH_READ
         - GRAPH_SYNC_READ
         - GRAPH_SYNC_MANAGE
@@ -1983,7 +1789,7 @@ components:
       enum: [ACHIEVEMENT, AUTHOR, INSTITUTION, VENUE, TOPIC]
     GraphRelationshipType:
       type: string
-      enum: [AUTHORED, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES]
+      enum: [AUTHORED, SUPERVISED, PRODUCED_AT, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES]
     GraphOutboxStatus:
       type: string
       enum: [PENDING, PROCESSING, SUCCEEDED, DEAD]
@@ -2001,7 +1807,7 @@ components:
       required: [id, type, source, target, properties]
       properties:
         id: {type: string}
-        type: {type: string, enum: [AUTHORED, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES, COAUTHORED]}
+        type: {type: string, enum: [AUTHORED, SUPERVISED, PRODUCED_AT, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES, COAUTHORED]}
         source: {type: string}
         target: {type: string}
         properties: {type: object, additionalProperties: true}
@@ -2042,7 +1848,7 @@ components:
           required: [kind, code]
           properties:
             kind: {type: string, enum: [NODE, RELATIONSHIP]}
-            code: {type: string, enum: [ACHIEVEMENT, AUTHOR, INSTITUTION, VENUE, TOPIC, AUTHORED, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES, COAUTHORED]}
+            code: {type: string, enum: [ACHIEVEMENT, AUTHOR, INSTITUTION, VENUE, TOPIC, AUTHORED, SUPERVISED, PRODUCED_AT, AFFILIATED_WITH, PUBLISHED_IN, HAS_TOPIC, CITES, COAUTHORED]}
     GraphSyncStatus:
       type: object
       required: [neo4jAvailable, schemaVersion, pendingCount, processingCount, deadCount, oldestPendingAgeSeconds, lastSucceededAt, lagThresholdExceeded, rebuildInProgress]

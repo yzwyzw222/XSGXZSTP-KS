@@ -13,6 +13,9 @@ import java.util.Optional;
 import java.util.List;
 
 public interface CrawlRepository {
+    java.util.List<CrawlRun> findLatestRuns(java.util.List<Long> taskIds);
+    java.util.List<CrawlSchedule> findSchedules(java.util.List<Long> taskIds);
+
 
     PageResult<CrawlTask> findTaskPage(int page, int size);
 

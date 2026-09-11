@@ -34,6 +34,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class ApiExceptionHandler {
 
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ProblemDetail handleUploadSize(Exception exception, HttpServletRequest request) {
+        return problem(request, HttpStatus.PAYLOAD_TOO_LARGE, ErrorCode.VALIDATION_FAILED, "单文件最多 10 MB，请拆分后重新导入");
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

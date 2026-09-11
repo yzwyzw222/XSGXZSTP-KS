@@ -1,5 +1,6 @@
 package com.aacv.system.graph;
 
+import static org.hamcrest.Matchers.hasItems;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -144,7 +145,11 @@ class GraphQueryIntegrationTests {
     @Test
     @WithMockUser(authorities = "GRAPH_READ")
     void researcherCanReadTypesButCannotEdit() throws Exception {
-        mvc.perform(get("/api/v1/graph/types")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(11));
+        mvc.perform(get("/api/v1/graph/types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(13))
+                .andExpect(jsonPath("$[?(@.kind == 'RELATIONSHIP')].code",
+                        hasItems("SUPERVISED", "PRODUCED_AT")));
         mvc.perform(put("/api/v1/graph/types/NODE/AUTHOR").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"displayName":"作者","color":"#258ca3","size":30,"reviewStatus":"PENDING","version":0}

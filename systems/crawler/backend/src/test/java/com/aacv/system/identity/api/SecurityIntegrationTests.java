@@ -28,6 +28,7 @@ import jakarta.servlet.http.Cookie;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -150,7 +151,7 @@ class SecurityIntegrationTests {
     }
 
     @Test
-    void stageThreeCatalogCrawlAndCsrfBoundariesFollowRolePolicy() throws Exception {
+    void catalogAndAuthorImportFollowRoleAndCsrfPolicy() throws Exception {
         mockMvc.perform(get("/api/v1/catalog/achievements"))
                 .andExpect(status().isUnauthorized());
 
@@ -160,14 +161,14 @@ class SecurityIntegrationTests {
         mockMvc.perform(get("/api/v1/catalog/achievements").cookie(researcher.cookie()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray());
-        mockMvc.perform(get("/api/v1/crawl/tasks").cookie(researcher.cookie()))
+        mockMvc.perform(get("/api/v1/author-import").cookie(researcher.cookie()))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
 
         userAccountService.createUser(
                 new CreateUserCommand("stage3-operator", USER_PASSWORD, Set.of(RoleCode.DATA_OPERATOR)));
         AuthSession operator = login("stage3-operator", USER_PASSWORD);
-        mockMvc.perform(get("/api/v1/crawl/tasks").cookie(operator.cookie()))
+        mockMvc.perform(get("/api/v1/author-import").cookie(operator.cookie()))
                 .andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/crawl/runs/1/cancel").cookie(operator.cookie()))
                 .andExpect(status().isForbidden())
@@ -179,61 +180,33 @@ class SecurityIntegrationTests {
     }
 
     @Test
-    void stageFourGovernanceAndQualityBoundariesFollowRoleAndCsrfPolicy() throws Exception {
-        mockMvc.perform(get("/api/v1/duplicate-candidates"))
-                .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/quality-metrics"))
-                .andExpect(status().isUnauthorized());
-
-        userAccountService.createUser(
-                new CreateUserCommand("stage4-researcher", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
-        AuthSession researcher = login("stage4-researcher", USER_PASSWORD);
-        mockMvc.perform(get("/api/v1/duplicate-candidates/1/comparison"))
-                .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/catalog/authors/1/evidence"))
-                .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/duplicate-candidates/1/comparison").cookie(researcher.cookie()))
+    void authorImportMultipartUsesRealSessionAndCsrf() throws Exception {
+        mockMvc.perform(get("/api/v1/author-import")).andExpect(status().isUnauthorized());
+        userAccountService.createUser(new CreateUserCommand("import-researcher", USER_PASSWORD, Set.of(RoleCode.RESEARCHER)));
+        AuthSession researcher = login("import-researcher", USER_PASSWORD);
+        var file = new org.springframework.mock.web.MockMultipartFile("file", "test.csv", "text/csv",
+                "Title-题名,Author-作者\n会话导入测试,会话学者".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String options = json(Map.of("scholarName", "会话学者", "sheetIndex", 0, "headerRow", 1, "mode", "AUTHOR"));
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/author-import/preview")
+                .file(file).param("options", options).cookie(researcher.cookie()).header(researcher.csrfHeader(), researcher.csrfToken()))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/v1/catalog/authors/1/evidence").cookie(researcher.cookie()))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/v1/duplicate-candidates").cookie(researcher.cookie()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
-        mockMvc.perform(get("/api/v1/quality-metrics").cookie(researcher.cookie()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
-        mockMvc.perform(post("/api/v1/catalog/achievements/1/field-overrides")
-                        .cookie(researcher.cookie())
-                        .header(researcher.csrfHeader(), researcher.csrfToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(Map.of(
-                                "fieldName", "title",
-                                "value", "越权标题",
-                                "reason", "权限边界测试",
-                                "version", 0))))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
-
-        userAccountService.createUser(
-                new CreateUserCommand("stage4-operator", USER_PASSWORD, Set.of(RoleCode.DATA_OPERATOR)));
-        AuthSession operator = login("stage4-operator", USER_PASSWORD);
-        mockMvc.perform(get("/api/v1/duplicate-candidates/1/comparison").cookie(operator.cookie()))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/v1/duplicate-candidates").cookie(operator.cookie()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isArray());
-        mockMvc.perform(get("/api/v1/quality-metrics").cookie(operator.cookie()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items").isArray());
-        mockMvc.perform(post("/api/v1/duplicate-candidates/1/accept")
-                        .cookie(operator.cookie())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(Map.of(
-                                "canonicalEntityId", 1,
-                                "reason", "CSRF边界测试",
-                                "version", 0))))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorCode").value("CSRF_INVALID"));
+        userAccountService.createUser(new CreateUserCommand("import-operator", USER_PASSWORD, Set.of(RoleCode.DATA_OPERATOR)));
+        AuthSession operator = login("import-operator", USER_PASSWORD);
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/author-import/preview")
+                .file(file).param("options", options).cookie(operator.cookie()))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.errorCode").value("CSRF_INVALID"));
+        var preview = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/author-import/preview")
+                .file(file).param("options", options).cookie(operator.cookie()).header(operator.csrfHeader(), operator.csrfToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.validRows").value(1)).andReturn().getResponse();
+        String previewKey = objectMapper.readTree(preview.getContentAsByteArray()).path("previewKey").asText();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/v1/author-import/confirm")
+                .file(file).param("options", options).param("previewKey", previewKey).cookie(operator.cookie()).header(operator.csrfHeader(), operator.csrfToken()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.importedCount").value(1));
+        mockMvc.perform(get("/api/v1/author-import").cookie(operator.cookie()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].scholarName").value("会话学者"));
+        for (String path : List.of("/sources", "/crawl/tasks", "/duplicate-candidates", "/quality-metrics")) {
+            mockMvc.perform(get("/api/v1" + path).cookie(operator.cookie())).andExpect(status().isNotFound());
+        }
     }
 
     @Test

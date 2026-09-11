@@ -33,95 +33,12 @@
         LEFT JOIN canonical_entity_link venue_link
                ON venue_link.entity_type = 'VENUE'
               AND venue_link.entity_id = effective_venue.id
-        LEFT JOIN venue canonical_venue
-               ON canonical_venue.id = COALESCE(venue_link.canonical_entity_id, effective_venue.id)
-        <where>
-            AND achievement_link.entity_id IS NULL
-            <if test="filter.title != null">
-                AND LOCATE(
-                    LOWER(#{filter.title}),
-                    LOWER(COALESCE(JSON_UNQUOTE(title_override.field_value), a.title_original, a.title_normalized))
-                ) &gt; 0
-            </if>
-            <if test="filter.authorId != null">
-                AND EXISTS (
-                    SELECT 1
-                    FROM achievement_author relation_value
-                    LEFT JOIN canonical_entity_link relation_achievement_link
-                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
-                          AND relation_achievement_link.entity_id = relation_value.achievement_id
-                    LEFT JOIN canonical_entity_link author_link
-                           ON author_link.entity_type = 'AUTHOR'
-                          AND author_link.entity_id = relation_value.author_id
-                    WHERE COALESCE(
-                              relation_achievement_link.canonical_entity_id,
-                              relation_value.achievement_id) = a.id
-                      AND COALESCE(author_link.canonical_entity_id, relation_value.author_id) = #{filter.authorId}
-                )
-            </if>
-            <if test="filter.organizationId != null">
-                AND EXISTS (
-                    SELECT 1
-                    FROM authorship_organization relation_value
-                    LEFT JOIN canonical_entity_link relation_achievement_link
-                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
-                          AND relation_achievement_link.entity_id = relation_value.achievement_id
-                    LEFT JOIN canonical_entity_link organization_link
-                           ON organization_link.entity_type = 'ORGANIZATION'
-                          AND organization_link.entity_id = relation_value.organization_id
-                    WHERE COALESCE(
-                              relation_achievement_link.canonical_entity_id,
-                              relation_value.achievement_id) = a.id
-                      AND COALESCE(
-                              organization_link.canonical_entity_id,
-                              relation_value.organization_id) = #{filter.organizationId}
-                )
-            </if>
-            <if test="filter.publicationYearFrom != null">
-                AND YEAR(COALESCE(
-                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
-                    a.publication_date)) &gt;= #{filter.publicationYearFrom}
-            </if>
-            <if test="filter.publicationYearTo != null">
-                AND YEAR(COALESCE(
-                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
-                    a.publication_date)) &lt;= #{filter.publicationYearTo}
-            </if>
-            <if test="filter.achievementType != null">
-                AND COALESCE(JSON_UNQUOTE(type_override.field_value), a.achievement_type)
-                    = #{filter.achievementType}
-            </if>
-            <if test="filter.sourceType != null">
-                AND EXISTS (
-                    SELECT 1
-                    FROM achievement_source relation_value
-                    JOIN data_source source_value ON source_value.id = relation_value.source_id
-                    LEFT JOIN canonical_entity_link relation_achievement_link
-                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
-                          AND relation_achievement_link.entity_id = relation_value.achievement_id
-                    WHERE COALESCE(
-                              relation_achievement_link.canonical_entity_id,
-                              relation_value.achievement_id) = a.id
-                      AND source_value.source_type = #{filter.sourceType}
-                )
-            </if>
-            <if test="filter.venueId != null">
-                AND COALESCE(venue_link.canonical_entity_id, effective_venue.id) = #{filter.venueId}
-            </if>
-            <if test="filter.topicId != null">
-                AND EXISTS (
-                    SELECT 1
-                    FROM achievement_subject relation_value
-                    LEFT JOIN canonical_entity_link relation_achievement_link
-                           ON relation_achievement_link.entity_type = 'ACHIEVEMENT'
-                          AND relation_achievement_link.entity_id = relation_value.achievement_id
-                    WHERE COALESCE(
-                              relation_achievement_link.canonical_entity_id,
-                              relation_value.achievement_id) = a.id
-                      AND relation_value.subject_id = #{filter.topicId}
-                )
-            </if>
-        </where>
+        LEFT JOIN venue v
+               ON v.id = COALESCE(venue_link.canonical_entity_id, effective_venue.id)
+        <bind name="query" value="filter"/>
+        <bind name="relatedId" value="null"/>
+        <bind name="relatedKind" value="null"/>
+        <include refid="com.aacv.system.catalog.infrastructure.persistence.CatalogMapper.achievementFilters"/>
     </sql>
 
     <select id="lockRequester" resultType="long">
@@ -152,7 +69,7 @@
                COALESCE(
                    STR_TO_DATE(JSON_UNQUOTE(date_override.field_value), '%Y-%m-%d'),
                    a.publication_date) AS publication_date,
-               canonical_venue.display_name AS primary_venue
+               v.display_name AS primary_venue
         <include refid="recordScope"/>
         ORDER BY a.id
         LIMIT #{limit}

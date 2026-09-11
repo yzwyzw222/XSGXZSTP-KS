@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.aacv.system.authorimport.infrastructure.AuthorImportMapper">
+    <select id="lockImport" resultType="int">SELECT id FROM author_import_lock WHERE id = 1 FOR UPDATE</select>
+    <sql id="batchColumns">b.id, b.author_id, a.display_name AS scholar_name, b.file_name, b.sheet_name, b.import_mode, b.total_rows, b.imported_count, b.linked_count, b.skipped_count, b.created_at</sql>
+    <select id="findBatch" resultType="com.aacv.system.authorimport.domain.ImportSummary">
+        SELECT <include refid="batchColumns"/> FROM author_import_batch b JOIN author a ON a.id = b.author_id WHERE request_key = #{requestKey}
+    </select>
+    <select id="recentBatches" resultType="com.aacv.system.authorimport.domain.ImportSummary">
+        SELECT <include refid="batchColumns"/> FROM author_import_batch b JOIN author a ON a.id = b.author_id ORDER BY b.id DESC LIMIT 20
+    </select>
+    <select id="findAuthorName" resultType="string">SELECT display_name FROM author WHERE id = #{id}</select>
+    <select id="findPerson" resultType="long">SELECT author_id FROM author_import_person WHERE identity_key = #{key}</select>
+    <insert id="insertAuthor" useGeneratedKeys="true" keyProperty="row.id">INSERT INTO author (display_name) VALUES (#{name})</insert>
+    <insert id="insertPerson">INSERT INTO author_import_person (identity_key, author_id) VALUES (#{key}, #{authorId})</insert>
+    <select id="findOrganizations" resultType="long">SELECT id FROM organization WHERE display_name = #{name} ORDER BY id LIMIT 2</select>
+    <insert id="insertOrganization" useGeneratedKeys="true" keyProperty="row.id">INSERT INTO organization (display_name) VALUES (#{name})</insert>
+    <select id="findVenues" resultType="long">SELECT id FROM venue WHERE display_name = #{name} ORDER BY id LIMIT 2</select>
+    <insert id="insertVenue" useGeneratedKeys="true" keyProperty="row.id">INSERT INTO venue (display_name, issn_l) VALUES (#{name}, #{issn})</insert>
+    <select id="findKeyword" resultType="long">SELECT id FROM subject WHERE source_id IS NULL AND external_id = #{key}</select>
+    <insert id="insertKeyword" useGeneratedKeys="true" keyProperty="row.id">INSERT INTO subject (external_id, display_name) VALUES (#{key}, #{name})</insert>
+    <select id="findWork" resultType="long">SELECT achievement_id FROM author_import_work WHERE identity_key = #{key}</select>
+    <select id="findDoi" resultType="long">SELECT id FROM achievement WHERE doi_normalized = #{doi}</select>
+    <select id="findWorkType" resultType="string">SELECT achievement_type FROM achievement WHERE id = #{id}</select>
+    <select id="findWorkAuthors" resultType="long">SELECT a.id FROM achievement_author r JOIN author a ON a.id = r.author_id WHERE r.achievement_id = #{workId} AND a.display_name = #{name} ORDER BY a.id</select>
+    <select id="advisorExists" resultType="int">SELECT COUNT(*) FROM achievement_advisor WHERE achievement_id = #{workId} AND advisor_id = #{authorId}</select>
+    <select id="affiliationExists" resultType="int">SELECT COUNT(*) FROM author_import_affiliation WHERE achievement_id = #{workId} AND author_id = #{authorId} AND organization_id = #{orgId}</select>
+    <insert id="insertWorkKey">INSERT INTO author_import_work (identity_key, achievement_id) VALUES (#{key}, #{achievementId})</insert>
+    <insert id="insertAchievement" useGeneratedKeys="true" keyProperty="id.id">
+        INSERT INTO achievement (title_original, title_normalized, match_fingerprint, achievement_type, publication_date, date_precision, doi_normalized, primary_venue_id, first_seen_at, last_seen_at)
+        VALUES (#{row.title}, #{normalizedTitle}, #{key}, #{row.type}, #{row.publicationDate}, #{row.datePrecision}, #{row.doi}, #{venueId}, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
+    </insert>
+    <insert id="insertAbstract">INSERT INTO paper_detail (achievement_id, abstract_text, authorships_may_be_incomplete) VALUES (#{id}, #{text}, #{incomplete})</insert>
+    <insert id="insertAuthorLink">INSERT INTO achievement_author (achievement_id, author_id, author_position) VALUES (#{workId}, #{authorId}, #{position})</insert>
+    <insert id="insertAdvisor">INSERT INTO achievement_advisor (achievement_id, advisor_id) VALUES (#{workId}, #{authorId})</insert>
+    <insert id="insertInstitution">INSERT INTO achievement_institution (achievement_id, organization_id) VALUES (#{workId}, #{orgId})</insert>
+    <insert id="insertKeywordLink">INSERT INTO achievement_subject (achievement_id, subject_id, subject_position) VALUES (#{workId}, #{subjectId}, #{position})</insert>
+    <insert id="insertAffiliation">INSERT INTO author_import_affiliation (achievement_id, author_id, organization_id) VALUES (#{workId}, #{authorId}, #{orgId})</insert>
+    <insert id="insertBatch" useGeneratedKeys="true" keyProperty="id.id">
+        INSERT INTO author_import_batch (request_key, author_id, file_name, sheet_name, import_mode, total_rows)
+        VALUES (#{key}, #{authorId}, #{fileName}, #{sheetName}, #{options.mode}, #{total})
+    </insert>
+    <update id="finishBatch">UPDATE author_import_batch SET imported_count = #{imported}, linked_count = #{linked}, skipped_count = #{skipped} WHERE id = #{id}</update>
+    <insert id="insertRecord">INSERT INTO author_import_record (batch_id, source_row, achievement_id, original_columns) VALUES (#{batchId}, #{rowNumber}, #{workId}, #{original})</insert>
+    <select id="evidence" resultType="map">
+        SELECT b.id AS batchId, b.file_name AS fileName, b.sheet_name AS sheetName, b.import_mode AS importMode,
+               a.display_name AS scholarName, r.source_row AS rowNumber, CAST(r.original_columns AS CHAR) AS originalColumns
+        FROM author_import_record r JOIN author_import_batch b ON b.id = r.batch_id JOIN author a ON a.id = b.author_id
+        WHERE r.achievement_id = #{achievementId} ORDER BY b.id DESC, r.source_row LIMIT 50
+    </select>
+</mapper>

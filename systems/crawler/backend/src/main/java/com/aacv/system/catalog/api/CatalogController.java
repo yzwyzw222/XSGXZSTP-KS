@@ -35,11 +35,15 @@ public class CatalogController {
             @RequestParam(required = false) String sourceCode,
             @RequestParam(required = false) String venue,
             @RequestParam(required = false) String topic,
+            @RequestParam(required = false) @Min(1) Long authorId,
+            @RequestParam(required = false) @Min(1) Long organizationId,
+            @RequestParam(required = false) @Min(1) Long venueId,
+            @RequestParam(required = false) @Min(1) Long topicId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return AchievementPageResponse.from(service.findAchievements(query(
+        return AchievementPageResponse.from(service.findAchievements(new CatalogQuery(
                 title, author, organization, publicationYear, achievementType,
-                sourceCode, venue, topic, page, size)));
+                sourceCode, venue, topic, page, size, authorId, organizationId, venueId, topicId)));
     }
 
     @GetMapping("/achievements/{achievementId}")
@@ -72,22 +76,6 @@ public class CatalogController {
     public CatalogEntityEvidence findEntityEvidence(
             @PathVariable String collection, @PathVariable @Min(1) long entityId) {
         return service.requireEntityEvidence(kind(collection), entityId);
-    }
-
-    private CatalogQuery query(
-            String title,
-            String author,
-            String organization,
-            Integer publicationYear,
-            String achievementType,
-            String sourceCode,
-            String venue,
-            String topic,
-            int page,
-            int size) {
-        return new CatalogQuery(
-                title, author, organization, publicationYear, achievementType,
-                sourceCode, venue, topic, page, size);
     }
 
     private CatalogEntityKind kind(String collection) {

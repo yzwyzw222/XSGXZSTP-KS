@@ -34,7 +34,7 @@ public class GraphQueryService {
     private static final int HARD_NODE_LIMIT = 300;
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(3);
     private static final Set<String> NODE_PROPERTIES = Set.of(
-            "title", "achievementType", "language", "publicationDate", "doi",
+            "title", "achievementType", "language", "publicationDate", "doi", "abstractText",
             "name", "orcid", "standardCode", "countryCode", "venueType", "issn",
             "code", "path", "projectionVersion");
 
@@ -49,17 +49,16 @@ public class GraphQueryService {
         this.operationsService = operationsService;
     }
 
-    /** 概览优先读取创作边，再补充孤立节点；查询和结果均保持有界。 */
+    /** 概览展示署名、指导及机构关系；查询和结果均保持有界。 */
     @PreAuthorize("hasAuthority('GRAPH_READ')")
     public GraphView overview(int nodeLimit) {
         if (nodeLimit < 1 || nodeLimit > HARD_NODE_LIMIT) {
             throw new IllegalArgumentException("概览节点上限无效");
         }
-        String cypher = "MATCH path=(root)-[rels:AUTHORED*0..1]->(node) "
+        String cypher = "MATCH path=(root)-[rels:AUTHORED|SUPERVISED|PRODUCED_AT|AFFILIATED_WITH*0..1]->(node) "
                 + "WHERE root.aacvManaged = true AND node.aacvManaged = true "
-                + "AND (root:Author OR root:Achievement) AND (node:Author OR node:Achievement) "
+                + "AND (root:Author OR root:Achievement) AND (node:Author OR node:Achievement OR node:Institution) "
                 + "AND all(rel IN relationships(path) WHERE rel.aacvManaged = true) "
-                + "AND (length(path) = 0 OR (root:Author AND node:Achievement)) "
                 + "RETURN path ORDER BY length(path) DESC, node.businessId, root.businessId "
                 + "LIMIT $pathLimit";
         return execute(cypher, Map.of("pathLimit", nodeLimit * 4 + 1), "", 1, nodeLimit, 0, true);
