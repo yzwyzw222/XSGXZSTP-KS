@@ -21,6 +21,7 @@ public class ScholarBundleParser {
     public record FileData(String name, byte[] bytes) { }
     public record Group(String fileName, ImportOptions options, ScholarImportParser.Parsed parsed) { }
     public record Parsed(ImportBundle.Preview preview, List<Group> groups) { }
+    private record GroupOwner(String mode, String scholarName) { }
     private final ScholarImportParser parser;
     private final ObjectMapper json;
 
@@ -37,6 +38,7 @@ public class ScholarBundleParser {
         List<ScholarImportParser.Parsed> raw = new ArrayList<>();
         var seen = new java.util.HashSet<String>();
         Map<String, String> common = null;
+        Map<String, String> researchCommon = null;
         Map<String, String> organizations = new TreeMap<>();
         int total = 0;
         for (int i = 0; i < files.size(); i++) {
@@ -59,9 +61,12 @@ public class ScholarBundleParser {
                 if (!mode(row).equals("AUTHOR") || row.authors().isEmpty()) continue;
                 Map<String, String> names = new TreeMap<>();
                 row.authors().forEach(name -> names.putIfAbsent(normalized(name), name));
-                if (common == null) common = names; else common.keySet().retainAll(names.keySet());
+                if (row.type().equals("scientific-result")) {
+                    if (researchCommon == null) researchCommon = names; else researchCommon.keySet().retainAll(names.keySet());
+                } else if (common == null) common = names; else common.keySet().retainAll(names.keySet());
             }
         }
+        if (common == null) common = researchCommon;
         List<String> candidates = common == null ? List.of() : List.copyOf(common.values());
         String scholar = options.scholarName();
         if (!scholar.isEmpty()) {
@@ -80,14 +85,24 @@ public class ScholarBundleParser {
         for (int i = 0; i < raw.size(); i++) {
             var source = raw.get(i);
             var settings = options.files().get(i);
-            Map<String, List<ImportRow>> modes = new LinkedHashMap<>();
-            for (var row : source.rows()) modes.computeIfAbsent(mode(row), ignored -> new ArrayList<>()).add(row);
+            Map<GroupOwner, List<ImportRow>> modes = new LinkedHashMap<>();
+            for (var row : source.rows()) {
+                String owner = scholar;
+                // 科技成果可能仅列项目负责人；独立单人署名按原人入库，不补写主学者署名。
+                if (!scholar.isEmpty() && row.type().equals("scientific-result") && row.authors().size() == 1
+                        && !normalized(row.authors().getFirst()).equals(normalized(scholar))) {
+                    owner = row.authors().getFirst();
+                    String message = "科技成果《" + row.title() + "》仅署名" + owner + "，按原署名保存，不添加与" + scholar + "的署名或合作关系。";
+                    if (!messages.contains(message)) messages.add(message);
+                }
+                modes.computeIfAbsent(new GroupOwner(mode(row), owner), ignored -> new ArrayList<>()).add(row);
+            }
             List<ImportRow> checked = new ArrayList<>();
             for (var entry : modes.entrySet()) {
                 if (scholar.isEmpty()) { checked.addAll(entry.getValue()); continue; }
-                var resolved = new ImportOptions(scholar, "", null, settings.sheetIndex(), settings.headerRow(), entry.getKey(), source.preview().mapping());
+                var resolved = new ImportOptions(entry.getKey().scholarName(), "", null, settings.sheetIndex(), settings.headerRow(), entry.getKey().mode(), source.preview().mapping());
                 List<ImportRow> rows = entry.getValue().stream().map(row -> validate(row, resolved)).toList();
-                String key = hash(json.writeValueAsString(List.of("same-scholar-advisor-filter-v1", source.preview().previewKey(), scholar, entry.getKey())));
+                String key = hash(json.writeValueAsString(List.of("same-scholar-advisor-filter-v2", source.preview().previewKey(), scholar, entry.getKey())));
                 var parsed = new ScholarImportParser.Parsed(preview(source.preview(), rows, key), rows);
                 groups.add(new Group(safeName(files.get(i).name()), resolved, parsed));
                 checked.addAll(rows);
@@ -95,12 +110,12 @@ public class ScholarBundleParser {
             checked.sort(java.util.Comparator.comparingInt(ImportRow::rowNumber));
             var checkedPreview = preview(source.preview(), checked, source.preview().previewKey());
             valid += checkedPreview.validRows();
-            previews.add(new ImportBundle.FilePreview(safeName(files.get(i).name()), List.copyOf(modes.keySet()), checkedPreview));
+            previews.add(new ImportBundle.FilePreview(safeName(files.get(i).name()), modes.keySet().stream().map(GroupOwner::mode).distinct().toList(), checkedPreview));
         }
         if (previews.stream().anyMatch(file -> file.modes().stream().anyMatch(value -> !value.equals("AUTHOR")))) {
             messages.add("硕士、博士论文按来源库区分；指导关系依据本批同一学者、硕博按导师姓名筛选导出的约定建立。");
         }
-        String key = hash(json.writeValueAsString(List.of("same-scholar-advisor-filter-v1", scholar,
+        String key = hash(json.writeValueAsString(List.of("same-scholar-advisor-filter-v2", scholar,
                 previews.stream().map(file -> List.of(file.fileName(), file.preview().previewKey())).toList())));
         return new Parsed(new ImportBundle.Preview(key, scholar, candidates, List.copyOf(organizations.values()), List.copyOf(messages),
                 !scholar.isEmpty() && valid == total, total, valid, List.copyOf(previews)), List.copyOf(groups));
@@ -116,7 +131,7 @@ public class ScholarBundleParser {
         List<String> errors = new ArrayList<>(row.errors());
         Integer column = preview.mapping().get("database");
         String database = column == null ? "" : normalized(row.original().getOrDefault(preview.headers().get(column), ""));
-        if (database.isBlank() || row.type().equals("article") && !database.contains("期刊")
+        if (database.isBlank() || row.type().equals("article") && !database.contains("期刊") && !database.equals("辑刊")
                 && !database.contains("journal") && !database.contains("article") && !database.equals("论文")) {
             errors.add("自动识别需要明确的来源库，请补充来源库列或调整映射");
         }

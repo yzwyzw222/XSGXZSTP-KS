@@ -59,21 +59,7 @@ public class ScholarImportParser {
         if (table.rows().size() < headerRow) throw new IllegalArgumentException("表头行不存在");
         List<String> headers = table.rows().get(headerRow - 1);
         if (headers.isEmpty() || headers.stream().allMatch(String::isBlank)) throw new IllegalArgumentException("表头行为空");
-        List<String> originalNames = java.util.stream.IntStream.range(0, headers.size())
-                .mapToObj(index -> headers.get(index).isBlank() ? "列" + (index + 1) : headers.get(index)).toList();
-        if (originalNames.stream().distinct().count() != headers.size()) {
-            throw new IllegalArgumentException("存在重复列名，请先为重复列设置不同名称");
-        }
-        Map<String, Integer> mapping = new TreeMap<>();
-        ALIASES.forEach((field, aliases) -> {
-            for (int i = 0; i < headers.size(); i++) {
-                String header = normalized(headers.get(i));
-                if (aliases.stream().anyMatch(alias -> header.equals(normalized(alias))
-                        || header.startsWith(normalized(alias) + "-"))) {
-                    mapping.put(field, i); break;
-                }
-            }
-        });
+        Map<String, Integer> mapping = mapHeaders(headers);
         overrides.forEach((field, column) -> {
             if (!ALIASES.containsKey(field) || column < -1 || column >= headers.size()) {
                 throw new IllegalArgumentException("字段映射包含未知字段或无效列号");
@@ -81,11 +67,24 @@ public class ScholarImportParser {
             if (column == -1) mapping.remove(field); else mapping.put(field, column);
         });
         List<ImportRow> rows = new ArrayList<>();
+        List<String> sectionHeaders = headers;
+        Map<String, Integer> sectionMapping = mapping;
         for (int i = headerRow; i < table.rows().size(); i++) {
             var cells = table.rows().get(i);
             if (cells.stream().allMatch(String::isBlank)) continue;
+            if (isSectionHeader(cells)) {
+                sectionHeaders = cells;
+                sectionMapping = mapHeaders(cells);
+                // 混合来源的知网表会切换列顺序；手工映射跟随原列名，不能沿用列号。
+                for (var override : overrides.entrySet()) {
+                    int column = override.getValue() < 0 ? -1 : cells.indexOf(headers.get(override.getValue()));
+                    if (column < 0) sectionMapping.remove(override.getKey());
+                    else sectionMapping.put(override.getKey(), column);
+                }
+                continue;
+            }
             if (rows.size() >= 2000) throw new IllegalArgumentException("每张表最多导入 2000 条记录");
-            rows.add(parseRow(i + 1, headers, cells, mapping, options));
+            rows.add(parseRow(i + 1, sectionHeaders, cells, sectionMapping, options));
         }
         if (rows.isEmpty()) throw new IllegalArgumentException("表头下没有可导入的记录");
         String previewKey = options == null ? hash(json.writeValueAsString(List.of(hash(bytes), sheetIndex, headerRow, mapping)))
@@ -115,7 +114,7 @@ public class ScholarImportParser {
             authorText = value(cells, mapping, "firstAuthor");
             if (!authorText.isEmpty()) warnings.add("作者为空，使用第一责任人；可能缺少其他署名作者");
         }
-        List<String> authors = split(authorText);
+        List<String> authors = splitAuthors(authorText);
         if (authors.isEmpty()) errors.add("缺少论文作者或专利发明人");
         if (authors.size() > 100 || authors.stream().anyMatch(name -> name.length() > 200)) errors.add("作者数量或姓名长度超出上限");
         if (options != null) validateScholar(authors, options, errors);
@@ -168,6 +167,7 @@ public class ScholarImportParser {
         if (name.contains("博士") || name.contains("doctoral")) return "doctoral-thesis";
         if (name.contains("硕士") || name.contains("硕论") || name.contains("master")) return "master-thesis";
         if (name.contains("会议") || name.contains("conference")) return "proceedings-article";
+        if (name.equals("科技成果")) return "scientific-result";
         return "article";
     }
 
@@ -179,7 +179,45 @@ public class ScholarImportParser {
 
     private static String value(List<String> cells, Map<String, Integer> mapping, String key) {
         Integer index = mapping.get(key);
-        return index == null || index >= cells.size() ? "" : cells.get(index);
+        // 部分知网链接在尾部附带换行和 BOM；仅清理字段边界，原始单元格仍保留供核对。
+        return index == null || index >= cells.size() ? "" : cells.get(index).replaceAll("(?U)^[\\s\\uFEFF]+|[\\s\\uFEFF]+$", "");
+    }
+
+    private static Map<String, Integer> mapHeaders(List<String> headers) {
+        List<String> names = java.util.stream.IntStream.range(0, headers.size())
+                .mapToObj(index -> headers.get(index).isBlank() ? "列" + (index + 1) : headers.get(index)).toList();
+        if (names.stream().distinct().count() != headers.size()) {
+            throw new IllegalArgumentException("存在重复列名，请先为重复列设置不同名称");
+        }
+        Map<String, Integer> mapping = new TreeMap<>();
+        ALIASES.forEach((field, aliases) -> {
+            for (int i = 0; i < headers.size(); i++) {
+                if (matchesHeader(headers.get(i), aliases)) { mapping.put(field, i); break; }
+            }
+        });
+        return mapping;
+    }
+
+    private static boolean matchesHeader(String value, List<String> aliases) {
+        String header = normalized(value);
+        return aliases.stream().anyMatch(alias -> header.equals(normalized(alias)) || header.startsWith(normalized(alias) + "-"));
+    }
+
+    private static boolean isSectionHeader(List<String> cells) {
+        return List.of("database", "title", "authors").stream()
+                .allMatch(field -> cells.stream().anyMatch(value -> matchesHeader(value, ALIASES.get(field))));
+    }
+
+    private static List<String> splitAuthors(String value) {
+        List<String> authors = new ArrayList<>();
+        for (String part : split(value)) {
+            String[] commaNames = part.split("[,，]", -1);
+            // 旧知网中文署名用逗号分隔；保留 Smith, John 等英文姓名和机构内逗号。
+            if (commaNames.length > 1 && Arrays.stream(commaNames).allMatch(name -> name.strip().matches("[\\p{IsHan}·]{1,20}"))) {
+                Arrays.stream(commaNames).map(String::strip).forEach(authors::add);
+            } else authors.add(part);
+        }
+        return split(String.join(";", authors));
     }
 
     private static List<String> split(String value) {

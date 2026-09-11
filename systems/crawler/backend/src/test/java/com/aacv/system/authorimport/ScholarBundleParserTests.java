@@ -79,6 +79,19 @@ class ScholarBundleParserTests {
     }
 
     @Test
+    void derivesScholarFromPapersAndKeepsIndependentSingleAuthorResearchResult() {
+        var files = List.of(file("成果.csv", "科技成果,独立项目,李四,甲大学\n辑刊,合作论文,张三;李四,甲大学\n期刊,本人论文,张三,甲大学\n科技成果,本人项目,张三,甲大学"));
+        var bundle = parser.parse(files, options(1, ""));
+        assertEquals("张三", bundle.preview().scholarName());
+        assertTrue(bundle.preview().canConfirm());
+        assertEquals(4, bundle.preview().validRows());
+        assertEquals(1, bundle.groups().stream().filter(group -> group.options().scholarName().equals("李四")).count());
+        assertTrue(bundle.preview().messages().stream().anyMatch(message -> message.contains("独立项目") && message.contains("不添加")));
+        var ambiguous = parser.parse(List.of(file("成果.csv", "期刊,本人论文,张三,甲大学\n科技成果,多人项目,李四;王五,甲大学")), options(1, "")).preview();
+        assertFalse(ambiguous.canConfirm());
+    }
+
+    @Test
     void sourceAndCompleteAuthorsAreRequiredAndDuplicatesAndLimitsAreRejected() {
         var missingSource = parser.parse(List.of(file("成果.csv", ",论文,张三,甲大学")), options(1, "")).preview();
         assertFalse(missingSource.canConfirm());

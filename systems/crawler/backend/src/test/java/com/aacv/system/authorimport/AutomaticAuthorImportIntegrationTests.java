@@ -99,6 +99,24 @@ class AutomaticAuthorImportIntegrationTests {
     }
 
     @Test
+    @WithMockUser(authorities = "AUTHOR_IMPORT")
+    void recordsCommaCoauthorsAndReusesTheSamePersonForIndependentResearchWithoutFalseAuthorship() {
+        String rows = "SrcDatabase,Title,Author\n科技成果,独立署名成果,合作人甲\n期刊,多人合作证据,\"合作主学者,合作人甲,合作人乙\"\n期刊,单人识别证据,合作主学者\n博士,指导证据,指导学生";
+        var files = List.of(new ScholarBundleParser.FileData("混合.csv", rows.getBytes(StandardCharsets.UTF_8)));
+        var options = new ImportBundle.Options("", List.of(new ImportBundle.FileSettings(0, 1, Map.of())));
+        var bundle = bundleParser.parse(files, options);
+        var summary = imports.saveBundle(bundle, bundle.preview().previewKey());
+        assertEquals(4, summary.importedCount());
+        assertEquals(1, count("SELECT COUNT(*) FROM author WHERE display_name = '合作人甲'"));
+        assertEquals(3, count("SELECT COUNT(*) FROM achievement_author r JOIN achievement w ON w.id = r.achievement_id WHERE w.title_original = '多人合作证据'"));
+        assertEquals(0, count("SELECT COUNT(*) FROM achievement_author r JOIN achievement w ON w.id = r.achievement_id JOIN author a ON a.id = r.author_id WHERE w.title_original IN ('独立署名成果', '指导证据') AND a.display_name = '合作主学者'"));
+        assertEquals(1, count("SELECT COUNT(*) FROM achievement_advisor r JOIN achievement w ON w.id = r.achievement_id WHERE w.title_original = '指导证据'"));
+        long people = count("SELECT COUNT(*) FROM author");
+        imports.saveBundle(bundle, bundle.preview().previewKey());
+        assertEquals(people, count("SELECT COUNT(*) FROM author"));
+    }
+
+    @Test
     @WithMockUser(authorities = "CATALOG_READ")
     void automaticImportEndpointsKeepPermissionAndCsrfBoundaries() throws Exception {
         var file = new MockMultipartFile("files", "资料.csv", "text/csv", new byte[] {1});

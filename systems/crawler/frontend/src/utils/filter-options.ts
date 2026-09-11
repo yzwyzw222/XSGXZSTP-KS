@@ -7,6 +7,7 @@ export interface FilterOption {
 const achievementTypeLabels = new Map<string, string>([
   ['article', '期刊论文'],
   ['patent', '专利'],
+  ['scientific-result', '科技成果'],
   ['master-thesis', '硕士学位论文'],
   ['doctoral-thesis', '博士学位论文'],
   ['review', '综述'],

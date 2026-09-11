@@ -41,7 +41,8 @@ public class AuthorImportService {
         if (!bundle.preview().canConfirm() || bundle.groups().isEmpty()) throw new IllegalArgumentException("请先处理候选学者和所有问题行，本次没有写入数据");
         mapper.lockImport();
         String name = bundle.preview().scholarName();
-        var authored = bundle.groups().stream().filter(group -> !group.options().supervision())
+        var authored = bundle.groups().stream().filter(group -> !group.options().supervision()
+                        && normalized(group.options().scholarName()).equals(normalized(name)))
                 .flatMap(group -> group.parsed().rows().stream()).toList();
         if (authored.isEmpty()) throw new IllegalArgumentException("缺少本人署名成果，无法确认本批学者身份");
         var candidates = new HashSet<Long>();
@@ -55,12 +56,17 @@ public class AuthorImportService {
         String identity = "file-scholar:" + normalized(name) + ":" + hash(json.writeValueAsString(authored.stream().map(AuthorImportService::workKey).distinct().sorted().toList()));
         long scholarId = candidates.size() == 1 ? candidates.iterator().next() : person(identity, name);
         var batches = new java.util.ArrayList<ImportSummary>();
-        for (var group : bundle.groups()) {
+        // 先导入主学者成果，再复用共同作者身份保存独立署名的科技成果。
+        var orderedGroups = bundle.groups().stream().sorted(java.util.Comparator.comparing(
+                group -> !normalized(group.options().scholarName()).equals(normalized(name)))).toList();
+        for (var group : orderedGroups) {
             var source = group.options();
-            var options = new ImportOptions(name, "", scholarId, source.sheetIndex(), source.headerRow(), source.mode(), source.mapping());
+            long ownerId = normalized(source.scholarName()).equals(normalized(name)) ? scholarId
+                    : person("contributor:" + scholarId + ":" + normalized(source.scholarName()), source.scholarName());
+            var options = new ImportOptions(source.scholarName(), "", ownerId, source.sheetIndex(), source.headerRow(), source.mode(), source.mapping());
             boolean existing = mapper.findBatch(group.parsed().preview().previewKey()) != null;
             var batch = save(options, group.parsed(), group.parsed().preview().previewKey(), group.fileName());
-            if (batch.authorId() != scholarId) throw new ResourceConflictException("既有导入与本批学者身份不一致，请核对文件归属");
+            if (batch.authorId() != ownerId) throw new ResourceConflictException("既有导入与本批学者身份不一致，请核对文件归属");
             batches.add(batch);
             if (!existing && options.supervision()) audit.record(AuditAction.AUTHOR_IMPORTED, "AUTHOR_IMPORT", Long.toString(batch.id()), AuditResult.SUCCESS,
                     Map.of("relationshipBasis", "SAME_SCHOLAR_ADVISOR_FILTER", "importMode", options.mode()));

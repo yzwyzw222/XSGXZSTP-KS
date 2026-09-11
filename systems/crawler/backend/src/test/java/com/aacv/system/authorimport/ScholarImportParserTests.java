@@ -111,6 +111,53 @@ class ScholarImportParserTests {
     }
 
     @Test
+    void readsChangingCnkiSectionHeadersAndPreservesEachRowsOriginalColumns() {
+        String html = """
+                <html><table>
+                <tr><td>SrcDatabase-来源库</td><td>Title-题名</td><td>Author-作者</td><td>ISSN</td><td>URL</td></tr>
+                <tr><td>期刊</td><td>合作论文</td><td>张三,李四</td><td>1234-5678</td><td>https://example.test/article</td></tr>
+                <tr><td>SrcDatabase-来源库</td><td>Title-题名</td><td>Author-作者</td><td>URL</td></tr>
+                <tr><td>博士</td><td>学生博士论文</td><td>王五</td><td>https://example.test/thesis</td></tr>
+                <tr><td>SrcDatabase-来源库</td><td>Author-作者</td><td>Title-题名</td><td>PubTime</td></tr>
+                <tr><td>科技成果</td><td>张三</td><td>研究项目成果</td><td>2005-01-01</td></tr>
+                </table></html>
+                """;
+        var parsed = parser.inspect(html.getBytes(StandardCharsets.UTF_8), "知网.xls", 0, 1, Map.of());
+        assertEquals(3, parsed.preview().totalRows());
+        assertEquals(3, parsed.preview().validRows());
+        assertEquals(java.util.List.of(2, 4, 6), parsed.rows().stream().map(row -> row.rowNumber()).toList());
+        assertEquals(java.util.List.of("张三", "李四"), parsed.rows().getFirst().authors());
+        assertEquals("https://example.test/thesis", parsed.rows().get(1).url());
+        assertEquals("", parsed.rows().get(1).issn());
+        assertFalse(parsed.rows().get(1).original().containsKey("ISSN"));
+        assertEquals("研究项目成果", parsed.rows().get(2).title());
+        assertEquals("scientific-result", parsed.rows().get(2).type());
+        assertEquals(LocalDate.of(2005, 1, 1), parsed.rows().get(2).publicationDate());
+        var replay = parser.inspect(html.getBytes(StandardCharsets.UTF_8), "知网.xls", 0, 1, parsed.preview().mapping());
+        assertEquals(parsed.preview().previewKey(), replay.preview().previewKey());
+        assertEquals(parsed.rows(), replay.rows());
+    }
+
+    @Test
+    void splitsChineseCommaAuthorsWithoutSplittingWesternNamesOrInstitutions() {
+        String csv = "SrcDatabase,Title,Author,Organ\n期刊,合作论文,\"张三，李四;王五,赵六;Smith, John;张三\",\"University, Department;合作大学\"";
+        var row = parser.inspect(csv.getBytes(StandardCharsets.UTF_8), "作者.csv", 0, 1, Map.of()).rows().getFirst();
+        assertEquals(java.util.List.of("张三", "李四", "王五", "赵六", "Smith, John"), row.authors());
+        assertEquals(java.util.List.of("University, Department", "合作大学"), row.organizations());
+    }
+
+    @Test
+    void trimsExportBomAtFieldBoundariesButPreservesOriginalEvidenceAndRejectsInternalSpaces() {
+        String csv = "SrcDatabase,Title,Author,URL,DOI\n期刊,论文,张三,\"https://example.test/paper\n\uFEFF\",\"10.1234/test\n\uFEFF\"";
+        var parsed = parser.inspect(csv.getBytes(StandardCharsets.UTF_8), "知网.csv", 0, 1, Map.of());
+        assertEquals(1, parsed.preview().validRows());
+        assertEquals("10.1234/test", parsed.rows().getFirst().doi());
+        assertEquals("https://example.test/paper", parsed.rows().getFirst().url());
+        assertTrue(parsed.rows().getFirst().original().get("DOI").endsWith("\uFEFF"));
+        assertEquals(0, parser.inspect(csv.replace("10.1234/test", "10.1234/test space").getBytes(StandardCharsets.UTF_8), "知网.csv", 0, 1, Map.of()).preview().validRows());
+    }
+
+    @Test
     void rejectsEmptyCorruptOversizedAndFormulaWorkbooks() throws Exception {
         assertThrows(IllegalArgumentException.class, () -> parser.parse("Title,Author,,列3\n论文,张三,甲,乙".getBytes(StandardCharsets.UTF_8), "x.csv", options("AUTHOR")));
         assertThrows(IllegalArgumentException.class, () -> parser.parse(new byte[0], "x.csv", options("AUTHOR")));
