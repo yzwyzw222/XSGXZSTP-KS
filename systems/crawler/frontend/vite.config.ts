@@ -4,10 +4,6 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  build: { rollupOptions: { input: {
-    main: fileURLToPath(new URL('./index.html', import.meta.url)),
-    management: fileURLToPath(new URL('./management.html', import.meta.url)),
-  } } },
   plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {

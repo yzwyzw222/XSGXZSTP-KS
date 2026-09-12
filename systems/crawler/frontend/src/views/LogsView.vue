@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ElButton, ElDatePicker, ElInput, ElOption, ElSelect, ElTabPane, ElTabs } from 'element-plus'
+import { ElButton, ElDatePicker, ElOption, ElPopover, ElSelect, ElTabPane, ElTabs } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import { useMediaQuery } from '@vueuse/core'
+import { CalendarDays, Filter, RefreshCw } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 
-import { PageHeader, PanelSection } from '@/components/business'
 import AuditLogTable from '@/components/business/AuditLogTable.vue'
+import CompactFieldSearch from '@/components/business/CompactFieldSearch.vue'
 import ErrorState from '@/components/business/ErrorState.vue'
 import { toErrorMessage } from '@/services/api'
 import { getAudits } from '@/services/audits'
@@ -16,8 +16,12 @@ import { instantRange } from '@/utils/date'
 const route = useRoute()
 const router = useRouter()
 const category = ref<AuditCategory>('OPERATION')
-const narrow = useMediaQuery('(max-width: 767px)')
-const filtersExpanded = ref(false)
+const searchFields = [{ value: 'username', label: '账号' }] as const
+const timeOpen = ref(false)
+const actionOpen = ref(false)
+const resultOpen = ref(false)
+const timeDraft = reactive<{ from: string | null; to: string | null }>({ from: null, to: null })
+const timeError = ref('')
 /**
  * 时间控件以本地时间字符串编辑（YYYY-MM-DDTHH:mm:ss），
  * 提交前显式转换为后端要求的 ISO-8601 UTC；
@@ -81,7 +85,33 @@ function search(): void {
 
 function reset(): void {
   Object.assign(form, { username: '', from: null, to: null, result: '', action: '' })
+  timeOpen.value = actionOpen.value = resultOpen.value = false
+  timeError.value = ''
   search()
+}
+
+watch(timeOpen, open => {
+  if (open) {
+    Object.assign(timeDraft, { from: form.from, to: form.to })
+    timeError.value = ''
+  }
+})
+
+function applyTimeRange(): void {
+  try {
+    instantRange(timeDraft.from, timeDraft.to)
+  } catch (failure) {
+    timeError.value = failure instanceof RangeError ? failure.message : toErrorMessage(failure)
+    return
+  }
+  Object.assign(form, timeDraft)
+  timeOpen.value = false
+  search()
+}
+
+function clearTimeRange(): void {
+  Object.assign(timeDraft, { from: null, to: null })
+  applyTimeRange()
 }
 
 /** 分类以路由查询参数为唯一来源，标签页只负责发起导航。 */
@@ -92,6 +122,7 @@ function onCategoryChange(value: string | number): void {
 watch(() => route.query.category, (value) => {
   category.value = value === 'LOGIN' ? 'LOGIN' : 'OPERATION'
   form.action = ''
+  timeOpen.value = actionOpen.value = resultOpen.value = false
   logs.value = { items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }
   search()
 }, { immediate: true })
@@ -100,96 +131,95 @@ onBeforeUnmount(() => request?.abort())
 </script>
 
 <template>
-  <section class="page-stack">
-    <PageHeader title="日志管理" description="查询关键业务操作与账号登录活动，按时间、账号和结果追溯。" />
+  <section class="page-stack logs-page">
+    <header class="logs-toolbar">
+      <div class="logs-heading"><h1>日志管理</h1><span>{{ loading ? '正在读取…' : `共 ${logs.totalElements.toLocaleString('zh-CN')} 条` }}</span></div>
+      <div class="logs-actions">
+        <CompactFieldSearch v-model="form.username" field="username" :fields="searchFields" :maxlength="64" :loading="loading" @submit="search" />
+        <ElButton text size="small" @click="reset">重置</ElButton>
+        <ElButton size="small" :disabled="loading" aria-label="刷新日志" title="刷新日志" @click="load(logs.page)"><RefreshCw :size="14" /></ElButton>
+      </div>
+    </header>
 
-    <ElTabs :model-value="category" @tab-change="onCategoryChange">
+    <ElTabs class="logs-tabs" :model-value="category" @tab-change="onCategoryChange">
       <ElTabPane label="操作日志" name="OPERATION" />
       <ElTabPane label="登录日志" name="LOGIN" />
     </ElTabs>
 
-    <PanelSection
-      :title="category === 'LOGIN' ? '登录日志' : '操作日志'"
-      subtitle="时间范围采用本地时间，结束时间不包含在结果中。"
-    >
-      <template #actions><ElButton v-if="narrow" text :aria-expanded="filtersExpanded" @click="filtersExpanded = !filtersExpanded">{{ filtersExpanded ? '收起筛选' : '展开筛选' }}</ElButton></template>
-      <form v-show="!narrow || filtersExpanded" class="logs-filters mb-3 grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-4" @submit.prevent="search">
-        <div class="grid gap-1.5 text-sm">
-          <label class="font-medium text-muted-foreground" for="logs-username">账号</label>
-          <ElInput
-            id="logs-username"
-            v-model="form.username"
-            :maxlength="64"
-            placeholder="输入账号关键字"
-            clearable
-          />
-        </div>
-        <div class="grid gap-1.5 text-sm">
-          <label class="font-medium text-muted-foreground" for="logs-from">开始时间</label>
-          <ElDatePicker
-            id="logs-from"
-            v-model="form.from"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="选择开始时间"
-            style="width: 100%"
-          />
-        </div>
-        <div class="grid gap-1.5 text-sm">
-          <label class="font-medium text-muted-foreground" for="logs-to">结束时间</label>
-          <ElDatePicker
-            id="logs-to"
-            v-model="form.to"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="选择结束时间"
-            style="width: 100%"
-          />
-        </div>
-        <div class="grid gap-1.5 text-sm">
-          <label class="font-medium text-muted-foreground" for="logs-result">结果</label>
-          <ElSelect id="logs-result" v-model="form.result" filterable>
-            <ElOption
-              v-for="option in resultOptions"
-              :key="option.value"
-              :value="option.value"
-              :label="option.label"
-            />
-          </ElSelect>
-        </div>
-        <div class="grid gap-1.5 text-sm">
-          <label class="font-medium text-muted-foreground" for="logs-action">操作类型</label>
-          <ElSelect id="logs-action" v-model="form.action" filterable clearable placeholder="全部类型">
-            <ElOption value="" label="全部类型" />
-            <ElOption
-              v-for="[value, label] in actionOptions"
-              :key="value"
-              :value="value"
-              :label="label"
-            />
-          </ElSelect>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <ElButton type="primary" native-type="submit" :loading="loading">查询</ElButton>
-          <ElButton plain @click="reset">重置</ElButton>
-          <ElButton text :disabled="loading" @click="load(logs.page)">刷新</ElButton>
-        </div>
-      </form>
-
-      <ErrorState v-if="error" :message="error" retryable @retry="search" />
+    <ErrorState v-if="error" :message="error" retryable @retry="search" />
+    <section v-else class="logs-workspace" aria-label="日志查询结果">
       <AuditLogTable fill
-        v-else
         :items="logs.items"
         :page="logs.page"
         :size="logs.size"
         :total="logs.totalElements"
         :loading="loading"
         @update:page="load"
-      />
-    </PanelSection>
+      >
+        <template #header-createdAt>
+          <span class="logs-column-heading">时间
+            <ElPopover v-model:visible="timeOpen" trigger="click" placement="bottom-start" :width="300">
+              <template #reference><ElButton size="small" :type="applied.from || applied.to ? 'primary' : undefined" :plain="!!(applied.from || applied.to)" :aria-pressed="!!(applied.from || applied.to)" aria-label="按时间范围筛选" title="按时间范围筛选"><CalendarDays :size="14" /></ElButton></template>
+              <form class="logs-time-filter" @submit.prevent="applyTimeRange">
+                <label for="logs-from">开始时间</label>
+                <ElDatePicker id="logs-from" v-model="timeDraft.from" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择开始时间" style="width: 100%" />
+                <label for="logs-to">结束时间</label>
+                <ElDatePicker id="logs-to" v-model="timeDraft.to" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="选择结束时间" style="width: 100%" />
+                <p class="text-xs text-muted-foreground">采用本地时间，结束时间不包含在结果中。</p>
+                <p v-if="timeError" role="alert" class="text-xs text-destructive">{{ timeError }}</p>
+                <div class="flex justify-end gap-2"><ElButton size="small" @click="clearTimeRange">清除时间</ElButton><ElButton size="small" type="primary" native-type="submit">应用时间</ElButton></div>
+              </form>
+            </ElPopover>
+          </span>
+        </template>
+        <template #header-action>
+          <span class="logs-column-heading">事件
+            <ElPopover v-model:visible="actionOpen" trigger="click" placement="bottom-start" :width="260">
+              <template #reference><ElButton size="small" :type="applied.action ? 'primary' : undefined" :plain="!!applied.action" :aria-pressed="!!applied.action" :aria-label="applied.action ? `按事件类型筛选：${auditActions[applied.action] || applied.action}` : '按事件类型筛选'" title="按事件类型筛选"><Filter :size="14" /></ElButton></template>
+              <label class="logs-filter-label" for="logs-action">{{ category === 'LOGIN' ? '登录事件' : '操作类型' }}</label>
+              <ElSelect id="logs-action" v-model="form.action" filterable clearable placeholder="全部类型" @change="actionOpen = false; search()">
+                <ElOption value="" label="全部类型" />
+                <ElOption v-for="[value, label] in actionOptions" :key="value" :value="value" :label="label" />
+              </ElSelect>
+            </ElPopover>
+          </span>
+        </template>
+        <template #header-result>
+          <span class="logs-column-heading">结果
+            <ElPopover v-model:visible="resultOpen" trigger="click" placement="bottom-start" :width="200">
+              <template #reference><ElButton size="small" :type="applied.result ? 'primary' : undefined" :plain="!!applied.result" :aria-pressed="!!applied.result" :aria-label="applied.result ? `按结果筛选：${applied.result === 'SUCCESS' ? '成功' : '失败'}` : '按结果筛选'" title="按结果筛选"><Filter :size="14" /></ElButton></template>
+              <label class="logs-filter-label" for="logs-result">结果</label>
+              <ElSelect id="logs-result" v-model="form.result" placeholder="全部结果" @change="resultOpen = false; search()">
+                <ElOption v-for="option in resultOptions" :key="option.value" :value="option.value" :label="option.label" />
+              </ElSelect>
+            </ElPopover>
+          </span>
+        </template>
+      </AuditLogTable>
+    </section>
   </section>
 </template>
 
 <style scoped>
-.logs-filters { max-height: 34dvh; overflow: auto; }
+.logs-page { padding: 8px 20px 16px; gap: 9px; }
+.logs-toolbar, .logs-actions, .logs-heading { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.logs-toolbar { justify-content: space-between; flex-wrap: wrap; }
+.logs-heading h1 { font-size: 24px; font-weight: 650; white-space: nowrap; }
+.logs-heading > span { font-size: 13px; color: hsl(var(--muted-foreground)); }
+.logs-actions { justify-content: flex-end; }
+.logs-actions > .el-button + .el-button { margin-left: 0; }
+.logs-tabs :deep(.el-tabs__header) { margin: 0; }
+.logs-tabs :deep(.el-tabs__content) { display: none; }
+.logs-workspace { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--card)); }
+.logs-workspace > :deep(.data-table) { flex: 1; min-width: 0; min-height: 0; }
+.logs-column-heading { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.logs-column-heading > .el-button { margin-left: 0; padding-inline: 6px; }
+.logs-time-filter { display: grid; gap: 8px; font-size: 12px; }
+.logs-filter-label { display: block; margin-bottom: 8px; font-size: 12px; }
+@media (max-width: 700px) {
+  .logs-page { padding: 8px; }
+  .logs-toolbar { gap: 7px; }
+  .logs-actions { width: 100%; gap: 4px; }
+  .logs-actions > .compact-search { flex: 1; }
+}
 </style>

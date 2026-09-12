@@ -38,6 +38,7 @@ for (const width of [1440, 390]) {
     } } }))
     await page.goto('/author-import')
     await expect(page.getByRole('heading', { name: '作者导入', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '作者 ORCID 补全' })).toHaveCount(0)
     for (const label of ['数据源', '采集任务', '数据治理', '质量指标']) {
       await expect(page.getByRole('navigation', { name: '模块导航', exact: true }).getByRole('link', { name: label, exact: true })).toHaveCount(0)
     }
@@ -58,6 +59,9 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`author-import-preview-${width}.png`), animations: 'disabled' })
     await confirm.click()
     await expect(page.getByRole('heading', { name: '导入已完成' })).toBeVisible()
+    await expect(page.getByRole('status')).toContainText('作者内部标识：12')
+    await expect(page.getByRole('columnheader', { name: '作者内部标识', exact: true })).toBeVisible()
+    await expect(page.getByRole('row').filter({ hasText: batch.fileName })).toContainText('12')
     await expect(confirm).toBeDisabled()
     await page.getByRole('link', { name: '查看 张老师 的知识图谱' }).click()
     await expect(page).toHaveURL(/academic-achievements\?authorId=12/)
@@ -66,6 +70,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('list', { name: '当前页作品' })).toContainText('指导硕论')
     await page.screenshot({ path: testInfo.outputPath(`author-import-graph-${width}.png`), animations: 'disabled' })
     expect(requests.filter(path => /^\/(sources|crawl|duplicate-candidates|quality-metrics)/.test(path))).toEqual([])
+    expect(requests.filter(path => path.startsWith('/author-orcids'))).toEqual([])
     expect(errors).toEqual([])
   })
 }

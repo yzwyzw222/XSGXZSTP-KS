@@ -244,48 +244,6 @@
 }
 
 /* ============================================================
-   深色主题：html.dark 与 tokens.css 的 [data-theme='dark'] 由
-   composables/useTheme.ts 同步写入，因此这里只覆盖同一批 --el-* 变量，
-   不新增第二套变量名。
-   ============================================================ */
-html.dark {
-  --el-color-primary: hsl(var(--primary));
-  --el-color-primary-light-3: hsl(var(--primary-hover));
-  --el-color-primary-dark-2: hsl(var(--primary-active));
-
-  --el-color-success-dark-2: hsl(var(--color-emerald-300));
-  --el-color-warning-dark-2: hsl(var(--color-amber-300));
-  --el-color-danger-dark-2: hsl(var(--color-rose-300));
-
-  --el-bg-color: hsl(var(--card));
-  --el-bg-color-page: hsl(var(--background));
-  --el-bg-color-overlay: hsl(var(--popover));
-
-  --el-text-color-primary: hsl(var(--foreground));
-  --el-text-color-regular: hsl(var(--foreground));
-  --el-text-color-secondary: hsl(var(--muted-foreground));
-  --el-text-color-placeholder: hsl(var(--muted-foreground));
-
-  --el-border-color: hsl(var(--border));
-  --el-border-color-light: hsl(var(--border));
-  --el-border-color-lighter: hsl(var(--border) / 0.7);
-  --el-border-color-dark: hsl(var(--border-strong));
-  --el-border-color-darker: hsl(var(--border-strong));
-
-  --el-fill-color-blank: hsl(var(--input-background));
-  --el-fill-color-dark: hsl(var(--accent));
-  --el-fill-color-darker: hsl(var(--accent));
-
-  --el-box-shadow: var(--shadow-lg);
-  --el-box-shadow-light: var(--shadow-md);
-  --el-box-shadow-lighter: var(--shadow-sm);
-  --el-box-shadow-dark: var(--shadow-xl);
-
-  --el-disabled-bg-color: hsl(var(--muted));
-  --el-disabled-text-color: hsl(var(--muted-foreground) / 0.7);
-}
-
-/* ============================================================
    挂载到 body 的浮层（下拉、日期面板、消息、通知、弹窗、抽屉）
    位于 #app 之外，必须显式确认它们继承根元素的主题变量与层级。
    ============================================================ */
@@ -295,16 +253,7 @@ html.dark {
 .el-notification,
 .el-select__popper,
 .el-picker__popper {
-  color-scheme: dark;
-}
-
-html.dark .el-popper,
-html.dark .el-overlay,
-html.dark .el-message,
-html.dark .el-notification,
-html.dark .el-select__popper,
-html.dark .el-picker__popper {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 /* 浮层必须高于固定顶栏与侧栏（z-30 / z-40）。 */

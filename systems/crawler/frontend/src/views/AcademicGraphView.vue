@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElAlert, ElButton, ElDrawer, ElInput, ElOption, ElSelect } from 'element-plus'
-import { ArrowRight, CalendarDays, Maximize, Network, RefreshCw, UserRound } from 'lucide-vue-next'
+import { ArrowRight, Building2, CalendarDays, Maximize, Network, RefreshCw, UserRound } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import GraphCanvas from '@/components/business/GraphCanvas.vue'
@@ -12,7 +12,7 @@ import { catalogApi } from '@/services/business'
 import { toErrorMessage } from '@/services/api'
 import { useSessionStore } from '@/stores/session'
 import type { CatalogEntity, GraphNode } from '@/types/api'
-import { academicElements, cooperationPositions, timelineGroups, workCategories, workDate, workDefinition } from '@/utils/academic-graph'
+import { academicElements, cooperationPositions, timelineGroups, workCategories, workDate, workDefinition, workInstitutionNames } from '@/utils/academic-graph'
 import { cooperationEvidence, type CooperationEvidence } from '@/utils/graph-cooperation'
 
 const props = defineProps<{ mode: AcademicGraphMode }>()
@@ -22,7 +22,7 @@ const session = useSessionStore()
 const descriptions = {
   relations: { title: '学术关系图谱', text: '从共同创作的作品，了解一位作者的学术合作。' },
   achievements: { title: '学术成果图谱', text: '查看本人论文、专利，以及指导的硕士和博士学位论文。' },
-  background: { title: '学术背景图谱', text: '沿时间线浏览学术成果与硕博指导经历。' },
+  background: { title: '学术背景图谱', text: '按发表时间浏览成果，查看每项成果对应的机构。' },
 }
 const heading = computed(() => descriptions[props.mode])
 const authorId = computed(() => typeof route.query.authorId === 'string' ? route.query.authorId : '')
@@ -115,7 +115,7 @@ onBeforeUnmount(() => { suggestionSequence++ })
 <template>
   <section class="academic-graph" :aria-label="heading.title">
     <header class="academic-toolbar">
-      <h1 :title="heading.text">{{ heading.title }}</h1>
+      <div class="academic-heading"><h1>{{ heading.title }}</h1><p>{{ heading.text }}</p></div>
       <label class="author-picker"><span class="sr-only">研究作者</span>
         <EntitySuggestInput v-if="session.hasPermission('CATALOG_READ')" :key="authorId" collection="authors" label="研究作者" mode="id" :model-value="authorId" :placeholder="root ? `当前：${root.label}，输入姓名切换` : '输入作者姓名，选择一位作者'" @select="chooseAuthor(String($event.id))" />
         <span v-else class="manual-author"><ElInput v-model="manualAuthor" aria-label="作者编号" placeholder="输入作者编号" @keydown.enter="chooseAuthor(manualAuthor)" /><ElButton @click="chooseAuthor(manualAuthor)">查看</ElButton></span>
@@ -148,7 +148,7 @@ onBeforeUnmount(() => { suggestionSequence++ })
           <div class="academic-canvas-stage"><GraphCanvas ref="canvas" :elements="elements" :root-node-id="root.id" :positions="positions" :layout="mode === 'relations' ? 'network' : 'concentric'" :scope-key="JSON.stringify(query)" fill :label="`${root.label}的${heading.title}，${graph?.nodes.length}个节点`" :selected-node-id="selectedNode?.id" :selected-edge-id="selectedCooperation?.edge.id" @select-node="selectedCooperation = null; selectNode($event)" @select-edge="selectEdge" @clear-selection="selectedNode = null; selectedCooperation = null" />
             <p v-if="!works.length" class="canvas-empty">{{ mode === 'relations' ? '当前范围内暂无共同创作作品' : '当前范围内暂无成果' }}</p>
           </div>
-          <ul class="academic-legend" aria-label="实体类型图例"><li><i style="background: #258c9f" />作者</li><li v-for="item in workCategories" :key="item.value"><i :style="{ background: item.color }" />{{ item.label }}</li></ul>
+          <ul class="academic-legend" aria-label="实体类型图例"><li><i style="background: #1677ef" />作者</li><li v-for="item in workCategories" :key="item.value"><i :style="{ background: item.color }" />{{ item.label }}</li></ul>
         </section>
         <aside v-if="manifestOpen" class="academic-manifest" aria-label="图谱内容清单">
           <div class="manifest-tabs"><button :aria-pressed="listMode === 'works'" @click="listMode = 'works'">{{ mode === 'relations' ? '共同作品' : '成果清单' }} <span>{{ works.length }}</span></button><button v-if="mode === 'relations'" :aria-pressed="listMode === 'authors'" @click="listMode = 'authors'">合作作者 <span>{{ cooperations.length }}</span></button></div>
@@ -161,7 +161,13 @@ onBeforeUnmount(() => { suggestionSequence++ })
       <section v-else class="academic-timeline" aria-label="学术成果时间线">
         <div class="timeline-heading"><button class="canvas-author" :aria-label="`${root.label} 的作者详情`" @click="selectedCooperation = null; selectNode(root.id)"><UserRound :size="15" />{{ root.label }} <small>作者 #{{ root.businessId }} · {{ result.totalWorks }} 项成果</small></button><span class="order-note"><CalendarDays :size="14" />按日期由早到晚 · 日期未知置后</span></div>
         <div v-for="group in timeline" :key="group.year" class="timeline-year"><h2>{{ group.year }}</h2><ol>
-          <li v-for="work in group.works" :key="work.id" :style="{ '--work-color': workDefinition(work)?.color }"><button @click="selectedCooperation = null; selectNode(work.id)"><span class="timeline-date">{{ workDate(work) || '日期未知' }}</span><span class="timeline-content"><span class="timeline-type">{{ workDefinition(work)?.label }}</span><strong>{{ work.label }}</strong></span><ArrowRight :size="17" aria-hidden="true" /></button></li>
+          <li v-for="work in group.works" :key="work.id" :style="{ '--work-color': workDefinition(work)?.color }"><button @click="selectedCooperation = null; selectNode(work.id)">
+            <span class="timeline-date"><span>发布时间</span><time v-if="workDate(work)" :datetime="workDate(work)">{{ workDate(work) }}</time><span v-else>未收录</span></span>
+            <span class="timeline-content"><span class="timeline-type">{{ workDefinition(work)?.label }}</span><strong>{{ work.label }}</strong>
+              <span class="timeline-institutions"><Building2 :size="14" aria-hidden="true" /><span>机构：{{ workInstitutionNames(work) }}</span></span>
+              <span v-if="work.properties.institutionsTruncated" class="timeline-institution-note">仅显示该成果的前 100 家机构。</span>
+            </span><ArrowRight :size="17" aria-hidden="true" />
+          </button></li>
         </ol></div>
         <p v-if="!works.length" class="manifest-empty">{{ result.totalWorks ? '这一页没有成果，请返回第一页。' : '当前范围内暂无成果，可选择其他作者或类型。' }}</p>
       </section>
@@ -181,81 +187,87 @@ onBeforeUnmount(() => { suggestionSequence++ })
 </template>
 
 <style scoped>
-.academic-graph { height: 100%; min-height: 0; overflow: hidden; padding: 8px 14px 6px; display: flex; flex-direction: column; gap: 6px; color: hsl(var(--foreground)); }
-.academic-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex-shrink: 0; }
-.academic-toolbar h1 { font-size: 17px; font-weight: 650; margin-right: auto; white-space: nowrap; }
+.academic-graph { height: 100%; min-height: 0; overflow: hidden; padding: 10px 20px 6px; display: flex; flex-direction: column; gap: 8px; color: hsl(var(--foreground)); }
+.academic-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; flex-shrink: 0; }
+.academic-heading { margin-right: auto; }
+.academic-toolbar h1 { font-size: 24px; line-height: 1.35; font-weight: 650; white-space: nowrap; }
+.academic-heading p { margin-top: 4px; font-size: 13px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
 .academic-toolbar .el-button + .el-button { margin-left: 0; }
-.academic-tools { position: relative; font-size: 12px; flex-shrink: 0; }
+.academic-tools { position: relative; font-size: 13px; flex-shrink: 0; }
 .academic-tools summary { cursor: pointer; padding: 8px 0; color: hsl(var(--muted-foreground)); }
-.academic-tools nav { position: absolute; right: 0; top: 100%; z-index: 40; display: grid; min-width: 140px; padding: 6px; border: 1px solid hsl(var(--border)); border-radius: 6px; background: hsl(var(--popover)); box-shadow: 0 8px 24px #0002; }
+.academic-tools nav { position: absolute; right: 0; top: 100%; z-index: 40; display: grid; min-width: 140px; padding: 6px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--popover)); box-shadow: var(--shadow-md); }
 .academic-tools a { padding: 9px 12px; border-radius: 3px; }
 .academic-tools a:hover { background: hsl(var(--muted)); }
 .author-picker { width: clamp(200px, 25vw, 340px); min-width: 0; }
 .category-picker { width: 148px; }
 .manual-author { display: flex; gap: 6px; }
-.author-start { max-width: 780px; width: 100%; align-self: center; padding: 38px 0; text-align: center; }
+.author-start { max-width: 780px; width: 100%; align-self: center; padding: 32px 24px; margin-top: 16px; text-align: center; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 10px; overflow: auto; }
 .author-start > svg { margin: 0 auto 14px; color: hsl(var(--primary)); }
 .author-start h2 { font-size: 21px; margin-bottom: 10px; }
 .author-start > p { color: hsl(var(--muted-foreground)); font-size: 13px; }
 .author-suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 28px; }
-.author-suggestions button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 18px; text-align: left; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 6px; }
+.author-suggestions button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 18px; text-align: left; background: hsl(var(--muted) / .55); border: 1px solid hsl(var(--border)); border-radius: 8px; }
+.author-suggestions button > svg:first-child { color: hsl(var(--primary)); flex-shrink: 0; }
 .author-suggestions button > span { flex: 1; min-width: 0; }
-.author-suggestions small { display: block; color: hsl(var(--muted-foreground)); font-size: 11px; margin-top: 3px; }
+.author-suggestions small { display: block; color: hsl(var(--muted-foreground)); font-size: 12px; margin-top: 4px; }
 .academic-loading { padding: 12px 0; text-align: center; color: hsl(var(--muted-foreground)); }
 .canvas-author { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-weight: 550; text-align: left; }
-.canvas-author small { font-size: 11px; color: hsl(var(--muted-foreground)); font-weight: 400; }
-.order-note { display: flex; gap: 5px; align-items: center; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.canvas-author > svg { color: hsl(var(--primary)); }
+.canvas-author small { font-size: 12px; color: hsl(var(--muted-foreground)); font-weight: 400; }
+.order-note { display: flex; gap: 5px; align-items: center; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .academic-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; flex: 1; min-height: 0; }
 .academic-workspace.has-manifest { grid-template-columns: minmax(0, 1fr) 310px; }
-.academic-canvas-panel { border: 1px solid hsl(var(--border)); border-radius: 6px; overflow: hidden; display: flex; flex-direction: column; background: hsl(var(--card)); min-width: 0; }
-.canvas-heading { display: flex; justify-content: space-between; align-items: center; padding: 4px 12px; border-bottom: 1px solid hsl(var(--border)); font-size: 12px; }
+.academic-canvas-panel { border: 1px solid hsl(var(--border)); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; background: hsl(var(--card)); min-width: 0; }
+.canvas-heading { display: flex; justify-content: space-between; align-items: center; padding: 4px 16px; border-bottom: 1px solid hsl(var(--border)); font-size: 14px; gap: 12px; }
 .academic-canvas-stage { position: relative; flex: 1; min-height: 0; }
 .canvas-empty { position: absolute; top: 20px; left: 0; right: 0; font-size: 12px; text-align: center; pointer-events: none; color: hsl(var(--muted-foreground)); }
-.academic-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 5px 12px; border-top: 1px solid hsl(var(--border)); font-size: 11px; color: hsl(var(--muted-foreground)); }
+.academic-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 6px 16px; border-top: 1px solid hsl(var(--border)); font-size: 12px; color: hsl(var(--muted-foreground)); }
 .academic-legend li { display: flex; gap: 6px; align-items: center; }
-.academic-legend i { width: 8px; height: 8px; border-radius: 50%; }
-.academic-manifest { border: 1px solid hsl(var(--border)); background: hsl(var(--card)); border-radius: 6px; min-height: 0; overflow: auto; }
+.academic-legend i { width: 9px; height: 9px; border-radius: 50%; }
+.academic-manifest { border: 1px solid hsl(var(--border)); background: hsl(var(--card)); border-radius: 10px; min-height: 0; overflow: auto; }
 .manifest-tabs { display: flex; position: sticky; top: 0; background: hsl(var(--card)); border-bottom: 1px solid hsl(var(--border)); padding: 0 12px; z-index: 1; }
-.manifest-tabs button { padding: 16px 7px 12px; font-size: 12px; border-bottom: 2px solid transparent; }
+.manifest-tabs button { padding: 16px 7px 12px; font-size: 13px; border-bottom: 2px solid transparent; }
 .manifest-tabs button[aria-pressed=true] { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
-.manifest-tabs span { margin-left: 4px; font-size: 10px; color: hsl(var(--muted-foreground)); }
+.manifest-tabs span { margin-left: 4px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .work-list > li + li { border-top: 1px solid hsl(var(--border) / .7); }
 .work-list button { display: block; width: 100%; padding: 15px 16px; text-align: left; }
 .work-list button:hover, .author-suggestions button:hover { background: hsl(var(--primary) / .06); }
-.work-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 10px; color: hsl(var(--muted-foreground)); }
+.work-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .work-list strong { display: block; margin: 7px 0; font-weight: 500; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
-.work-action { display: flex; gap: 5px; align-items: center; color: hsl(var(--primary)); font-size: 11px; }
+.work-action { display: flex; gap: 5px; align-items: center; color: hsl(var(--primary)); font-size: 12px; }
 .partner-list li { padding: 17px; border-bottom: 1px solid hsl(var(--border)); }
 .partner-name { display: flex; align-items: center; gap: 9px; font-size: 14px; }
-.partner-evidence { margin-top: 12px; display: flex; align-items: center; gap: 6px; color: hsl(var(--primary)); font-size: 11px; }
+.partner-evidence { margin-top: 12px; display: flex; align-items: center; gap: 6px; color: hsl(var(--primary)); font-size: 12px; }
 .manifest-empty { padding: 28px 18px; font-size: 13px; color: hsl(var(--muted-foreground)); }
 .academic-footer { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 3px 0; }
-.academic-footer > p { font-size: 11px; color: hsl(var(--muted-foreground)); max-width: 560px; }
+.academic-footer > p { font-size: 12px; line-height: 1.6; color: hsl(var(--muted-foreground)); max-width: 560px; }
 .academic-pagination { display: flex; gap: 10px; align-items: center; white-space: nowrap; font-size: 12px; }
 .academic-pagination .el-select { width: 102px; }
 .academic-pagination .el-button + .el-button { margin-left: 0; }
-.academic-timeline { width: 100%; flex: 1; min-height: 0; overflow: auto; padding: 8px 16px; }
-.timeline-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
-.timeline-note { font-size: 12px; color: hsl(var(--muted-foreground)); margin: 0 0 24px; }
+.academic-timeline { width: 100%; flex: 1; min-height: 0; overflow: auto; padding: 18px 22px; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 10px; }
+.timeline-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid hsl(var(--border)); }
 .timeline-year { display: grid; grid-template-columns: 100px minmax(0, 1fr); }
-.timeline-year > h2 { font-size: 22px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; padding-top: 14px; font-weight: 600; }
+.timeline-year > h2 { font-size: 22px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; padding-top: 14px; font-weight: 600; color: hsl(var(--primary)); }
 .timeline-year ol { border-left: 1px solid hsl(var(--border)); padding-left: 27px; }
 .timeline-year li { padding-bottom: 17px; position: relative; }
 .timeline-year li::before { content: ''; position: absolute; top: 25px; left: -32px; width: 9px; height: 9px; border-radius: 50%; background: var(--work-color); box-shadow: 0 0 0 4px hsl(var(--background)); }
-.timeline-year button { display: flex; gap: 18px; text-align: left; align-items: center; width: 100%; padding: 18px 22px; border: 1px solid hsl(var(--border)); border-radius: 5px; background: hsl(var(--card)); }
+.timeline-year button { display: flex; gap: 18px; text-align: left; align-items: center; width: 100%; padding: 18px 22px; border: 1px solid hsl(var(--border)); border-radius: 8px; background: hsl(var(--muted) / .45); }
 .timeline-year button:hover { border-color: var(--work-color); }
-.timeline-date { color: hsl(var(--muted-foreground)); font-size: 12px; width: 86px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.timeline-date { display: flex; flex-direction: column; gap: 6px; color: hsl(var(--muted-foreground)); font-size: 12px; width: 86px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .timeline-content { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0; }
-.timeline-type { color: var(--work-color); font-size: 11px; }
+.timeline-type { color: var(--work-color); font-size: 12px; }
 .timeline-content strong { font-size: 14px; font-weight: 500; line-height: 1.65; overflow-wrap: anywhere; }
+.timeline-institutions { display: flex; align-items: flex-start; gap: 5px; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.timeline-institutions > svg { flex-shrink: 0; margin-top: 2px; }
+.timeline-institution-note { color: hsl(var(--muted-foreground)); font-size: 12px; }
 .timeline-year button > svg { flex-shrink: 0; color: hsl(var(--muted-foreground)); }
 button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 3px; }
 @media (max-width: 1050px) { .academic-footer { flex-wrap: wrap; gap: 5px; } }
 @media (max-width: 700px) {
   .academic-graph { padding: 8px; overflow: auto; }
-  .academic-toolbar h1 { width: calc(100% - 70px); }
+  .academic-heading { width: calc(100% - 80px); order: -2; }
+  .academic-toolbar h1 { font-size: 22px; }
   .academic-tools { order: -1; margin-left: auto; }
-  .academic-toolbar h1 { order: -2; }
   .author-picker { flex: 1 1 100%; width: 100%; }
   .category-picker { flex: 1; }
   .academic-workspace, .academic-workspace.has-manifest { display: flex; flex-direction: column; min-height: 350px; flex: 1 0 350px; }
@@ -265,7 +277,7 @@ button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px soli
   .academic-pagination .el-select { width: 95px; } .academic-pagination .el-button { padding: 8px 10px; }
   .author-suggestions { grid-template-columns: 1fr; } .timeline-year { grid-template-columns: 55px minmax(0, 1fr); }
   .timeline-year > h2 { font-size: 16px; } .timeline-year ol { padding-left: 16px; } .timeline-year li::before { left: -21px; }
-  .timeline-year button { padding: 14px; gap: 7px; flex-wrap: wrap; } .timeline-date { width: 100%; font-size: 10px; }
-  .academic-timeline { overflow: visible; padding: 8px 0; }
+  .timeline-year button { padding: 14px; gap: 7px; flex-wrap: wrap; } .timeline-date { width: 100%; flex-direction: row; gap: 8px; font-size: 12px; }
+  .academic-timeline { flex: 1 0 auto; overflow: visible; padding: 14px 10px; }
 }
 </style>

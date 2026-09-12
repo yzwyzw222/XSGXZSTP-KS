@@ -188,6 +188,7 @@ export interface ScholarlyMetadata {
 export type CatalogCollection = 'authors' | 'organizations' | 'venues' | 'topics' | 'patents' | 'master-theses' | 'doctoral-theses'
 
 export interface CatalogEntity {
+  advisors: string[]
   id: number
   externalId: string | null
   displayName: string

@@ -1,7 +1,6 @@
 @layer theme, base, element-plus, components, utilities;
 @import 'tailwindcss';
 @import 'element-plus/dist/index.css' layer(element-plus);
-@import 'element-plus/theme-chalk/dark/css-vars.css' layer(element-plus);
 @import './tokens.css';
 /* Element Plus 变量映射必须在 tokens.css 之后，依赖其中的语义令牌。 */
 @import './element-plus.css';

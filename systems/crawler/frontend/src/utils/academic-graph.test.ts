@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AuthorGraphQuery } from '@/services/academic-graph'
 import type { GraphNode, GraphResponse } from '@/types/api'
-import { academicElements, parseAuthorGraph, timelineGroups, workCategory } from '@/utils/academic-graph'
+import { academicElements, parseAuthorGraph, timelineGroups, workCategory, workInstitutionNames } from '@/utils/academic-graph'
 
 const work = (id: number, type: string, date?: string): GraphNode => ({
   id: `ACHIEVEMENT:${id}`, businessId: String(id), type: 'ACHIEVEMENT', label: `成果 ${id}`,
@@ -37,6 +37,22 @@ describe('学术实体与时间线', () => {
     expect(elements.map(item => item.data.typeName)).toEqual(['作者', '论文', '专利', '指导硕论', '指导博论'])
   })
 
+  it('普通创作和指导关系按需显示标签，共同创作标签与证据保持完整', () => {
+    const partner: GraphNode = { ...root, id: 'AUTHOR:3', businessId: '3', label: '合作作者' }
+    const elements = academicElements({ ...graph, nodes: [...graph.nodes, partner, work(4, 'master-thesis')], edges: [
+      { id: 'authored', source: root.id, target: 'ACHIEVEMENT:2', type: 'AUTHORED', properties: {} },
+      { id: 'partner-work', source: partner.id, target: 'ACHIEVEMENT:2', type: 'AUTHORED', properties: {} },
+      { id: 'supervised', source: root.id, target: 'ACHIEVEMENT:4', type: 'SUPERVISED', properties: {} },
+      { id: 'coauthored', source: root.id, target: partner.id, type: 'COAUTHORED', properties: { sharedWorkIds: ['ACHIEVEMENT:2'] } },
+    ] })
+    expect(elements.find(item => item.data.id === 'authored')?.data).toMatchObject({ label: '创作', labelMode: 'interaction', source: root.id, target: 'ACHIEVEMENT:2' })
+    expect(elements.find(item => item.data.id === 'supervised')?.data).toMatchObject({ label: '指导', labelMode: 'interaction', source: root.id, target: 'ACHIEVEMENT:4' })
+    const cooperation = elements.find(item => item.data.id === 'coauthored')!.data
+    expect(cooperation.labelMode).toBeUndefined()
+    expect(cooperation.label).toBe('共同创作')
+    expect(cooperation.evidenceIds).toContain('ACHIEVEMENT:2')
+  })
+
   it('跨作者响应、错误分页、非学术实体和损坏拓扑都不能当作有效结果', () => {
     const response = { graph, page: 0, size: 20, totalWorks: 1 }
     expect(parseAuthorGraph(response, query).totalWorks).toBe(1)
@@ -45,5 +61,28 @@ describe('学术实体与时间线', () => {
     expect(() => parseAuthorGraph({ ...response, totalWorks: -1 }, query)).toThrow('分页')
     expect(() => parseAuthorGraph({ ...response, graph: { ...graph, nodes: [root, work(2, 'book')] } }, query)).toThrow('实体类型')
     expect(() => parseAuthorGraph({ ...response, graph: { ...graph, nodes: [root, root] } }, query)).toThrow('ID 重复')
+  })
+
+  it('逐篇机构保留同名不同身份，缺少字段、空列表与空名称分别展示', () => {
+    const node = work(2, 'article')
+    expect(workInstitutionNames(node)).toBe('暂未返回')
+    node.properties.institutions = []
+    expect(workInstitutionNames(node)).toBe('未收录')
+    node.properties.institutions = [{ id: '1', name: ' 测试大学 ' }, { id: '2', name: '测试大学' }, { id: '3', name: '' }]
+    expect(workInstitutionNames(node)).toBe('测试大学、测试大学、机构 #3')
+  })
+
+  it.each([
+    { institutions: null },
+    { institutions: '测试大学' },
+    { institutions: [{ id: '0', name: '测试大学' }] },
+    { institutions: [{ id: '1', name: null }] },
+    { institutions: [{ id: '1', name: '甲' }, { id: '1', name: '乙' }] },
+    { institutions: [], institutionsTruncated: 'false' },
+    { institutions: Array.from({ length: 101 }, (_, i) => ({ id: String(i + 1), name: '机构' })) },
+  ])('拒绝损坏或超出约定范围的机构信息：%j', properties => {
+    const node = work(2, 'article')
+    Object.assign(node.properties, properties)
+    expect(() => parseAuthorGraph({ graph: { ...graph, nodes: [root, node] }, page: 0, size: 20, totalWorks: 1 }, query)).toThrow('成果机构')
   })
 })

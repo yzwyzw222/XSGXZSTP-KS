@@ -4,6 +4,7 @@ import { LogOut, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { computed } from 'vue'
 
 import { useSessionStore } from '@/stores/session'
+import { roleLabel } from '@/utils/roles'
 
 const props = defineProps<{ loggingOut?: boolean }>()
 const emit = defineEmits<{ (e: 'logout'): void }>()
@@ -49,7 +50,7 @@ const roles = computed(() => sessionStore.user?.roles ?? [])
         </div>
         <div class="flex flex-wrap gap-1 px-3 pb-2">
           <ElTag v-for="role in roles" :key="role" size="small" type="info" effect="plain">
-            <ShieldCheck class="mr-1 inline size-3 align-[-2px]" aria-hidden="true" />{{ role }}
+            <ShieldCheck class="mr-1 inline size-3 align-[-2px]" aria-hidden="true" />{{ roleLabel(role) }}
           </ElTag>
         </div>
         <ElDropdownItem divided :disabled="props.loggingOut" @click="emit('logout')">

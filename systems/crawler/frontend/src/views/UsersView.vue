@@ -12,22 +12,17 @@ import ErrorState from '@/components/business/ErrorState.vue'
 import { profileForm, validateProfile } from '@/utils/user-profile'
 import { getAudits } from '@/services/audits'
 import { useSessionStore } from '@/stores/session'
-import { integrated } from '@/services/portal-auth'
 
 import { ConfirmDialog, DataTable, PageHeader, PanelSection, StatusPill } from '@/components/business'
 import { ApiError, toErrorMessage } from '@/services/api'
 import { userApi } from '@/services/users'
 import type { AuditLog, PageResponse, RoleCode, UserAccount, UserStatistics } from '@/types/api'
 import { formatDateTime } from '@/utils/format'
+import { roleLabel, roleOptions as allRoles } from '@/utils/roles'
 
 const props = withDefaults(defineProps<{ section?: 'accounts' | 'overview' }>(), { section: 'accounts' })
 const session = useSessionStore()
 
-const allRoles: Array<{ value: RoleCode; label: string }> = [
-  { value: 'ADMIN', label: '管理员' },
-  { value: 'DATA_OPERATOR', label: '数据运营人员' },
-  { value: 'RESEARCHER', label: '科研用户' },
-]
 const users = ref<PageResponse<UserAccount>>({ items: [], page: 0, size: 20, totalElements: 0, totalPages: 0 })
 const loading = ref(false)
 const saving = ref(false)
@@ -132,7 +127,7 @@ const columns: DataTableColumn<UserAccount>[] = [
   { accessorKey: 'username', header: '用户名', enableSorting: false },
   { id: 'realName', accessorFn: (row) => row.realName || '--', header: '姓名', enableSorting: false },
   { id: 'organization', accessorFn: (row) => row.organization || '--', header: '所属单位', enableSorting: false },
-  { id: 'roles', accessorFn: (row) => row.roles.join('，'), header: '角色', enableSorting: false },
+  { id: 'roles', accessorFn: (row) => row.roles.map(roleLabel).join('，'), header: '角色', enableSorting: false },
   { id: 'status', accessorFn: (row) => row.status, header: '状态', enableSorting: false, meta: { width: '130px' } },
   { id: 'credentialsChangedAt', accessorFn: (row) => formatDateTime(row.credentialsChangedAt), header: '凭据更新时间', enableSorting: false, meta: { width: '170px' } },
   { id: 'updatedAt', accessorFn: (row) => formatDateTime(row.updatedAt), header: '更新时间', enableSorting: false, meta: { width: '170px' } },
@@ -310,7 +305,7 @@ onBeforeUnmount(() => {
       <PanelSection title="最近登录日志" subtitle="最近 10 条登录、失败及退出记录" class="workspace-panel min-w-0 xl:col-span-2">
         <template #actions>
           <ElButton size="small" :disabled="logsLoading" @click="loadLogs" text>刷新</ElButton>
-          <ElButton as-child size="small" plain><RouterLink :to="integrated ? '/audits?category=LOGIN' : '/logs?category=LOGIN'">查看全部</RouterLink></ElButton>
+          <ElButton as-child size="small" plain><RouterLink to="/logs?category=LOGIN">查看全部</RouterLink></ElButton>
         </template>
         <ErrorState v-if="logsError" :message="logsError" retryable @retry="loadLogs" />
         <AuditLogTable v-else :items="recentLogs" :loading="logsLoading" compact fill />
@@ -326,7 +321,7 @@ onBeforeUnmount(() => {
       >
         <template #cell-roles="{ row }">
           <div class="flex flex-wrap gap-1">
-            <ElTag v-for="role in row.roles" :key="role" type="info" size="small">{{ role }}</ElTag>
+            <ElTag v-for="role in row.roles" :key="role" type="info" size="small">{{ roleLabel(role) }}</ElTag>
           </div>
         </template>
         <template #cell-status="{ row }">
@@ -419,7 +414,7 @@ onBeforeUnmount(() => {
               :model-value="roleForm.includes(role.value)"
               @update:model-value="roleForm = toggleRole(roleForm, role.value)"
             />
-            {{ role.label }}（{{ role.value }}）
+            {{ role.label }}
           </label>
         </div>
         <div class="mt-4 flex flex-wrap justify-end gap-2">

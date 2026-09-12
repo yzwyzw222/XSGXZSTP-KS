@@ -30,8 +30,8 @@ const detailVisible = computed({
 const columns = computed<DataTableColumn<AuditLog>[]>(() => [
   { id: 'createdAt', accessorFn: (row) => formatDateTime(row.createdAt), header: '时间', enableSorting: false, meta: { width: '170px' } },
   { id: 'username', accessorFn: (row) => row.username || (row.actorUserId ? `用户 #${row.actorUserId}` : '--'), header: '账号', enableSorting: false },
-  { id: 'action', accessorFn: (row) => auditActionLabel(row), header: '事件', enableSorting: false },
-  { accessorKey: 'result', header: '结果', enableSorting: false, meta: { width: '90px' } },
+  { id: 'action', accessorFn: (row) => auditActionLabel(row), header: '事件', enableSorting: false, meta: { minWidth: '120px' } },
+  { accessorKey: 'result', header: '结果', enableSorting: false, meta: { width: '110px' } },
   ...(!props.compact ? [
     { id: 'clientIp', accessorFn: (row: AuditLog) => row.clientIp || '--', header: '来源 IP', enableSorting: false, meta: { width: '140px' } },
     { id: 'browser', accessorFn: (row: AuditLog) => browserLabel(row.userAgent), header: '浏览器', enableSorting: false, meta: { width: '150px' } },
@@ -62,6 +62,9 @@ function summaryLines(log: AuditLog): string {
     :get-row-id="(row) => String(row.id)"
     @update:page="$emit('update:page', $event)"
   >
+    <template #header-createdAt><slot name="header-createdAt">时间</slot></template>
+    <template #header-action><slot name="header-action">事件</slot></template>
+    <template #header-result><slot name="header-result">结果</slot></template>
     <template #cell-result="{ row }">
       <StatusPill :status="row.result" :label="row.result === 'SUCCESS' ? '成功' : '失败'" />
     </template>

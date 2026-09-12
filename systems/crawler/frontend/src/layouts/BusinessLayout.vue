@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { integrated, redirectToPortal } from '@/services/portal-auth'
 import { ElDrawer, ElMessage } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 
 import AppSidebar from '@/components/business/AppSidebar.vue'
 import AppTopbar from '@/components/business/AppTopbar.vue'
@@ -13,8 +12,6 @@ import { useSessionStore } from '@/stores/session'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
-const route = useRoute()
-const isDashboard = computed(() => route.meta.shell === 'dashboard')
 
 const loggingOut = ref(false)
 const paletteOpen = ref(false)
@@ -30,11 +27,10 @@ async function handleLogout(): Promise<void> {
   loggingOut.value = true
   try {
     await sessionStore.logout()
-    if (integrated) redirectToPortal()
-    else await router.replace({ name: 'login' })
+    await router.replace({ name: 'login' })
   } catch {
     ElMessage.warning('服务端退出请求未完成，本地会话已清除')
-    if (!integrated) await router.replace({ name: 'login' })
+    await router.replace({ name: 'login' })
   } finally {
     loggingOut.value = false
   }
@@ -91,7 +87,7 @@ onBeforeUnmount(removeAfterEach)
         @open-palette="paletteOpen = true"
         @logout="handleLogout"
       />
-      <ModuleNavigation v-if="!isDashboard" />
+      <ModuleNavigation />
       <main id="main-content" tabindex="-1" class="min-h-0 min-w-0 flex-1 overflow-hidden">
         <RouterView v-if="sessionStore.isAuthenticated" v-slot="{ Component }">
           <transition name="page">

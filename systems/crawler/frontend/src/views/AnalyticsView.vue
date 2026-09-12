@@ -173,7 +173,7 @@ const typeRingOption = computed<EChartsCoreOption>(() => ({
   aria: { enabled: true, description: '当前统计范围的成果类型分布' },
   tooltip: { trigger: 'item' },
   legend: { right: 12, top: 'middle', orient: 'vertical', type: 'scroll', textStyle: { color: palette.value.text } },
-  series: [{ type: 'pie', radius: ['46%', '76%'], center: ['35%', '50%'], label: { show: false }, itemStyle: { borderColor: '#061B38', borderWidth: 2 }, data: achievementTypes.value.map(item => ({ name: item.label, value: item.achievementCount })) }],
+  series: [{ type: 'pie', radius: ['46%', '76%'], center: ['35%', '50%'], label: { show: false }, itemStyle: { borderColor: palette.value.cardBg, borderWidth: 2 }, data: achievementTypes.value.map(item => ({ name: item.label, value: item.achievementCount })) }],
 }))
 const sourceOption = computed(() => distributionOption(distributions.value?.sources ?? [], palette.value.series[1]!))
 const orgOption = computed(() => distributionOption(distributions.value?.organizations ?? [], palette.value.series[2]!))
@@ -366,7 +366,7 @@ onMounted(loadAnalytics)
 .analytics-page { padding: 8px 14px; gap: 7px; }
 .analytics-toolbar, .analytics-actions, .analytics-meta, .analytics-metrics, .analytics-metrics > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .analytics-toolbar { justify-content: space-between; flex-wrap: wrap; }
-.analytics-toolbar h1 { font-size: 17px; font-weight: 650; }
+.analytics-toolbar h1 { font-size: 24px; font-weight: 650; }
 .analytics-actions > .el-button + .el-button { margin-left: 0; }
 .analytics-meta { flex-wrap: wrap; font-size: 11px; color: hsl(var(--muted-foreground)); }
 .analytics-metrics { gap: 16px; }

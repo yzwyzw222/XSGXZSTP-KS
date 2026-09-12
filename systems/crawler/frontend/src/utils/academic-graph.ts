@@ -7,8 +7,8 @@ import { GraphDataError, parseGraphResponse } from '@/utils/graph-presentation'
 
 export const workCategories: { value: WorkCategory; label: string; color: string }[] = [
   { value: 'PATENT', label: '专利', color: '#bd7b32' },
-  { value: 'PAPER', label: '论文', color: '#347db8' },
-  { value: 'MASTER_THESIS', label: '指导硕论', color: '#338a70' },
+  { value: 'PAPER', label: '论文', color: '#16856d' },
+  { value: 'MASTER_THESIS', label: '指导硕论', color: '#287f9a' },
   { value: 'DOCTORAL_THESIS', label: '指导博论', color: '#9067b5' },
 ]
 
@@ -31,6 +31,21 @@ export function workDate(node: GraphNode): string {
   return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : ''
 }
 
+const institutionProperties = z.object({
+  institutions: z.array(z.object({ id: z.string().regex(/^[1-9]\d*$/), name: z.string() })).max(100).optional(),
+  institutionsTruncated: z.boolean().optional(),
+})
+
+/** 只使用本篇成果的机构，兼容旧后端未返回字段的情况。 */
+export function workInstitutionNames(node: GraphNode): string {
+  const result = institutionProperties.safeParse(node.properties)
+  if (!result.success) throw new GraphDataError('成果机构信息无效')
+  const institutions = result.data.institutions
+  if (institutions === undefined) return '暂未返回'
+  if (new Set(institutions.map(item => item.id)).size !== institutions.length) throw new GraphDataError('成果机构标识重复')
+  return institutions.map(item => item.name.trim() || `机构 #${item.id}`).join('、') || '未收录'
+}
+
 export function timelineGroups(works: GraphNode[]): { year: string; works: GraphNode[] }[] {
   const sorted = [...works].sort((left, right) => {
     const a = workDate(left), b = workDate(right)
@@ -51,12 +66,16 @@ export function academicElements(graph: GraphResponse): ElementDefinition[] {
   return toCytoscapeElements(graph).map(element => {
     const node = nodes.get(String(element.data.id))
     if (!node) {
-      return element.data.relationshipType === 'COAUTHORED'
-        ? { ...element, data: { ...element.data, label: '共同创作', displayColor: '#67949b', displaySize: 2.2 } } : element
+      if (element.data.relationshipType === 'COAUTHORED') {
+        return { ...element, data: { ...element.data, label: '共同创作', displayColor: '#67949b', displaySize: 2.2 } }
+      }
+      // 常规关系按需显示标签，为成果题名留出空间，关系数据和点击详情保持完整。
+      return ['AUTHORED', 'SUPERVISED'].includes(String(element.data.relationshipType))
+        ? { ...element, data: { ...element.data, labelMode: 'interaction' } } : element
     }
     const definition = workDefinition(node)
     return { ...element, data: { ...element.data,
-      displayColor: node.type === 'AUTHOR' ? '#258c9f' : definition?.color,
+      displayColor: node.type === 'AUTHOR' ? '#1677ef' : definition?.color,
       displaySize: node.id === graph.rootNodeId ? 62 : node.type === 'AUTHOR' ? 42 : 34,
       typeName: node.type === 'AUTHOR' ? '作者' : definition?.label,
     } }
@@ -93,5 +112,6 @@ export function parseAuthorGraph(input: unknown, query: AuthorGraphQuery): Autho
   if (graph.nodes.some(node => node.type !== 'AUTHOR' && (node.type !== 'ACHIEVEMENT' || !workCategory(node)))) {
     throw new GraphDataError('返回了不支持的学术实体类型')
   }
+  graph.nodes.filter(node => node.type === 'ACHIEVEMENT').forEach(workInstitutionNames)
   return { ...result.data, graph }
 }

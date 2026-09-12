@@ -52,7 +52,7 @@ onBeforeUnmount(() => { sequence++ })
 .achievement-preview { font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
 .achievement-preview__eyebrow { color: hsl(var(--primary)); font-size: 12px; }
 .achievement-preview h3 { margin: 10px 0; font-size: 18px; font-weight: 600; line-height: 1.55; }
-.achievement-preview h4 { border-top: 1px solid hsl(var(--border)); padding-top: 16px; margin: 20px 0 10px; font-weight: 600; color: #bceaff; }
+.achievement-preview h4 { border-top: 1px solid hsl(var(--border)); padding-top: 16px; margin: 20px 0 10px; font-weight: 600; color: hsl(var(--foreground)); }
 .achievement-preview dl { display: grid; gap: 4px; margin-top: 20px; }
 .achievement-preview dt { color: hsl(var(--muted-foreground)); font-size: 12px; }
 .achievement-preview dd + dt { margin-top: 10px; }

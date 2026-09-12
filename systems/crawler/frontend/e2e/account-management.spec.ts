@@ -53,6 +53,28 @@ async function mockManagement(page: Page, failStatistics = false) {
     releaseCreation: () => releaseCreation?.() }
 }
 
+test('角色在账号列表、调整角色弹窗和账户菜单中统一显示中文', async ({ page }, testInfo) => {
+  await mockManagement(page)
+  const roles = ['ADMIN', 'DATA_OPERATOR', 'RESEARCHER']
+  await page.route('**/api/v1/auth/me', route => route.fulfill({ json: { ...admin, roles } }))
+  await page.route('**/api/v1/users?*', route => route.fulfill({ json: { items: [{ ...account, roles }], page: 0, size: 20, totalElements: 1, totalPages: 1 } }))
+  await page.route('**/api/v1/users/2/roles', route => route.fulfill({ json: { ...account, roles, version: 1 } }))
+  await page.goto('/users')
+  const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'research-demo', exact: true }) })
+  await expect(row.locator('.el-tag')).toHaveText(['管理员', '数据运营人员', '科研用户'])
+  await row.getByRole('button', { name: '角色', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  for (const label of ['管理员', '数据运营人员', '科研用户']) await expect(dialog.getByText(label, { exact: true })).toBeVisible()
+  for (const role of roles) await expect(dialog).not.toContainText(role)
+  const savedRoles = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/users/2/roles')
+  await dialog.getByRole('button', { name: '保存角色', exact: true }).click()
+  expect((await savedRoles).postDataJSON()).toEqual({ version: 0, roles })
+  await expect(dialog).toHaveCount(0)
+  await page.getByRole('button', { name: '账户菜单', exact: true }).click()
+  await expect(page.getByRole('menu').locator('.el-tag')).toHaveText(['管理员', '数据运营人员', '科研用户'])
+  await page.screenshot({ path: testInfo.outputPath('roles-chinese.png') })
+})
+
 test('新建资料与统一编辑保存，并保留用户名只读和管理员自我保护', async ({ page }) => {
   const state = await mockManagement(page)
   await page.goto('/users')

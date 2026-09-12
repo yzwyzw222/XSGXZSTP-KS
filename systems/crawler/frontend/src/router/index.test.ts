@@ -100,6 +100,37 @@ describe('权限路由', () => {
     expect(router.currentRoute.value.name).toBe('not-found')
   })
 
+  it('旧请求日志地址转到操作和登录日志，仍检查审计权限并保留分类', async () => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    hasPermission.mockReturnValue(false)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/request-logs?category=LOGIN')
+    expect(router.currentRoute.value.name).toBe('forbidden')
+    expect(hasPermission).toHaveBeenCalledWith('AUDIT_READ')
+    hasPermission.mockImplementation(permission => permission === 'AUDIT_READ')
+    await router.push('/request-logs?category=LOGIN')
+    expect(router.currentRoute.value.name).toBe('logs')
+    expect(router.currentRoute.value.query.category).toBe('LOGIN')
+    expect(router.hasRoute('request-logs')).toBe(false)
+  })
+
+  it('旧工作台活动入口返回工作台，无需审计权限', async () => {
+    ensureSession.mockResolvedValue({} as CurrentUser)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/overview/activity')
+    expect(router.currentRoute.value.path).toBe('/')
+    expect(router.currentRoute.value.name).toBe('overview')
+    expect(hasPermission).not.toHaveBeenCalledWith('AUDIT_READ')
+  })
+
+  it('未登录访问旧工作台活动入口时保留工作台登录目标', async () => {
+    ensureSession.mockResolvedValue(null)
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/overview/activity')
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/')
+  })
+
   it('重复的工作台研究入口合并到合作分析', async () => {
     ensureSession.mockResolvedValue({} as CurrentUser)
     hasPermission.mockImplementation((permission) => permission === 'ANALYTICS_READ')

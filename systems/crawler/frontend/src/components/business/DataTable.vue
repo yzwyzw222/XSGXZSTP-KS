@@ -129,7 +129,7 @@ function handleSortChange(payload: { prop: string | null; order: 'ascending' | '
         :size="dense ? 'small' : 'default'"
         :default-sort="defaultSort"
         :class="cn('aacv-table', onRowClick && 'cursor-pointer')"
-        :cell-style="{ padding: dense ? '6px 0' : '12px 0', verticalAlign: 'top' }"
+        :cell-style="{ padding: dense ? '9px 0' : '12px 0', verticalAlign: 'top' }"
         :header-cell-style="{ padding: '10px 0', fontWeight: 500, fontSize: 'var(--font-size-sm)' }"
         style="width: 100%"
         @row-click="handleRowClick"

@@ -37,21 +37,21 @@ export function useChartTheme(): {
     void isDark.value
     return {
       series: [
-        readHsl('--chart-1', '#38a8ff'),
-        readHsl('--chart-2', '#35c98c'),
-        readHsl('--chart-3', '#f5a04b'),
-        readHsl('--chart-4', '#a77af2'),
-        readHsl('--chart-5', '#27b9d5'),
-        readHsl('--chart-6', '#ff6670'),
+        readHsl('--chart-1', '#1677ef'),
+        readHsl('--chart-2', '#16856d'),
+        readHsl('--chart-3', '#bd7b32'),
+        readHsl('--chart-4', '#9067b5'),
+        readHsl('--chart-5', '#287f9a'),
+        readHsl('--chart-6', '#c45567'),
       ],
-      grid: readHsl('--chart-grid', '#213a57'),
-      axis: readHsl('--chart-axis', '#8296ae'),
-      tooltipBg: readHsl('--chart-tooltip-bg', '#0a1729'),
-      tooltipBorder: readHsl('--chart-tooltip-border', '#2b4668'),
-      tooltipFg: readHsl('--chart-tooltip-fg', '#edf6ff'),
-      text: readHsl('--foreground', '#edf6ff'),
-      textMuted: readHsl('--muted-foreground', '#8296ae'),
-      cardBg: readHsl('--card', '#10233d'),
+      grid: readHsl('--chart-grid', '#e2eaf4'),
+      axis: readHsl('--chart-axis', '#62758e'),
+      tooltipBg: readHsl('--chart-tooltip-bg', '#ffffff'),
+      tooltipBorder: readHsl('--chart-tooltip-border', '#d7e3f1'),
+      tooltipFg: readHsl('--chart-tooltip-fg', '#203854'),
+      text: readHsl('--foreground', '#203854'),
+      textMuted: readHsl('--muted-foreground', '#62758e'),
+      cardBg: readHsl('--card', '#ffffff'),
     }
   })
 

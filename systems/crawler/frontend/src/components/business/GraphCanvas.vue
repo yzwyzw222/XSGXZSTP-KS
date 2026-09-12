@@ -94,6 +94,8 @@ function buildStyle(): cytoscape.StylesheetStyle[] {
     { selector: 'edge[relationshipType = "COAUTHORED"]', style: {
       'target-arrow-shape': 'none', 'line-style': 'dashed', 'text-wrap': 'wrap', 'text-max-width': '190px',
     } },
+    { selector: 'edge[labelMode = "interaction"]', style: { label: '' } },
+    { selector: 'edge[labelMode = "interaction"]:selected, edge[labelMode = "interaction"].is-hovered', style: { label: 'data(label)' } },
     ...(props.compact ? [{ selector: 'node', style: {
       shape: 'ellipse', 'text-valign': 'center', 'text-margin-y': 0,
       'text-background-opacity': 0, color: '#ffffff', 'font-size': 11, 'min-zoomed-font-size': 6,
@@ -184,6 +186,8 @@ function render(): void {
       if (container.value) container.value.title = String(event.target.data('label'))
     })
     cy.on('mouseout', 'node', () => { focusElements(); if (container.value) container.value.title = '' })
+    cy.on('mouseover', 'edge', (event: EventObject) => { event.target.addClass('is-hovered') })
+    cy.on('mouseout', 'edge', (event: EventObject) => { event.target.removeClass('is-hovered') })
   }
   stopAnimations()
   if (currentScope !== props.scopeKey) {

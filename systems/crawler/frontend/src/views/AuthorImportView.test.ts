@@ -44,6 +44,8 @@ describe('作者信息表导入', () => {
     expect(mocks.confirmFiles.mock.calls[0]![2]).toBe('reviewed')
     expect(mocks.previewFiles.mock.calls[0]![1].scholarName).toBe('')
     expect(wrapper!.text()).toContain('导入已完成')
+    expect(wrapper!.get('[role="status"]').text()).toContain('作者内部标识：12')
+    expect(wrapper!.text()).not.toContain('ORCID')
     expect(wrapper!.text()).toContain('查看 张三 的知识图谱')
     expect(button('确认导入').attributes('disabled')).toBeDefined()
   })

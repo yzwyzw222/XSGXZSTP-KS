@@ -17,7 +17,7 @@ async function setup(page: Page, canExport = true) {
     if (path === '/auth/me') data = { id: 7, username: 'compact-test', roles: ['RESEARCHER'], permissions: ['CATALOG_READ', 'GRAPH_READ', 'ANALYTICS_READ', ...(canExport ? ['EXPORT_CREATE', 'EXPORT_READ'] : [])] }
     else if (path === '/catalog/achievements') data = { items: Array.from({ length: 20 }, (_, i) => summary(i + 1)), totalElements: 41, totalPages: 3, page: Number(url.searchParams.get('page') ?? 0), size: 20 }
     else if (/^\/catalog\/achievements\/\d+$/.test(path)) data = { summary: summary(Number(path.split('/').at(-1))), abstractText: '可核对的完整成果摘要。', sources: [], fields: [], authorships: [], referencedWorkIds: [], language: null }
-    else if (/^\/catalog\/[^/]+$/.test(path)) data = { items: [{ id: 101, displayName: '测试实体', entityType: null, externalId: null, achievementCount: 2 }], totalElements: 1, totalPages: 1, page: 0, size: 20 }
+    else if (/^\/catalog\/[^/]+$/.test(path)) data = { items: [{ id: 101, displayName: '测试实体', entityType: null, externalId: null, achievementCount: 2, advisors: ['导师甲', '导师乙'] }], totalElements: 1, totalPages: 1, page: 0, size: 20 }
     else if (path === '/analytics/overview') data = { achievementCount: 20, authorCount: 10, organizationCount: 4, sourceCount: 2, scope, updatedAt: '2026-09-11T00:00:00Z' }
     else if (path === '/analytics/trends') data = { items: [{ publicationYear: 2025, achievementCount: 20 }], scope, updatedAt: '' }
     else if (path === '/analytics/distributions') data = { achievementTypes: [{ key: 'patent', label: 'patent', achievementCount: 20 }], sources: [], organizations: [], topics: [], scope, updatedAt: '' }
@@ -71,6 +71,12 @@ test('实体编目显示内部标识和类型，新成果编目可打开详情',
     await expect(page.getByRole('columnheader', { name: '内部标识' })).toBeVisible()
     await expect(page.getByRole('cell', { name: '101', exact: true })).toBeVisible()
     await expect(page.getByRole('cell', { name: label, exact: true })).toBeVisible()
+    if (['master-theses', 'doctoral-theses'].includes(collection!)) {
+      await expect(page.getByRole('columnheader', { name: '导师', exact: true })).toBeVisible()
+      await expect(page.getByRole('cell', { name: '导师甲、导师乙', exact: true })).toBeVisible()
+    } else {
+      await expect(page.getByRole('columnheader', { name: '导师', exact: true })).toHaveCount(0)
+    }
     if (['patents', 'master-theses', 'doctoral-theses'].includes(collection!)) {
       await page.getByRole('button', { name: '查看详情', exact: true }).click()
       await expect(page.getByText('可核对的完整成果摘要。')).toBeVisible()

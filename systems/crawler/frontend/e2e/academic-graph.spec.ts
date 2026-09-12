@@ -3,11 +3,11 @@ import { fixture } from './fixtures/workbench'
 import type { GraphNode, GraphResponse } from '../src/types/api'
 
 const works: GraphNode[] = [
-  { id: 'ACHIEVEMENT:11', businessId: '11', type: 'ACHIEVEMENT', label: '基于共同署名的学术关系研究', properties: { achievementType: 'article', publicationDate: '2020-01-01' } },
-  { id: 'ACHIEVEMENT:12', businessId: '12', type: 'ACHIEVEMENT', label: '开放科研信息的独立研究', properties: { achievementType: 'review', publicationDate: '2020-01-01' } },
-  { id: 'ACHIEVEMENT:13', businessId: '13', type: 'ACHIEVEMENT', label: '一种学术成果关联检索方法', properties: { achievementType: 'patent', publicationDate: '2024-02-03' } },
-  { id: 'ACHIEVEMENT:14', businessId: '14', type: 'ACHIEVEMENT', label: '面向可信研究数据的硕士学位论文', properties: { achievementType: 'master-thesis', publicationDate: '2022-06-01' } },
-  { id: 'ACHIEVEMENT:15', businessId: '15', type: 'ACHIEVEMENT', label: '跨领域知识演化的博士学位论文', properties: { achievementType: 'doctoral-thesis' } },
+  { id: 'ACHIEVEMENT:11', businessId: '11', type: 'ACHIEVEMENT', label: '基于共同署名的学术关系研究', properties: { achievementType: 'article', publicationDate: '2020-01-01', institutions: [{ id: '7', name: '测试大学' }, { id: '8', name: '联合实验室' }], institutionsTruncated: false } },
+  { id: 'ACHIEVEMENT:12', businessId: '12', type: 'ACHIEVEMENT', label: '开放科研信息的独立研究', properties: { achievementType: 'review', publicationDate: '2020-01-01', institutions: [{ id: '9', name: '另一大学' }], institutionsTruncated: false } },
+  { id: 'ACHIEVEMENT:13', businessId: '13', type: 'ACHIEVEMENT', label: '一种学术成果关联检索方法', properties: { achievementType: 'patent', publicationDate: '2024-02-03', institutions: [{ id: '10', name: '测试技术中心' }], institutionsTruncated: false } },
+  { id: 'ACHIEVEMENT:14', businessId: '14', type: 'ACHIEVEMENT', label: '面向可信研究数据的硕士学位论文', properties: { achievementType: 'master-thesis', publicationDate: '2022-06-01', institutions: [], institutionsTruncated: false } },
+  { id: 'ACHIEVEMENT:15', businessId: '15', type: 'ACHIEVEMENT', label: '跨领域知识演化的博士学位论文', properties: { achievementType: 'doctoral-thesis', institutions: [{ id: '7', name: '测试大学' }], institutionsTruncated: false } },
 ]
 const author = (id: number): GraphNode => ({ id: `AUTHOR:${id}`, businessId: String(id), type: 'AUTHOR', label: id === 1 ? '林研究员' : id === 2 ? '张研究员' : '无成果作者', properties: { orcid: 'test-orcid' } })
 
@@ -94,6 +94,11 @@ for (const width of [1440, 390]) {
     const state = await setup(page)
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1100 })
     await page.goto('/graph')
+    await page.getByRole('button', { name: '账户菜单', exact: true }).click()
+    await expect(page.getByRole('menu')).toContainText('管理员')
+    await expect(page.getByRole('menu').getByText('ADMIN', { exact: true })).toHaveCount(0)
+    await page.getByRole('menu').screenshot({ path: testInfo.outputPath(`account-menu-${width}.png`) })
+    await page.keyboard.press('Escape')
     await expect(page.getByRole('navigation', { name: '模块页面', exact: true })).toHaveCount(0)
     const navigate = async (name: string) => {
       if (width < 1024) await page.getByRole('button', { name: '打开导航菜单' }).click()
@@ -117,7 +122,7 @@ for (const width of [1440, 390]) {
     await page.keyboard.press('Escape')
     await expect(drawer).not.toBeVisible()
 
-    const partnerPoint = await pointForColor(page, [37, 140, 159], true)
+    const partnerPoint = await pointForColor(page, [22, 119, 239], true)
     await page.mouse.click(partnerPoint.x, partnerPoint.y)
     await expect(drawer.getByRole('heading', { name: '张研究员', exact: true })).toBeVisible()
     await drawer.getByRole('button', { name: '以此作者查看图谱', exact: true }).click()
@@ -154,7 +159,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('img', { name: '林研究员的学术成果图谱，6个节点' })).toBeVisible()
     await expect(page.getByRole('list', { name: '实体类型图例' }).getByRole('listitem')).toHaveText(['作者', '专利', '论文', '指导硕论', '指导博论'])
     await page.screenshot({ path: testInfo.outputPath(`achievements-${width}.png`), animations: 'disabled' })
-    const masterPoint = await pointForColor(page, [51, 138, 112])
+    const masterPoint = await pointForColor(page, [40, 127, 154])
     await page.mouse.click(masterPoint.x, masterPoint.y)
     await expect(drawer).toContainText('面向可信研究数据的硕士学位论文的完整摘要。')
     await page.keyboard.press('Escape')
@@ -164,6 +169,20 @@ for (const width of [1440, 390]) {
     await expect(page).toHaveURL(/academic-background\?authorId=1/)
     const timeline = page.getByRole('region', { name: '学术成果时间线' })
     await expect(timeline.getByRole('heading')).toHaveText(['2020', '2022', '2024', '日期未知'])
+    const firstPaper = timeline.getByRole('button', { name: /基于共同署名的学术关系研究/ })
+    await expect(firstPaper).toContainText('机构：测试大学、联合实验室')
+    await expect(firstPaper).toContainText('发布时间')
+    await expect(firstPaper.locator('time')).toHaveText('2020-01-01')
+    const secondPaper = timeline.getByRole('button', { name: /开放科研信息的独立研究/ })
+    await expect(secondPaper).toContainText('机构：另一大学')
+    await expect(secondPaper).not.toContainText('测试大学')
+    await expect(timeline.getByRole('button', { name: /面向可信研究数据的硕士学位论文/ })).toContainText('机构：未收录')
+    await expect(timeline.getByRole('button', { name: /跨领域知识演化的博士学位论文/ })).toContainText('发布时间未收录')
+    if (width === 390) {
+      const timelineBox = await timeline.boundingBox()
+      const footerBox = await page.locator('.academic-footer').boundingBox()
+      expect(footerBox!.y).toBeGreaterThanOrEqual(timelineBox!.y + timelineBox!.height - 1)
+    }
     await page.screenshot({ path: testInfo.outputPath(`background-${width}.png`), animations: 'disabled' })
     await timeline.getByRole('button', { name: /跨领域知识演化的博士学位论文/ }).click()
     await expect(drawer).toContainText('跨领域知识演化的博士学位论文的完整摘要。')
@@ -179,8 +198,11 @@ test('类型筛选、分页、直达刷新和错误重试保留正确作者', as
   await page.goto('/academic-background?authorId=1&size=1')
   const timeline = page.getByRole('region', { name: '学术成果时间线' })
   await expect(timeline).toContainText('基于共同署名的学术关系研究')
+  await expect(timeline).toContainText('机构：测试大学、联合实验室')
   await page.getByRole('button', { name: '下一页', exact: true }).click()
   await expect(timeline).toContainText('开放科研信息的独立研究')
+  await expect(timeline).toContainText('机构：另一大学')
+  await expect(timeline).not.toContainText('联合实验室')
   await page.reload()
   await expect(timeline).toContainText('开放科研信息的独立研究')
   await page.getByRole('combobox', { name: '成果类型', exact: true }).press('Enter')

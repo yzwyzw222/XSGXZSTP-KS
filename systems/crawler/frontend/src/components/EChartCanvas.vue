@@ -8,6 +8,7 @@ import {
   TooltipComponent,
 } from 'echarts/components'
 import { init, use, type ECharts, type EChartsCoreOption } from 'echarts/core'
+import { LabelLayout } from 'echarts/features'
 import { CanvasRenderer } from 'echarts/renderers'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -32,6 +33,7 @@ use([
   LegendComponent,
   TitleComponent,
   TooltipComponent,
+  LabelLayout,
   CanvasRenderer,
 ])
 

@@ -3,13 +3,12 @@ import {
   createWebHistory,
   type RouterHistory,
   type RouteRecordRaw,
-  type RouteLocationNormalized,
+  type RouteLocationGeneric,
 } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
 import { cancelSessionRequests } from '@/services/http'
 import type { Permission } from '@/types/api'
-import { integrated, redirectToPortal } from '@/services/portal-auth'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -23,7 +22,6 @@ declare module 'vue-router' {
 }
 
 export const routes: RouteRecordRaw[] = [
-  ...(integrated ? [] : [
   {
     path: '/login',
     name: 'login',
@@ -36,7 +34,6 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/SessionExpiredView.vue'),
     meta: { public: true, title: '会话已过期' },
   },
-  ]),
   {
     path: '/forbidden',
     name: 'forbidden',
@@ -104,14 +101,14 @@ export const routes: RouteRecordRaw[] = [
           {
             path: '',
             name: 'graph',
-            redirect: (to: RouteLocationNormalized) => to.query.centerType && to.query.centerType !== 'AUTHOR'
+            redirect: (to: RouteLocationGeneric) => to.query.centerType && to.query.centerType !== 'AUTHOR'
               ? { path: '/graph/explore', query: to.query }
               : { path: '/academic-relations', query: { ...to.query,
                 authorId: to.query.authorId ?? to.query.centerId, centerType: undefined, centerId: undefined } },
           },
           ...(['relations', 'achievements', 'background'] as const).map((mode) => ({
             path: mode,
-            redirect: (to: RouteLocationNormalized) => ({ path: `/academic-${mode}`, query: to.query }),
+            redirect: (to: RouteLocationGeneric) => ({ path: `/academic-${mode}`, query: to.query }),
           })),
           {
             path: 'overview', name: 'graph-overview',
@@ -172,6 +169,10 @@ export const routes: RouteRecordRaw[] = [
         ],
       },
       {
+        path: 'request-logs',
+        redirect: to => ({ path: '/logs', query: to.query }),
+      },
+      {
         path: 'logs',
         name: 'logs',
         component: () => import('@/views/LogsView.vue'),
@@ -182,7 +183,7 @@ export const routes: RouteRecordRaw[] = [
         name: 'operations',
         redirect: '/logs',
       },
-    ].filter(route => !integrated || !['users', 'logs', 'operations/:section(overview|alerts|events|maintenance|audits)?'].includes(route.path)) as RouteRecordRaw[],
+    ],
   },
   {
     path: '/:pathMatch(.*)*',
@@ -200,14 +201,11 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
 
   // 跨模块导航取消旧读取与轮询；同模块子页复用实例，保留其在途请求。
   router.afterEach((to, from, failure) => {
-    if (integrated && !failure && window.parent !== window) {
-      window.parent.postMessage({ type: 'portal-location', path: import.meta.env.BASE_URL.slice(0, -1) + to.fullPath }, window.location.origin)
-    }
     if (!failure && (!to.meta.workspace || to.meta.workspace !== from.meta.workspace)) cancelSessionRequests()
   })
 
   router.beforeEach(async (to) => {
-    document.title = to.meta.title ? `${to.meta.title} · AACV System` : 'AACV System'
+    document.title = to.meta.title ? `${to.meta.title} · 学术成果信息采集及可视化系统` : '学术成果信息采集及可视化系统'
     // 在守卫内部取 store：模块加载期不访问 Pinia，避免与路由的初始化顺序冲突。
     const sessionStore = useSessionStore()
     if (to.meta.public) {
@@ -219,7 +217,6 @@ export function createAppRouter(history: RouterHistory = createWebHistory(import
 
     const user = await sessionStore.ensureSession()
     if (!user) {
-      if (integrated) { redirectToPortal(to.fullPath, Boolean(sessionStore.lastError)); return false }
       return sessionExpiredTarget(to.fullPath, sessionStore.lastError)
     }
     if (!sessionStore.hasPermission(to.meta.permission)) {

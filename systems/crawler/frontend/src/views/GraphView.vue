@@ -210,7 +210,7 @@ onBeforeUnmount(() => { document.removeEventListener('pointerdown', outsideMenu)
 .graph-context-menu button:disabled { color: hsl(var(--muted-foreground)); cursor: not-allowed; }
 .graph-overview { margin: 12px; height: calc(100% - 24px); min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); min-width: 0; }
 .graph-overview > :not(.overview-stage) { flex-shrink: 0; }
-.graph-heading { min-height: 40px; padding: 8px 16px; background: linear-gradient(90deg, #0b345d, #071e3b); display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid hsl(var(--border)); }
+.graph-heading { min-height: 48px; padding: 10px 16px; background: hsl(var(--card)); display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid hsl(var(--border)); }
 .graph-heading h1 { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 600; }
 .graph-heading h1 svg { color: hsl(var(--primary)); stroke-width: 3; }
 .graph-links { display: flex; gap: 16px; font-size: 12px; color: hsl(var(--muted-foreground)); }

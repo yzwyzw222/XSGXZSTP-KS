@@ -20,6 +20,7 @@ const labels: Record<CatalogCollection, string> = {
 const route = useRoute()
 const collection = computed(() => route.params.collection as CatalogCollection)
 const isWorkCollection = computed(() => ['patents', 'master-theses', 'doctoral-theses'].includes(collection.value))
+const isThesisCollection = computed(() => ['master-theses', 'doctoral-theses'].includes(collection.value))
 const name = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
@@ -35,13 +36,14 @@ const relatedTotal = ref(0)
 let listSequence = 0
 let detailSequence = 0
 
-const columns: DataTableColumn<CatalogEntity>[] = [
+const columns = computed<DataTableColumn<CatalogEntity>[]>(() => [
   { accessorKey: 'displayName', header: '规范名称', enableSorting: false },
+  ...(isThesisCollection.value ? [{ accessorKey: 'advisors' as const, header: '导师', enableSorting: false, meta: { width: '200px' } }] : []),
   { accessorKey: 'id', header: '内部标识', enableSorting: false, meta: { width: '120px' } },
   { accessorKey: 'entityType', header: '类型', enableSorting: false, meta: { width: '120px' } },
   { accessorKey: 'achievementCount', header: '成果数', enableSorting: false, meta: { width: '90px' } },
   { id: 'actions', header: '操作', enableSorting: false, meta: { width: '120px' } },
-]
+])
 
 async function load(page = 0): Promise<void> {
   const sequence = ++listSequence
@@ -158,6 +160,7 @@ onMounted(() => load())
         @update:page="load"
       >
         <template #cell-entityType>{{ labels[collection] }}</template>
+        <template #cell-advisors="{ row }"><span class="break-words">{{ row.advisors?.join('、') || '—' }}</span></template>
         <template #cell-actions="{ row }">
           <ElButton link type="primary" @click="showRelated(row)">{{ actionLabel() }}</ElButton>
         </template>

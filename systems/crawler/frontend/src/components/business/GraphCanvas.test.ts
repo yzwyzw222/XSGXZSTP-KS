@@ -59,3 +59,30 @@ it('高级查询更换全部节点时重新布局，不把新节点堆在原点'
   expect(cy.getElementById('c').position()).not.toEqual(cy.getElementById('d').position())
   wrapper.unmount()
 })
+
+it('学术关系标签仅在悬停或选中时显示，其他图谱的标签保持可见', async () => {
+  const original = await vi.importActual<{ default: typeof cytoscape }>('cytoscape')
+  vi.mocked<(options?: cytoscape.CytoscapeOptions) => Core>(cytoscape)
+    .mockImplementationOnce(options => original.default({ headless: true, styleEnabled: true, style: options?.style }))
+  const wrapper = mount(GraphCanvas, { props: { label: '图', elements: [
+    ...elements.slice(0, 2),
+    { data: { id: 'academic', source: 'a', target: 'b', label: '创作', labelMode: 'interaction' } },
+    { data: { id: 'advanced', source: 'a', target: 'b', label: '创作' } },
+  ] } })
+  cy = vi.mocked(cytoscape).mock.results.at(-1)!.value as Core
+  const edge = cy.getElementById('academic')
+  expect(edge.style('label')).toBe('')
+  expect(cy.getElementById('advanced').style('label')).toBe('创作')
+  edge.emit('mouseover')
+  expect(edge.style('label')).toBe('创作')
+  edge.emit('mouseout')
+  expect(edge.style('label')).toBe('')
+  await wrapper.setProps({ selectedEdgeId: 'academic' })
+  expect(edge.style('label')).toBe('创作')
+  await wrapper.setProps({ selectedEdgeId: undefined })
+  expect(edge.style('label')).toBe('')
+  edge.emit('tap')
+  expect(wrapper.emitted('select-edge')).toEqual([['academic']])
+  expect(edge.data('label')).toBe('创作')
+  wrapper.unmount()
+})

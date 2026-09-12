@@ -8,7 +8,7 @@ for (const { width, height, theme } of [
   { width: 1440, height: 900, theme: 'dark' },
   { width: 390, height: 844, theme: 'light' },
 ] as const) {
-  test(`工作台保持单屏且重复入口跳转到统一模块 ${theme} ${width}`, async ({ page }, testInfo) => {
+  test(`固定浅色工作台保持单屏且统一导航可用 ${theme} ${width}`, async ({ page }, testInfo) => {
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.setViewportSize({ width, height })
@@ -29,6 +29,19 @@ for (const { width, height, theme } of [
     } }))
     await page.goto('/dashboard')
     await expect(page.locator('.dashboard-kpis')).toContainText('1,286')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    expect(await page.evaluate(() => localStorage.getItem('aacv-theme'))).toBe('light')
+    if (width < 1024) {
+      await expect(page.locator('.module-navigation')).toBeHidden()
+      await page.getByRole('button', { name: '打开导航菜单', exact: true }).click()
+      const drawer = page.getByRole('dialog', { name: '业务导航抽屉', exact: true })
+      await expect(drawer).toBeVisible()
+      await expect(drawer.getByRole('navigation', { name: '业务导航', exact: true }).getByRole('link', { name: '学术成果图谱', exact: true })).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(drawer).not.toBeVisible()
+    } else {
+      await expect(page.getByRole('navigation', { name: '模块导航', exact: true }).getByRole('link')).toHaveCount(10)
+    }
 
     const checkLayout = async () => {
       const viewport = await page.evaluate(() => ({
@@ -52,7 +65,7 @@ for (const { width, height, theme } of [
     }
     await expect(page.locator('.dashboard-trend')).toBeVisible()
     await expect(page.locator('.dashboard-network')).toBeVisible()
-    await expect(page.locator('.dashboard-panel')).toHaveCount(9)
+    await expect(page.locator('.dashboard-panel')).toHaveCount(10)
     await checkLayout()
     await page.screenshot({ path: testInfo.outputPath('overview-compact.png'), fullPage: true, animations: 'disabled' })
     await page.getByText('查看趋势数据', { exact: true }).click()
@@ -64,6 +77,9 @@ for (const { width, height, theme } of [
     await expect(page).toHaveURL(/\/analytics\/collaboration$/)
     await expect(page.getByRole('heading', { name: '合作排行', exact: true })).toBeVisible()
     await page.goto('/overview/activity')
+    await expect(page).toHaveURL(url => url.pathname === '/')
+    await expect(page.getByRole('heading', { name: '学者研究工作台', exact: true })).toBeVisible()
+    await page.goto('/operations')
     await expect(page).toHaveURL(/\/logs$/)
     await expect(page.getByRole('heading', { name: '日志管理', exact: true })).toBeVisible()
     await expect(page.getByRole('tab', { name: '操作日志' })).toBeVisible()
@@ -143,16 +159,16 @@ test('连续开关导航与命令面板保持键盘操作，减少动画及时�
   await expect(dialog).not.toBeVisible()
 })
 
-test('深浅主题的主操作与说明文字满足对比度，窄屏按钮达到触摸尺寸', async ({ page }) => {
+test('深浅系统偏好下固定浅色的主操作与说明文字满足对比度，窄屏按钮达到触摸尺寸', async ({ page }) => {
   await fixture(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await page.goto('/catalog')
-  await page.getByRole('button', { name: '展开筛选', exact: true }).click()
+  await page.goto('/')
+  await expect(page.getByRole('region', { name: '平台数据概览' })).toHaveAttribute('aria-busy', 'false')
   for (const theme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: theme })
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    const values = await page.getByRole('button', { name: '查询成果' }).evaluate(el => {
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    const values = await page.getByRole('button', { name: '检索成果' }).evaluate(el => {
       const luminance = (color: string) => {
         const rgb = color.match(/[\d.]+/g)!.slice(0, 3).map(Number).map(value => {
           const channel = value / 255
@@ -165,8 +181,8 @@ test('深浅主题的主操作与说明文字满足对比度，窄屏按钮达�
         return (Math.max(light, dark) + .05) / (Math.min(light, dark) + .05)
       }
       const button = getComputedStyle(el)
-      const label = getComputedStyle(document.querySelector('.filter-field__label')!)
-      const surface = getComputedStyle(document.querySelector('.filter-bar')!)
+      const label = getComputedStyle(document.querySelector('.workbench-overview__metrics span')!)
+      const surface = getComputedStyle(document.querySelector('.workbench-overview__metrics > div')!)
       return { button: ratio(button.color, button.backgroundColor), label: ratio(label.color, surface.backgroundColor), height: el.getBoundingClientRect().height }
     })
     expect(values.button).toBeGreaterThanOrEqual(4.5)

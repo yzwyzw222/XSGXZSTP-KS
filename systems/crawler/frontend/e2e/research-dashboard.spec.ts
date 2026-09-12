@@ -9,10 +9,11 @@ test('大屏业务模块入口往返，保留成果独立详情地址', async ({
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/dashboard')
   for (const [name, path] of [
-    ['成果目录', '/catalog'], ['实体编目', '/catalog/authors'], ['知识图谱', '/graph'],
+    ['成果目录', '/catalog'], ['实体编目', '/catalog/authors'],
+    ['学术关系图谱', '/academic-relations'], ['学术成果图谱', '/academic-achievements'], ['学术背景图谱', '/academic-background'],
     ['统计分析', '/analytics'], ['作者导入', '/author-import'], ['日志管理', '/logs'], ['账号管理', '/users'],
   ]) {
-    await page.getByRole('navigation', { name: '大屏模块导航' }).getByRole('link', { name, exact: true }).click()
+    await page.getByRole('navigation', { name: '模块导航', exact: true }).getByRole('link', { name, exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`${path}$`))
     await expect(page.getByRole('navigation', { name: '模块导航', exact: true }).getByRole('link', { name, exact: true })).toHaveAttribute('aria-current', 'page')
     await page.getByRole('navigation', { name: '模块导航', exact: true }).getByRole('link', { name: '可视化大屏', exact: true }).click()
@@ -32,16 +33,18 @@ for (const role of ['RESEARCHER', 'DATA_OPERATOR'] as const) {
     page.on('request', request => requests.push(new URL(request.url()).pathname))
     await page.goto('/dashboard')
     await expect(page.locator('.dashboard-panel[aria-busy="true"]')).toHaveCount(0)
-    const navigation = page.getByRole('navigation', { name: '大屏模块导航' })
+    const navigation = page.getByRole('navigation', { name: '模块导航', exact: true })
     await expect(navigation.getByRole('link', { name: '账号管理' })).toHaveCount(0)
     await expect(navigation.getByRole('link', { name: '日志管理' })).toHaveCount(0)
     expect(requests.filter(path => path.endsWith('/operations/audits'))).toEqual([])
     if (role === 'RESEARCHER') {
       expect(requests.filter(path => path.startsWith('/api/v1/author-import'))).toEqual([])
-      await expect(navigation.getByRole('link')).toHaveCount(5)
+      await expect(navigation.getByRole('link')).toHaveCount(7)
+      await expect(navigation.getByRole('link')).toHaveText(['可视化大屏', '成果目录', '实体编目', '学术关系图谱', '学术成果图谱', '学术背景图谱', '统计分析'])
     } else {
       expect(requests.filter(path => path.startsWith('/api/v1/analytics'))).toEqual([])
       await expect(navigation.getByRole('link')).toHaveCount(4)
+      await expect(navigation.getByRole('link')).toHaveText(['可视化大屏', '成果目录', '实体编目', '作者导入'])
     }
     await expect(page.getByText('当前账号无此模块权限').first()).toBeVisible()
   })
@@ -80,7 +83,7 @@ test('首页局部刷新失败保留旧统计，同时显示错误原因', async
   await page.screenshot({ path: '../.local/research-redesign/dashboard-partial-error.png', animations: 'disabled' })
 })
 
-test('保存全系统深蓝主题的浏览器预览证据', async ({ page }) => {
+test('保存全系统浅色主题的浏览器预览证据', async ({ page }) => {
   test.setTimeout(90_000)
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
@@ -117,7 +120,7 @@ test('保存全系统深蓝主题的浏览器预览证据', async ({ page }) => 
   } }))
   for (const [path, name] of [
     ['/dashboard', 'dashboard'], ['/catalog', 'catalog'], ['/catalog/achievements/42', 'achievement-detail'], ['/catalog/authors', 'entities'],
-    ['/graph', 'graph'], ['/analytics', 'analytics'], ['/author-import', 'author-import'], ['/users', 'users'], ['/logs', 'logs'],
+    ['/graph/overview', 'graph'], ['/analytics', 'analytics'], ['/author-import', 'author-import'], ['/users', 'users'], ['/logs', 'logs'],
   ]) {
     await page.goto(path!)
     await expect(page.locator('#main-content').getByRole('heading', { level: 1 })).toBeVisible()
@@ -128,8 +131,27 @@ test('保存全系统深蓝主题的浏览器预览证据', async ({ page }) => 
       await expect(page.locator('.dashboard-task-list li').last()).toBeInViewport({ ratio: 1 })
     }
     if (name === 'analytics') {
-      await expect(page.locator('.analytics-content--summary > .panel-section .panel-section__title')).toHaveText(['年度成果趋势', '成果类型分布', '字段覆盖摘要', '作者合作排行'])
+      for (const title of ['年度成果趋势', '成果类型分布', '字段覆盖摘要', '作者合作排行']) {
+        await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+      }
+      await expect(page.getByRole('img', { name: '年度成果趋势折线图', exact: true })).toBeVisible()
       await expect(page.getByRole('img', { name: '统计成果类型分布环形图' })).toBeVisible()
+      const categories = page.getByRole('navigation', { name: '统计分类', exact: true })
+      await categories.getByRole('link', { name: '类型与来源', exact: true }).click()
+      await expect(page).toHaveURL(/\/analytics\/distributions$/)
+      await expect(page.getByRole('img', { name: '成果类型分布条形图', exact: true })).toBeVisible()
+      await expect(page.getByRole('img', { name: '数据来源分布条形图', exact: true })).toBeVisible()
+      await page.screenshot({ path: '../.local/research-redesign/analytics-distributions-1920.png', animations: 'disabled' })
+      await categories.getByRole('link', { name: '字段覆盖', exact: true }).click()
+      await expect(page).toHaveURL(/\/analytics\/coverage$/)
+      await expect(page.getByRole('heading', { name: '本地字段覆盖率', exact: true })).toBeVisible()
+      await expect(page.locator('.coverage-list__row')).toHaveCount(6)
+      await expect(page.locator('.coverage-list__row').filter({ hasText: 'DOI覆盖率' })).toContainText('1028 / 1286')
+      await page.screenshot({ path: '../.local/research-redesign/analytics-coverage-1920.png', animations: 'disabled' })
+      await categories.getByRole('link', { name: '发表趋势', exact: true }).click()
+      await expect(page).toHaveURL(/\/analytics$/)
+      await expect(page.getByRole('img', { name: '年度成果趋势折线图', exact: true })).toBeVisible()
+      await expect(page.locator('#main-content [aria-busy="true"]')).toHaveCount(0)
     }
     if (name === 'graph') await expect(page.getByRole('img', { name: '知识图谱，共7个节点和9条关系' })).toBeVisible()
     await page.screenshot({ path: `../.local/research-redesign/${name}-1920.png`, animations: 'disabled' })

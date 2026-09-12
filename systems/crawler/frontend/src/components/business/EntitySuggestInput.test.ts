@@ -15,7 +15,7 @@ it('输入变化立即作废旧候选，卸载取消尚未发起的防抖查询'
   await wrapper.get('input').setValue('旧名称')
   await vi.advanceTimersByTimeAsync(250)
   await wrapper.get('input').setValue('新名称')
-  release({ items: [{ id: 1, displayName: '旧候选', externalId: null, entityType: 'AUTHOR', achievementCount: 1 }], page: 0, size: 8, totalElements: 1, totalPages: 1 })
+  release({ items: [{ id: 1, displayName: '旧候选', externalId: null, entityType: 'AUTHOR', achievementCount: 1, advisors: [] }], page: 0, size: 8, totalElements: 1, totalPages: 1 })
   await flushPromises()
   expect(wrapper.text()).not.toContain('旧候选')
   wrapper.unmount()

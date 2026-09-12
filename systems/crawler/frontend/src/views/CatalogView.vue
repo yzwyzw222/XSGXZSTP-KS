@@ -266,11 +266,11 @@ useSessionCleanup(disposeExport)
 </template>
 
 <style scoped>
-.catalog-page { padding: 8px 14px; gap: 7px; }
+.catalog-page { padding: 8px 20px 16px; gap: 9px; }
 .catalog-toolbar, .catalog-actions, .catalog-heading { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .catalog-toolbar { justify-content: space-between; flex-wrap: wrap; }
-.catalog-heading h1 { font-size: 17px; font-weight: 650; white-space: nowrap; }
-.catalog-heading > span, .catalog-scope { font-size: 11px; color: hsl(var(--muted-foreground)); }
+.catalog-heading h1 { font-size: 24px; font-weight: 650; white-space: nowrap; }
+.catalog-heading > span, .catalog-scope { font-size: 13px; color: hsl(var(--muted-foreground)); }
 .catalog-actions { justify-content: flex-end; }
 .catalog-actions > .el-button + .el-button { margin-left: 0; }
 .catalog-workspace > .data-table { flex: 1; min-height: 0; }

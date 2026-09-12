@@ -80,10 +80,10 @@
 
   /* 圆角尺度 */
   --radius-xs: 0.25rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.25rem;
-  --radius-lg: 0.375rem;
-  --radius-xl: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
   --radius-2xl: 1.125rem;
   --radius-full: 9999px;
 
@@ -106,8 +106,8 @@
 
   /* 字号阶梯（独立命名空间，避免与 Tailwind --text-* 工具类冲突） */
   --font-size-2xs: 0.625rem;
-  --font-size-xs: 0.6875rem;
-  --font-size-sm: 0.75rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
   --font-size-base: 0.875rem;
   --font-size-md: 0.875rem;
   --font-size-lg: 1rem;
@@ -140,7 +140,7 @@
   --shadow-md: 0 4px 6px -1px rgb(8 23 43 / 0.12), 0 2px 4px -2px rgb(8 23 43 / 0.12);
   --shadow-lg: 0 10px 15px -3px rgb(8 23 43 / 0.16), 0 4px 6px -4px rgb(8 23 43 / 0.16);
   --shadow-xl: 0 20px 25px -5px rgb(8 23 43 / 0.2), 0 8px 10px -6px rgb(8 23 43 / 0.2);
-  --shadow-glow: 0 0 20px rgb(45 157 245 / 0.25);
+  --shadow-glow: none;
 
   /* 动效 */
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
@@ -163,110 +163,110 @@
   --z-overlay: 2000;
 }
 
-/* ---------- Semantic 层：深色主题 ---------- */
+/* ---------- Semantic 层：浅色学术主题 ---------- */
 :root,
-[data-theme='dark'] {
+[data-theme='light'] {
   /* 指标分类的衬底与前景色。 */
-  --metric-blue-bg: 202.400 82.418% 17.843%;
-  --metric-blue-fg: 191.294 100.000% 50.000%;
-  --metric-green-bg: 169.412 40.476% 16.471%;
-  --metric-green-fg: 160.571 56.150% 63.333%;
-  --metric-amber-bg: 33.750 31.373% 20.000%;
-  --metric-amber-fg: 36.585 83.673% 71.176%;
-  --metric-rose-bg: 320.769 23.636% 21.569%;
-  --metric-rose-fg: 337.500 68.966% 77.255%;
-  --metric-cyan-bg: 192.203 80.822% 14.314%;
-  --metric-cyan-fg: 190.909 100.000% 69.804%;
-  --metric-violet-bg: 259.286 24.138% 22.745%;
-  --metric-violet-fg: 263.636 71.739% 81.961%;
+  --metric-blue-bg: 211 100% 95%;
+  --metric-blue-fg: 214 85% 44%;
+  --metric-green-bg: 162 58% 94%;
+  --metric-green-fg: 163 85% 30%;
+  --metric-amber-bg: 36 100% 95%;
+  --metric-amber-fg: 30 92% 36%;
+  --metric-rose-bg: 350 85% 96%;
+  --metric-rose-fg: 351 72% 43%;
+  --metric-cyan-bg: 185 65% 94%;
+  --metric-cyan-fg: 187 85% 30%;
+  --metric-violet-bg: 258 100% 97%;
+  --metric-violet-fg: 259 70% 49%;
 
-  color-scheme: dark;
+  color-scheme: light;
 
-  --background: 222.000 88.235% 6.667%;
-  --foreground: 211.111 100.000% 94.706%;
+  --background: 213 60% 97%;
+  --foreground: 220 57% 19%;
 
-  --card: 214.800 80.645% 12.157%;
-  --card-foreground: 211.111 100.000% 94.706%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 57% 19%;
 
-  --popover: 212.069 76.316% 14.902%;
-  --popover-foreground: 211.111 100.000% 94.706%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 57% 19%;
 
-  --primary: 191.294 100.000% 50.000%;
-  --primary-foreground: 211.500 90.909% 8.627%;
-  --primary-hover: 190.909 100.000% 69.804%;
-  --primary-active: 192.442 100.000% 42.549%;
+  --primary: 214 90% 46%;
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: 214 90% 42%;
+  --primary-active: 214 90% 37%;
 
-  --secondary: 211.304 75.824% 17.843%;
-  --secondary-foreground: 209.455 100.000% 89.216%;
+  --secondary: 213 85% 96%;
+  --secondary-foreground: 220 46% 29%;
 
-  --muted: 213.214 73.684% 14.902%;
-  --muted-foreground: 211.154 39.394% 74.118%;
+  --muted: 213 60% 96%;
+  --muted-foreground: 218 24% 43%;
 
-  --accent: 205.618 84.762% 20.588%;
-  --accent-foreground: 190.588 100.000% 70.000%;
+  --accent: 212 100% 95%;
+  --accent-foreground: 214 90% 40%;
 
-  --destructive: var(--color-rose-400);
-  --destructive-foreground: var(--color-slate-950);
+  --destructive: 352 76% 43%;
+  --destructive-foreground: 0 0% 100%;
 
-  --success: var(--color-emerald-400);
-  --success-foreground: var(--color-slate-950);
-  --success-subtle: 160 45% 15%;
+  --success: 162 84% 29%;
+  --success-foreground: 0 0% 100%;
+  --success-subtle: 159 65% 94%;
 
-  --warning: var(--color-amber-400);
-  --warning-foreground: var(--color-slate-950);
-  --warning-subtle: 38 45% 16%;
+  --warning: 31 90% 34%;
+  --warning-foreground: 0 0% 100%;
+  --warning-subtle: 36 100% 95%;
 
-  --info: var(--color-cyan-400);
-  --info-foreground: var(--color-slate-950);
+  --info: 214 80% 43%;
+  --info-foreground: 0 0% 100%;
 
-  --border: 206.374 67.407% 26.471%;
-  --border-strong: 197.358 79.899% 39.020%;
-  --input: 206.327 64.474% 29.804%;
-  --input-background: 214.884 84.314% 10.000%;
+  --border: 214 58% 89%;
+  --border-strong: 215 45% 74%;
+  --input: 215 40% 78%;
+  --input-background: 0 0% 100%;
   --ring: var(--primary);
 
-  --sidebar: 214.800 80.645% 12.157%;
-  --sidebar-foreground: 209.362 50.538% 81.765%;
-  --sidebar-accent: 205.618 84.762% 20.588%;
-  --sidebar-accent-foreground: 190.588 100.000% 70.000%;
-  --sidebar-border: 206.374 67.407% 26.471%;
-  --sidebar-active: 191.294 100.000% 50.000%;
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 220 46% 29%;
+  --sidebar-accent: 212 100% 95%;
+  --sidebar-accent-foreground: 214 90% 40%;
+  --sidebar-border: 214 58% 89%;
+  --sidebar-active: 214 90% 46%;
 
-  --overlay: 222 47% 3% / 0.65;
+  --overlay: 220 40% 18% / 0.32;
 
-  /* 图表色板（深色下提高亮度） */
-  --chart-1: 191.294 100.000% 50.000%;
-  --chart-2: 165.176 75.893% 56.078%;
-  --chart-3: 39.273 100.000% 67.647%;
-  --chart-4: 350.732 100.000% 75.882%;
-  --chart-5: 250.693 100.000% 80.196%;
-  --chart-6: 215.258 100.000% 61.961%;
-  --chart-grid: 210.811 62.712% 23.137%;
-  --chart-axis: 211.154 39.394% 74.118%;
-  --chart-tooltip-bg: 212.069 76.316% 14.902%;
-  --chart-tooltip-border: 197.358 79.899% 39.020%;
-  --chart-tooltip-fg: 211.111 100.000% 94.706%;
+  /* 图表色板（白色画布上保持分类和文字可读） */
+  --chart-1: 214 90% 50%;
+  --chart-2: 163 75% 36%;
+  --chart-3: 29 94% 48%;
+  --chart-4: 261 76% 60%;
+  --chart-5: 186 75% 38%;
+  --chart-6: 347 72% 54%;
+  --chart-grid: 214 45% 91%;
+  --chart-axis: 218 24% 43%;
+  --chart-tooltip-bg: 0 0% 100%;
+  --chart-tooltip-border: 214 58% 84%;
+  --chart-tooltip-fg: 220 57% 19%;
 
   /* 知识图谱节点色 */
-  --graph-achievement: 191.294 100.000% 50.000%;
-  --graph-author: var(--color-cyan-300);
-  --graph-institution: var(--color-amber-300);
-  --graph-venue: var(--color-violet-300);
-  --graph-topic: var(--color-emerald-300);
-  --graph-edge: 203.306 54.751% 43.333%;
-  --graph-canvas: 216.585 87.234% 9.216%;
+  --graph-achievement: 163 75% 36%;
+  --graph-author: 214 90% 50%;
+  --graph-institution: 29 94% 48%;
+  --graph-venue: 261 76% 60%;
+  --graph-topic: 186 75% 38%;
+  --graph-edge: 213 55% 67%;
+  --graph-canvas: 0 0% 100%;
 
   /* 表格 */
-  --table-header-bg: 212.113 79.775% 17.451%;
-  --table-header-fg: 208.846 81.250% 87.451%;
-  --table-row-hover: 202.400 82.418% 17.843%;
-  --table-border: 205.588 65.385% 20.392%;
+  --table-header-bg: 213 70% 97%;
+  --table-header-fg: 220 38% 34%;
+  --table-row-hover: 212 100% 96%;
+  --table-border: 214 54% 92%;
 
   /* 状态点 */
-  --status-running: var(--color-emerald-400);
+  --status-running: 162 84% 29%;
   --status-idle: var(--color-slate-500);
-  --status-warning: var(--color-amber-400);
-  --status-error: var(--color-rose-400);
+  --status-warning: 31 90% 34%;
+  --status-error: 352 76% 43%;
 }
 
 /* ---------- Component 层：组件级 Token ---------- */

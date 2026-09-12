@@ -12,7 +12,6 @@ import {
   type LucideIcon,
 } from 'lucide-vue-next'
 
-import { integrated } from '@/services/portal-auth'
 import type { Permission } from '@/types/api'
 
 export interface NavItem {
@@ -70,7 +69,7 @@ const allNavItems: NavItem[] = [
   { group: 'status', label: '账号管理', caption: 'Accounts', to: '/users', icon: Users, permission: 'USER_LIST', keywords: ['user', 'account', 'role', '用户管理'] },
 ]
 
-export const navItems = integrated ? allNavItems.filter(item => item.to !== '/logs' && item.to !== '/users') : allNavItems
+export const navItems = allNavItems
 
 /** 优先匹配更具体的模块路径，避免实体编目被成果目录前缀覆盖。 */
 export function activeNavigation(path: string, items: readonly NavItem[] = navItems): NavItem | undefined {

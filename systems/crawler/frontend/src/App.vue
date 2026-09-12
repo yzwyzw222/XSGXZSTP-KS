@@ -6,7 +6,6 @@ import { watch } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 
 import { useSessionStore } from '@/stores/session'
-import { integrated, redirectToPortal } from '@/services/portal-auth'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
@@ -14,7 +13,6 @@ const { expired } = storeToRefs(sessionStore)
 
 // 业务请求返回 401 时由请求层置位 expired，这里统一跳转到会话过期页。
 watch(expired, (value) => {
-  if (value && integrated) { redirectToPortal(); return }
   if (value && router.currentRoute.value.name !== 'session-expired') {
     void router.replace({ name: 'session-expired' })
   }
