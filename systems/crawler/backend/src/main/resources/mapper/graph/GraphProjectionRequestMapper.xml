@@ -37,9 +37,11 @@
                 </foreach>
             </when>
             <when test="entityType == 'AUTHOR'">
-                SELECT DISTINCT achievement_id
-                FROM achievement_author
-                WHERE author_id IN
+                SELECT DISTINCT r.achievement_id FROM (
+                    SELECT achievement_id, author_id FROM achievement_author
+                    UNION SELECT achievement_id, advisor_id AS author_id FROM achievement_advisor
+                ) r LEFT JOIN canonical_entity_link c ON c.entity_type = 'AUTHOR' AND c.entity_id = r.author_id
+                WHERE COALESCE(c.canonical_entity_id, r.author_id) IN
                 <foreach collection="entityIds" item="id" open="(" separator="," close=")">
                     #{id}
                 </foreach>

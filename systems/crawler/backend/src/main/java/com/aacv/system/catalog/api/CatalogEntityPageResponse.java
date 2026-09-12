@@ -19,7 +19,8 @@ public record CatalogEntityPageResponse(
                                 item.externalId(),
                                 item.displayName(),
                                 item.entityType(),
-                                item.achievementCount()))
+                                item.achievementCount(),
+                                item.advisors()))
                         .toList(),
                 result.page(), result.size(), result.totalElements(), result.totalPages());
     }
@@ -29,6 +30,7 @@ public record CatalogEntityPageResponse(
             String externalId,
             String displayName,
             String entityType,
-            long achievementCount) {
+            long achievementCount,
+            List<String> advisors) {
     }
 }

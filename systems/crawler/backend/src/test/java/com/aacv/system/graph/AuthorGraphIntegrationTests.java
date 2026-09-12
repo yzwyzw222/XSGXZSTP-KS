@@ -14,6 +14,7 @@ import com.aacv.system.graph.domain.GraphNodeType;
 import com.aacv.system.graph.domain.GraphView;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -125,6 +126,73 @@ class AuthorGraphIntegrationTests {
     }
 
     @Test @WithMockUser(authorities = "GRAPH_READ")
+    void workInstitutionsUseOnlyManagedRelationshipsForTheSameWork() throws Exception {
+        neo4j.query("""
+                MATCH (root:Author {businessId: 1}), (partner:Author {businessId: 2}),
+                      (student:Author {businessId: 4}), (paper:Achievement {businessId: 11}),
+                      (solo:Achievement {businessId: 12}), (master:Achievement {businessId: 14})
+                CREATE (first:Institution {businessId: 101, name: '第一篇成果机构', aacvManaged: true})
+                CREATE (second:Institution {businessId: 102, name: '第二篇成果机构', aacvManaged: true})
+                CREATE (byline:Institution {businessId: 103, name: '第一篇署名机构', aacvManaged: true})
+                CREATE (unknown:Institution {businessId: 104, aacvManaged: true})
+                CREATE (old:Institution {businessId: 105, name: '其他成果机构', aacvManaged: true})
+                CREATE (foreign:Institution {businessId: 106, name: '无关作者机构', aacvManaged: true})
+                CREATE (external:Institution {businessId: 107, name: '非托管机构', aacvManaged: false})
+                CREATE (untrusted:Institution {businessId: 108, name: '非托管关系机构', aacvManaged: true})
+                CREATE (paper)-[:PRODUCED_AT {aacvManaged: true, achievementBusinessId: 11}]->(first)
+                CREATE (solo)-[:PRODUCED_AT {aacvManaged: true, achievementBusinessId: 12}]->(second)
+                CREATE (master)-[:PRODUCED_AT {aacvManaged: true, achievementBusinessId: 14}]->(unknown)
+                CREATE (root)-[:AFFILIATED_WITH {aacvManaged: true, achievementBusinessId: 11}]->(byline)
+                CREATE (partner)-[:AFFILIATED_WITH {aacvManaged: true, achievementBusinessId: 11}]->(first)
+                CREATE (root)-[:AFFILIATED_WITH {aacvManaged: true, achievementBusinessId: 99}]->(old)
+                CREATE (student)-[:AFFILIATED_WITH {aacvManaged: true, achievementBusinessId: 11}]->(foreign)
+                CREATE (paper)-[:PRODUCED_AT {aacvManaged: true}]->(external)
+                CREATE (root)-[:AFFILIATED_WITH {aacvManaged: true, achievementBusinessId: 11}]->(external)
+                CREATE (paper)-[:PRODUCED_AT {aacvManaged: false}]->(untrusted)
+                CREATE (root)-[:AFFILIATED_WITH {aacvManaged: false, achievementBusinessId: 11}]->(untrusted)
+                """).run();
+        var result = queries.authorGraph(1, null, false, true, 0, 20);
+        assertEquals(List.of(Map.of("id", "101", "name", "第一篇成果机构"), Map.of("id", "103", "name", "第一篇署名机构")),
+                workProperties(result, "11").get("institutions"));
+        assertEquals(List.of(Map.of("id", "102", "name", "第二篇成果机构")), workProperties(result, "12").get("institutions"));
+        assertEquals(List.of(Map.of("id", "104", "name", "")), workProperties(result, "14").get("institutions"));
+        assertEquals(List.of(), workProperties(result, "15").get("institutions"));
+        assertEquals(false, workProperties(result, "11").get("institutionsTruncated"));
+        assertEquals(List.of("11", "12", "14", "13", "15"), workIds(result));
+        assertEquals(6, result.graph().nodes().size());
+        assertFalse(result.graph().truncated());
+        mvc.perform(get("/api/v1/graph/authors/1").param("chronological", "true").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.graph.nodes[1].properties.publicationDate").value("2020-01-01"))
+                .andExpect(jsonPath("$.graph.nodes[1].properties.institutions", hasSize(2)))
+                .andExpect(jsonPath("$.graph.nodes[1].properties.institutions[0].name").value("第一篇成果机构"))
+                .andExpect(jsonPath("$.graph.nodes[1].properties.institutionsTruncated").value(false));
+    }
+
+    @Test @WithMockUser(authorities = "GRAPH_READ")
+    void institutionLimitDoesNotConsumeGraphNodesOrChangeWorkPagination() {
+        neo4j.query("""
+                MATCH (work:Achievement {businessId: 11})
+                UNWIND range(1000, 1104) AS id
+                CREATE (institution:Institution {businessId: id, name: '合作机构', aacvManaged: true})
+                CREATE (work)-[:PRODUCED_AT {aacvManaged: true}]->(institution)
+                """).run();
+        var first = queries.authorGraph(1, WorkCategory.PAPER, false, true, 0, 1);
+        var institutions = (List<?>) workProperties(first, "11").get("institutions");
+        assertEquals(100, institutions.size());
+        assertEquals(Map.of("id", "1000", "name", "合作机构"), institutions.getFirst());
+        assertEquals(Map.of("id", "1099", "name", "合作机构"), institutions.getLast());
+        assertEquals(true, workProperties(first, "11").get("institutionsTruncated"));
+        assertEquals(2, first.totalWorks());
+        assertEquals(2, first.graph().nodes().size());
+        assertFalse(first.graph().truncated());
+        var second = queries.authorGraph(1, WorkCategory.PAPER, false, true, 1, 1);
+        assertEquals(List.of("12"), workIds(second));
+        assertEquals(List.of(), workProperties(second, "12").get("institutions"));
+        assertEquals(false, workProperties(second, "12").get("institutionsTruncated"));
+    }
+
+    @Test @WithMockUser(authorities = "GRAPH_READ")
     void authorsWithMoreThan300WorksCanVisitEveryPageWithoutDroppingWorks() {
         neo4j.query("""
                 MATCH (root:Author {businessId: 1})
@@ -189,5 +257,10 @@ class AuthorGraphIntegrationTests {
     private static List<String> workIds(AuthorGraphView result) {
         return result.graph().nodes().stream().filter(node -> node.type() == GraphNodeType.ACHIEVEMENT)
                 .map(GraphView.Node::businessId).toList();
+    }
+
+    private static Map<String, Object> workProperties(AuthorGraphView result, String workId) {
+        return result.graph().nodes().stream().filter(node -> node.type() == GraphNodeType.ACHIEVEMENT && node.businessId().equals(workId))
+                .findFirst().orElseThrow().properties();
     }
 }

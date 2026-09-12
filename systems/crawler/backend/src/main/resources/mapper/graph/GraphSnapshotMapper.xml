@@ -114,7 +114,12 @@
     </select>
     <select id="findAbstract" resultType="string">SELECT abstract_text FROM paper_detail WHERE achievement_id = #{achievementId}</select>
     <select id="findAdvisors" resultType="com.aacv.system.graph.domain.GraphAchievementSnapshot$Author">
-        SELECT a.id, a.display_name AS name, NULL AS orcid FROM achievement_advisor r JOIN author a ON a.id = r.advisor_id WHERE r.achievement_id = #{achievementId} ORDER BY a.id
+        SELECT DISTINCT a.id, a.display_name AS name, e.external_id AS orcid
+        FROM achievement_advisor r
+        LEFT JOIN canonical_entity_link c ON c.entity_type = 'AUTHOR' AND c.entity_id = r.advisor_id
+        JOIN author a ON a.id = COALESCE(c.canonical_entity_id, r.advisor_id)
+        LEFT JOIN author_external_id e ON e.author_id = a.id AND e.id_type = 'ORCID'
+        WHERE r.achievement_id = #{achievementId} ORDER BY a.id
     </select>
     <select id="findInstitutions" resultType="com.aacv.system.graph.domain.GraphAchievementSnapshot$Institution">
         SELECT o.id, o.display_name AS name FROM achievement_institution r JOIN organization o ON o.id = r.organization_id WHERE r.achievement_id = #{achievementId} ORDER BY o.id

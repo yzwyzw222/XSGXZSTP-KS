@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.aacv.system.authorimport.application.AuthorImportService;
 import com.aacv.system.authorimport.application.ScholarImportParser;
 import com.aacv.system.authorimport.domain.ImportOptions;
 import com.aacv.system.authorimport.domain.ImportSummary;
+import com.aacv.system.authororcid.infrastructure.OrcidQuartzJob;
 import com.aacv.system.catalog.application.CatalogService;
 import com.aacv.system.catalog.domain.CatalogQuery;
 import com.aacv.system.graph.application.GraphOutboxProcessor;
@@ -24,17 +26,29 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.quartz.JobBuilder;
+import org.quartz.JobKey;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
+import org.quartz.impl.matchers.GroupMatcher;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.JdbcTransactionManager;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.concurrent.DelegatingSecurityContextCallable;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import org.testcontainers.junit.jupiter.Container;
@@ -65,6 +79,8 @@ class AuthorImportIntegrationTests {
     @Autowired com.aacv.system.graph.infrastructure.neo4j.Neo4jProjectionInspector inspector;
     @Autowired org.springframework.data.neo4j.core.Neo4jClient neo4j;
     @Autowired com.aacv.system.analytics.application.AnalyticsService analytics;
+    @Autowired Scheduler scheduler;
+    @Autowired JdbcTransactionManager transactionManager;
 
     @BeforeEach
     void useSecurityTestContext() {
@@ -74,6 +90,7 @@ class AuthorImportIntegrationTests {
     @Test
     @WithMockUser(authorities = {"AUTHOR_IMPORT", "CATALOG_READ", "GRAPH_READ", "ANALYTICS_READ"})
     void importsPapersPatentsAndBothDegreesThroughMysqlOutboxAndNeo4j() {
+        long initialOrcidTasks = count("SELECT COUNT(*) FROM author_orcid_task");
         var options = new ImportOptions("图谱学者", "图谱测试大学", null, 0, 1, "AUTHOR", Map.of());
         String authored = "SrcDatabase-来源库,Title-题名,Author-作者,Organ-单位,Keyword-关键词,Summary-摘要,Year-年\n"
                 + "期刊,图谱测试论文,图谱学者;合作作者,图谱测试大学,知识图谱,论文摘要保留,2025\n"
@@ -86,8 +103,11 @@ class AuthorImportIntegrationTests {
                 new ImportOptions("图谱学者", "图谱测试大学", first.authorId(), 0, 1, "DOCTOR_SUPERVISION", Map.of()));
         assertEquals(first.authorId(), master.authorId()); assertEquals(first.authorId(), doctor.authorId());
         long events = count("SELECT COUNT(*) FROM graph_outbox_event");
+        long orcidTasks = count("SELECT COUNT(*) FROM author_orcid_task");
+        assertEquals(initialOrcidTasks, orcidTasks);
         assertEquals(first.id(), save(authored, options).id());
         assertEquals(events, count("SELECT COUNT(*) FROM graph_outbox_event"));
+        assertEquals(orcidTasks, count("SELECT COUNT(*) FROM author_orcid_task"));
         var duplicate = save(authored + "\n", options);
         assertEquals(0, duplicate.importedCount()); assertEquals(2, duplicate.skippedCount());
         assertTrue(outbox.processBatch() >= 4);
@@ -119,11 +139,68 @@ class AuthorImportIntegrationTests {
 
     @Test
     @WithMockUser(authorities = "AUTHOR_IMPORT")
+    void retiresPersistedOrcidSchedulesWithoutDeletingIdentifiersOrHistory() throws Exception {
+        long before = count("SELECT COUNT(*) FROM author_orcid_task");
+        var imported = save("Title-题名,Author-作者\n停用查询验证论文,停用查询验证作者",
+                new ImportOptions("停用查询验证作者", "", null, 0, 1, "AUTHOR", Map.of()));
+        assertEquals(before, count("SELECT COUNT(*) FROM author_orcid_task"));
+        jdbc.update("INSERT INTO author_external_id(author_id, id_type, external_id) VALUES (?, 'ORCID', ?)",
+                imported.authorId(), "0000-0002-1825-0097");
+        jdbc.update("INSERT INTO author_orcid_task(author_id, candidates) VALUES (?, JSON_ARRAY())", imported.authorId());
+        var history = jdbc.queryForMap("SELECT * FROM author_orcid_task WHERE author_id = ?", imported.authorId());
+        var identifiers = jdbc.queryForList("SELECT * FROM author_external_id WHERE author_id = ?", imported.authorId());
+        var previousJobs = scheduler.getJobKeys(GroupMatcher.anyJobGroup());
+        var key = new JobKey("author-orcid", "aacv-author-orcid");
+        var triggerKey = new TriggerKey(key.getName(), key.getGroup());
+        var cleanup = context.getBean("orcidQuartzCleanup", ApplicationRunner.class);
+
+        for (boolean missingDetail : List.of(false, true)) {
+            new TransactionTemplate(transactionManager).executeWithoutResult(transaction -> {
+                try {
+                    var job = JobBuilder.newJob(OrcidQuartzJob.class).withIdentity(key).storeDurably().build();
+                    var trigger = TriggerBuilder.newTrigger().withIdentity(triggerKey).forJob(job)
+                            .withSchedule(SimpleScheduleBuilder.simpleSchedule().withIntervalInSeconds(5).repeatForever()).build();
+                    scheduler.scheduleJob(job, trigger);
+                } catch (SchedulerException exception) {
+                    throw new IllegalStateException(exception);
+                }
+            });
+            if (missingDetail) {
+                // 模拟旧启动日志中的主触发器存在、SIMPLE 明细缺失。
+                jdbc.update("DELETE FROM QRTZ_SIMPLE_TRIGGERS WHERE SCHED_NAME = ? AND TRIGGER_NAME = ? AND TRIGGER_GROUP = ?",
+                        scheduler.getSchedulerName(), triggerKey.getName(), triggerKey.getGroup());
+            }
+            cleanup.run(new DefaultApplicationArguments());
+            cleanup.run(new DefaultApplicationArguments());
+            assertFalse(scheduler.checkExists(key));
+            assertFalse(scheduler.checkExists(triggerKey));
+            assertEquals(previousJobs, scheduler.getJobKeys(GroupMatcher.anyJobGroup()));
+            assertEquals(history, jdbc.queryForMap("SELECT * FROM author_orcid_task WHERE author_id = ?", imported.authorId()));
+            assertEquals(identifiers, jdbc.queryForList("SELECT * FROM author_external_id WHERE author_id = ?", imported.authorId()));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = "AUTHOR_IMPORT")
+    void removedOrcidEndpointsCannotQueryOrEnqueueWork() throws Exception {
+        for (String path : List.of("", "/overview")) {
+            mvc.perform(get("/api/v1/author-orcids" + path)).andExpect(status().isNotFound());
+        }
+        for (String path : List.of("/backfill", "/apply", "/1/retry", "/1/confirm")) {
+            mvc.perform(post("/api/v1/author-orcids" + path).with(csrf())
+                    .contentType("application/json").content("{}"))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = "AUTHOR_IMPORT")
     void laterIdentityConflictRollsBackEarlierRowsBatchAndOutbox() {
         var original = new ImportOptions("既有作者", "回滚大学", null, 0, 1, "AUTHOR", Map.of());
         save("Title-题名,Author-作者,DOI-DOI\n已有论文,既有作者,10.1234/rollback", original);
         long before = count("SELECT COUNT(*) FROM author_import_batch");
         long events = count("SELECT COUNT(*) FROM graph_outbox_event");
+        long orcidTasks = count("SELECT COUNT(*) FROM author_orcid_task");
         var options = new ImportOptions("回滚学者", "回滚大学", null, 0, 1, "AUTHOR", Map.of());
         String text = "Title-题名,Author-作者,DOI-DOI\n必须回滚的新论文,回滚学者,\n已有论文,回滚学者,10.1234/rollback";
         assertThrows(ResourceConflictException.class, () -> save(text, options));
@@ -131,6 +208,7 @@ class AuthorImportIntegrationTests {
         assertEquals(0, count("SELECT COUNT(*) FROM author WHERE display_name = '回滚学者'"));
         assertEquals(before, count("SELECT COUNT(*) FROM author_import_batch"));
         assertEquals(events, count("SELECT COUNT(*) FROM graph_outbox_event"));
+        assertEquals(orcidTasks, count("SELECT COUNT(*) FROM author_orcid_task"));
     }
 
     @Test

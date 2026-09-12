@@ -21,7 +21,6 @@ import org.springframework.stereotype.Component;
 public class SourceWorkNormalizer {
 
     private static final Pattern DOI_PATTERN = Pattern.compile("^10\\.\\d{4,9}/\\S+$");
-    private static final Pattern ORCID_PATTERN = Pattern.compile("^\\d{4}-\\d{4}-\\d{4}-[\\dX]{4}$");
     private static final Pattern ISSN_PATTERN = Pattern.compile("^\\d{4}-[\\dX]{4}$");
 
     public NormalizedWork normalize(SourceWork source) {
@@ -107,29 +106,7 @@ public class SourceWorkNormalizer {
     }
 
     String normalizeOrcid(String value) {
-        String normalized = normalizeText(value, 64, "ORCID");
-        if (normalized == null) {
-            return null;
-        }
-        normalized = normalized.toUpperCase(Locale.ROOT)
-                .replace("HTTPS://ORCID.ORG/", "")
-                .replace("HTTP://ORCID.ORG/", "");
-        if (!ORCID_PATTERN.matcher(normalized).matches() || !validOrcidChecksum(normalized)) {
-            return null;
-        }
-        return normalized;
-    }
-
-    private boolean validOrcidChecksum(String orcid) {
-        String compact = orcid.replace("-", "");
-        int total = 0;
-        for (int index = 0; index < 15; index++) {
-            total = (total + Character.digit(compact.charAt(index), 10)) * 2;
-        }
-        int remainder = total % 11;
-        int result = (12 - remainder) % 11;
-        char expected = result == 10 ? 'X' : Character.forDigit(result, 10);
-        return compact.charAt(15) == expected;
+        return com.aacv.system.shared.domain.OrcidId.normalize(normalizeText(value, 64, "ORCID"));
     }
 
     private boolean validIssnChecksum(String issn) {

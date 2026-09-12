@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 public class GraphQueryService {
 
     private static final int HARD_NODE_LIMIT = 300;
+    private static final int WORK_INSTITUTION_LIMIT = 100;
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(3);
     private static final Set<String> NODE_PROPERTIES = Set.of(
             "title", "achievementType", "language", "publicationDate", "doi", "abstractText",
@@ -166,8 +167,10 @@ public class GraphQueryService {
         parameters.put("categoryTypes", category == null ? List.of() : category.achievementTypes());
         parameters.put("offset", (long) page * size);
         parameters.put("size", size);
+        parameters.put("institutionLimit", WORK_INSTITUTION_LIMIT + 1);
         String workMatch = match;
         String direction = chronological ? "ASC" : "DESC";
+        String workOrder = "work.publicationDate IS NULL, work.publicationDate " + direction + ", work.businessId ASC";
         try (var session = driver.session()) {
             return session.executeRead(transaction -> {
                 var roots = transaction.run("MATCH (root:Author {businessId: $authorId, aacvManaged: true}) RETURN root",
@@ -176,17 +179,41 @@ public class GraphQueryService {
                 Node root = node(roots.getFirst().get("root").asNode());
                 long total = transaction.run(workMatch + " RETURN count(DISTINCT work) AS total", parameters)
                         .single().get("total").asLong();
-                List<Record> works = transaction.run(workMatch + """
-                         WITH DISTINCT work
-                         RETURN work ORDER BY work.publicationDate IS NULL, work.publicationDate
-                        """ + direction + ", work.businessId ASC SKIP $offset LIMIT $size", parameters).list();
+                // 先分页再读取逐篇机构，署名机构必须由同一成果的关系证明，不能沿作者履历推断。
+                List<Record> works = transaction.run(workMatch + " WITH DISTINCT work ORDER BY " + workOrder
+                        + " SKIP $offset LIMIT $size " + """
+                        CALL {
+                          WITH work
+                          CALL {
+                            WITH work
+                            MATCH (work)-[link:PRODUCED_AT]->(institution:Institution)
+                            WHERE link.aacvManaged = true AND institution.aacvManaged = true
+                            RETURN institution
+                            UNION
+                            WITH work
+                            MATCH (author:Author)-[authorship:AUTHORED|SUPERVISED]->(work),
+                                  (author)-[link:AFFILIATED_WITH]->(institution:Institution)
+                            WHERE author.aacvManaged = true AND authorship.aacvManaged = true
+                              AND link.aacvManaged = true AND institution.aacvManaged = true
+                              AND link.achievementBusinessId = work.businessId
+                            RETURN institution
+                          }
+                          WITH institution ORDER BY institution.businessId LIMIT $institutionLimit
+                          RETURN collect({id: toString(institution.businessId), name: coalesce(institution.name, '')}) AS institutions
+                        }
+                        RETURN work, institutions
+                        """ + " ORDER BY " + workOrder, parameters).list();
                 LinkedHashMap<String, Node> nodes = new LinkedHashMap<>();
                 LinkedHashMap<String, Edge> edges = new LinkedHashMap<>();
                 nodes.put(root.id(), root);
                 List<Long> workIds = new ArrayList<>();
                 for (Record record : works) {
                     Node work = node(record.get("work").asNode());
-                    nodes.put(work.id(), work);
+                    List<Object> institutions = record.get("institutions").asList();
+                    Map<String, Object> properties = new LinkedHashMap<>(work.properties());
+                    properties.put("institutions", List.copyOf(institutions.subList(0, Math.min(institutions.size(), WORK_INSTITUTION_LIMIT))));
+                    properties.put("institutionsTruncated", institutions.size() > WORK_INSTITUTION_LIMIT);
+                    nodes.put(work.id(), new Node(work.id(), work.businessId(), work.type(), work.label(), properties));
                     workIds.add(Long.valueOf(work.businessId()));
                 }
                 boolean truncated = false;

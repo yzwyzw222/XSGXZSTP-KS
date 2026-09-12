@@ -67,13 +67,30 @@ class CatalogWorkEntitiesIntegrationTests {
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(102))
                 .andExpect(jsonPath("$.items[0].displayName").value("编目作品1"))
+                .andExpect(jsonPath("$.items[0].advisors").value(org.hamcrest.Matchers.contains("导师甲", "导师乙")))
                 .andExpect(jsonPath("$.items[0].entityType").value("MASTER_THESIS"));
         mvc.perform(get("/api/v1/catalog/doctoral-theses")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(104))
+                .andExpect(jsonPath("$.items[0].advisors").value(org.hamcrest.Matchers.contains("导师甲")))
                 .andExpect(jsonPath("$.items[0].entityType").value("DOCTORAL_THESIS"));
         mvc.perform(get("/api/v1/catalog/authors")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2));
+    }
+
+    @Test @WithMockUser(authorities = "CATALOG_READ")
+    void deduplicatesCanonicalAdvisorsAcrossMergedWorksWithoutMixingAuthorship() throws Exception {
+        jdbc.update("INSERT INTO author (id, display_name) VALUES (3, '导师旧名'), (4, '论文署名作者')");
+        jdbc.update("INSERT INTO canonical_entity_link (entity_type, entity_id, canonical_entity_id) VALUES ('AUTHOR', 3, 1)");
+        jdbc.update("INSERT INTO achievement_advisor (achievement_id, advisor_id) VALUES (102, 1), (103, 3)");
+        jdbc.update("INSERT INTO achievement_author (achievement_id, author_id, author_position) VALUES (102, 4, 1)");
+        mvc.perform(get("/api/v1/catalog/master-theses").param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].advisors").value(org.hamcrest.Matchers.contains("导师甲", "导师乙")));
+        mvc.perform(get("/api/v1/catalog/master-theses").param("page", "1").param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(0));
+        mvc.perform(get("/api/v1/catalog/patents"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].advisors.length()").value(0));
     }
 
     @Test @WithMockUser(authorities = "CATALOG_READ")

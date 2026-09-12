@@ -76,6 +76,7 @@ class OpenApiDocumentTests {
         }
         Map<?, ?> importPost = (Map<?, ?>) ((Map<?, ?>) paths.get("/api/v1/author-import/confirm")).get("post");
         assertEquals("AUTHOR_IMPORT", importPost.get("x-required-permission"));
+        assertFalse(paths.keySet().stream().map(Object::toString).anyMatch(path -> path.startsWith("/api/v1/author-orcids")));
         Map<?, ?> analyticsOverview = (Map<?, ?>) paths.get("/api/v1/analytics/overview");
         Map<?, ?> analyticsGet = (Map<?, ?>) analyticsOverview.get("get");
         assertEquals("ANALYTICS_READ", analyticsGet.get("x-required-permission"));

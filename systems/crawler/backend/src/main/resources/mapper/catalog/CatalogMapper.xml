@@ -318,6 +318,24 @@
         ORDER BY achievement_id, position, subject_value.id
     </select>
 
+    <select id="findAchievementAdvisors"
+            resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
+        SELECT COALESCE(work_link.canonical_entity_id, advisor.achievement_id) AS achievement_id,
+               canonical_author.id AS entity_id, canonical_author.display_name
+        FROM achievement_advisor advisor
+        LEFT JOIN canonical_entity_link work_link
+               ON work_link.entity_type = 'ACHIEVEMENT' AND work_link.entity_id = advisor.achievement_id
+        LEFT JOIN canonical_entity_link author_link
+               ON author_link.entity_type = 'AUTHOR' AND author_link.entity_id = advisor.advisor_id
+        JOIN author canonical_author
+               ON canonical_author.id = COALESCE(author_link.canonical_entity_id, advisor.advisor_id)
+        WHERE COALESCE(work_link.canonical_entity_id, advisor.achievement_id) IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+        GROUP BY COALESCE(work_link.canonical_entity_id, advisor.achievement_id),
+                 canonical_author.id, canonical_author.display_name
+        ORDER BY achievement_id, canonical_author.id
+    </select>
+
     <select id="findAuthorshipOrganizations"
             resultType="com.aacv.system.catalog.infrastructure.persistence.CatalogRow">
         SELECT COALESCE(member_link.canonical_entity_id, ao.achievement_id) AS achievement_id,

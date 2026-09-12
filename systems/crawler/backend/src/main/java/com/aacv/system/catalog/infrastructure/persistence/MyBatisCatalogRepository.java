@@ -131,15 +131,20 @@ class MyBatisCatalogRepository implements CatalogRepository {
         }
         String normalizedName = normalizeName(name);
         long total = mapper.countEntities(kind.name(), normalizedName);
-        List<CatalogEntityItem> items = mapper.findEntityPage(
-                        kind.name(), normalizedName, (long) page * size, size)
-                .stream()
+        List<CatalogRow> rows = mapper.findEntityPage(kind.name(), normalizedName, (long) page * size, size);
+        boolean thesis = kind == CatalogEntityKind.MASTER_THESIS || kind == CatalogEntityKind.DOCTORAL_THESIS;
+        // 仅批量读取当前页的真实导师关系，避免逐行查询和署名作者混入。
+        Map<Long, List<String>> advisors = thesis && !rows.isEmpty()
+                ? namesByAchievement(mapper.findAchievementAdvisors(rows.stream().map(CatalogRow::getId).toList()))
+                : Map.of();
+        List<CatalogEntityItem> items = rows.stream()
                 .map(row -> new CatalogEntityItem(
                         row.getId(),
                         row.getExternalId(),
                         row.getDisplayName(),
                         row.getEntityType(),
-                        row.getAchievementCount()))
+                        row.getAchievementCount(),
+                        advisors.getOrDefault(row.getId(), List.of())))
                 .toList();
         return PageResult.of(items, page, size, total);
     }

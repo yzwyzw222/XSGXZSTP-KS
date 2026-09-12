@@ -2,6 +2,8 @@ package com.aacv.system.operations.domain;
 
 public enum AuditAction {
     AUTHOR_IMPORTED,
+    AUTHOR_ORCID_QUEUED,
+    AUTHOR_ORCID_BOUND,
     LOGIN_SUCCEEDED,
     LOGIN_FAILED,
     LOGOUT,

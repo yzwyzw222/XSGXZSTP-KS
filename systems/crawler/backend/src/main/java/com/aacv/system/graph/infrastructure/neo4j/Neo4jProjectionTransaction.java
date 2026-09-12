@@ -49,7 +49,7 @@ class Neo4jProjectionTransaction {
     private static final String UPSERT_ADVISORS = """
             UNWIND $rows AS row
             MERGE (advisor:Author {businessId: row.id})
-            SET advisor.aacvManaged = true, advisor.name = row.name
+            SET advisor.aacvManaged = true, advisor.name = row.name, advisor.orcid = row.orcid
             WITH advisor
             MATCH (achievement:Achievement {businessId: $businessId})
             MERGE (advisor)-[rel:SUPERVISED {achievementBusinessId: $businessId}]->(achievement)
@@ -137,7 +137,7 @@ class Neo4jProjectionTransaction {
                         "id", row.id(), "name", nullable(row.name()), "orcid", nullable(row.orcid())))
                 .toList());
         runRows(UPSERT_ADVISORS, snapshot.achievementId(), snapshot.advisors().stream()
-                .map(row -> Map.of("id", row.id(), "name", nullable(row.name()))).toList());
+                .map(row -> Map.of("id", row.id(), "name", nullable(row.name()), "orcid", nullable(row.orcid()))).toList());
         runRows(UPSERT_INSTITUTIONS, snapshot.achievementId(), snapshot.institutions().stream()
                 .map(row -> Map.of("id", row.id(), "name", nullable(row.name()))).toList());
         runRows(UPSERT_AFFILIATIONS, snapshot.achievementId(), snapshot.affiliations().stream()

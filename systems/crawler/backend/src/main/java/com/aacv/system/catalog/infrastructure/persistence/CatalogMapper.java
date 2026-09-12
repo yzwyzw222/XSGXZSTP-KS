@@ -19,6 +19,7 @@ interface CatalogMapper {
             @Param("size") int size);
     CatalogRow findAchievementBase(@Param("id") long id);
     List<CatalogRow> findAchievementAuthors(@Param("ids") List<Long> ids);
+    List<CatalogRow> findAchievementAdvisors(@Param("ids") List<Long> ids);
     List<CatalogRow> findAchievementTopics(@Param("ids") List<Long> ids);
     List<CatalogRow> findAuthorshipOrganizations(@Param("id") long id);
     List<CatalogRow> findAchievementSources(@Param("id") long id);

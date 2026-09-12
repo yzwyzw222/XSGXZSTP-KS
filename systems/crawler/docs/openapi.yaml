@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: AACV System API
-  version: 7.2.0
+  version: 7.3.0
   description: 本契约描述认证、用户、审计、知网作者信息表导入、规范目录、事务 Outbox、Neo4j 可重建投影、受限图查询、MySQL 聚合统计、异步导出和管理员运维接口；不包含服务器部署能力。
 servers:
   - url: http://127.0.0.1:8080
@@ -602,7 +602,7 @@ paths:
       summary: 按作者分页浏览合作、成果与时间线
       operationId: getAuthorAcademicGraph
       x-required-permission: GRAPH_READ
-      description: 复用托管 Neo4j 投影。论文包含 article、review、preprint、proceedings-article；论文与专利须本人 AUTHORED，硕博须本人 SUPERVISED。按成果分页，先保留中心及当前页全部作品，再读取最多1200条共同署名证据，整图最多300节点。合作边只关联中心作者，数量仅覆盖当前页。日期默认倒序，chronological=true 时正序；缺失日期始终末尾，同日期按业务ID升序。单次事务超时3秒，不修改业务数据。科技成果等其他类型保留在目录。作者不存在或未同步返回404，孤立作者返回单节点与0条成果。
+      description: 复用托管 Neo4j 投影。论文包含 article、review、preprint、proceedings-article；论文与专利须本人 AUTHORED，硕博须本人 SUPERVISED。按成果分页，先保留中心及当前页全部作品，再读取最多1200条共同署名证据，整图最多300节点。合作边只关联中心作者，数量仅覆盖当前页。成果属性包含 publicationDate 及 institutions，机构来自本篇 PRODUCED_AT 和本篇作者/导师上 achievementBusinessId 匹配的 AFFILIATED_WITH，节点和关系均须托管；按机构ID去重升序，最多100家，超限由 institutionsTruncated 标记，不增加图谱节点或影响成果分页。日期默认倒序，chronological=true 时正序；缺失日期始终末尾，同日期按业务ID升序。单次事务超时3秒，不修改业务数据。科技成果等其他类型保留在目录。作者不存在或未同步返回404，孤立作者返回单节点与0条成果。
       security: [{sessionCookie: []}]
       parameters:
         - {name: authorId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
@@ -1798,8 +1798,12 @@ components:
               targetDoi: {type: string, maxLength: 255}
     CatalogEntity:
       type: object
-      required: [id, displayName, achievementCount]
+      required: [id, displayName, achievementCount, advisors]
       properties:
+        advisors:
+          type: array
+          items: {type: string}
+          description: 指导硕博论文的规范导师姓名，按规范作者身份去重并排序；其他编目返回空数组。
         id: {type: integer, format: int64}
         externalId: {type: [string, 'null']}
         displayName: {type: [string, 'null']}
@@ -1836,7 +1840,23 @@ components:
         businessId: {type: string}
         type: {$ref: '#/components/schemas/GraphNodeType'}
         label: {type: string}
-        properties: {type: object, additionalProperties: true, description: 仅包含展示所需的白名单摘要属性}
+        properties:
+          type: object
+          additionalProperties: true
+          description: 仅包含展示所需的白名单摘要属性；以下机构字段由作者图谱接口在成果节点返回。
+          properties:
+            publicationDate: {type: [string, 'null'], format: date, description: 成果已收录的发表日期，未收录时可缺省}
+            institutions:
+              type: array
+              maxItems: 100
+              description: 本篇成果对应的机构，按规范ID去重升序；空数组表示未收录，缺少字段表示该响应未提供机构资料。
+              items:
+                type: object
+                required: [id, name]
+                properties:
+                  id: {type: string, pattern: '^[1-9][0-9]*$', description: 机构规范ID}
+                  name: {type: string, description: 机构名称，未收录名称时为空字符串}
+            institutionsTruncated: {type: boolean, description: 本篇成果机构是否超过100家，与图谱truncated独立}
     GraphEdge:
       type: object
       required: [id, type, source, target, properties]
