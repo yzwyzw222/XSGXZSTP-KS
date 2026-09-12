@@ -6,7 +6,9 @@
       "id": "relation",
       "source": "184f651b223efe9a07ea6d352146e5df34a537da",
       "commit": "7626f539e5845660d2ed7acded5e5f22413f4d29",
-      "tree": "de77a7c355fcff2ef1269f5dc9183deeb2c708d6"
+      "tree": "de77a7c355fcff2ef1269f5dc9183deeb2c708d6",
+      "retired": true,
+      "retiredReason": "2026-09-12 按用户要求删除学术关系知识图谱构建平台，保留历史导入证据。"
     },
     {
       "id": "extraction",

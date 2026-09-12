@@ -1,5 +1,7 @@
 # 平台管理、全屏与采集启动诊断
 
+> 历史记录：本文的门户、多系统入口与相关测试脚本已在 2026-09-12 单系统调整中退役。当前范围、入口及验证以 [单系统调整记录](single-system.md) 为准。
+
 > 历史范围说明：本文保留对应阶段的设计或验收记录。2026-09-10 已删除 extraction、scholar，当前仅保留 relation、crawler；原四系统描述、已删除文件和历史命令不代表当前运行范围。当前配置与说明见 `deploy/systems.json`、`docs/development.md`。
 
 核对日期：2026-09-10。此文是本次实现与验收记录，指定项目记忆仍是 `integration-baseline.md` 与 `development.md`。

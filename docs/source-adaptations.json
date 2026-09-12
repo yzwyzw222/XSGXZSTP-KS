@@ -1,101 +1,4 @@
 {
-  "relation": [
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/bootstrap/DataInitializer.java",
-      "sourceBlob": "e700cee447bf90556f247a10d112a0ca6040d230",
-      "adaptedBlob": "ae2e366f8f6490a0c327306b6446b5b079441413"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/security/SecurityConfig.java",
-      "sourceBlob": "6bb6aea260bbb04466f548a8d41e4751b06686a3",
-      "adaptedBlob": "736295611966d128298e8db94dee52e1971cd2e5"
-    },
-    {
-      "path": "frontend/src/App.vue",
-      "sourceBlob": "cd9578a26318d7bd8e4cee2f940bde95772fce17",
-      "adaptedBlob": "6bf49e699397754db6e45d3395b91f27d17b4428"
-    },
-    {
-      "path": "frontend/src/api/http.ts",
-      "sourceBlob": "1a5bf4c4f0e58f67336512da3d6cbd5bcc187c07",
-      "adaptedBlob": "b53446e89360f654c43cc9dc43b4278a99668475"
-    },
-    {
-      "path": "frontend/src/main.ts",
-      "sourceBlob": "3743c50749ce9526d8f7510b5c7a40ee23268ba5",
-      "adaptedBlob": "25c79f3036a8165781e0389383d45699972491e1"
-    },
-    {
-      "path": "frontend/src/router/index.ts",
-      "sourceBlob": "2e25d7a14e76115e6738614102c418fac19b5f65",
-      "adaptedBlob": "1941120f506bfaff76d44133af97d265aacffff8"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationAdminBootstrap.java",
-      "sourceBlob": null,
-      "adaptedBlob": "06c720175e5a69d1cb9976fd76d7737b0354374a"
-    },
-    {
-      "path": "backend/src/test/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationAdminBootstrapTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "b88f5e23e5f5a5d7a431ad29ad133656a850f250"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/IntegrationHealthController.java",
-      "sourceBlob": null,
-      "adaptedBlob": "d32200b3840854b8388c682ba4875b94870ba4d8"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/integration/PortalAuthenticationFilter.java",
-      "sourceBlob": null,
-      "adaptedBlob": "57eaf5088ab409363c17a0913cb34ceb539a9609"
-    },
-    {
-      "path": "backend/src/test/java/com/xsyu/academicgraph/infrastructure/integration/PortalAuthenticationFilterTest.java",
-      "sourceBlob": null,
-      "adaptedBlob": "d7767f6d557f3ce34bc363ae37200d26570fb60f"
-    },
-    {
-      "path": "frontend/src/services/portal-auth.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "d1560f8a0c99c23e8269d40fbd270aa15d657dd2"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/api/auth/AuthController.java",
-      "sourceBlob": "d1b8f9d818b74d1e40fb51217290d792b6755c2b",
-      "adaptedBlob": "51755e24797d03960f0a7278a82cf819b3f544bf"
-    },
-    {
-      "path": "frontend/src/api/index.ts",
-      "sourceBlob": "547134b7f9b2f74c347a20faa7ac68b7e6ee4444",
-      "adaptedBlob": "e5bb7196d37dacaf9c7e766f8712a306fff1fdf0"
-    },
-    {
-      "path": "frontend/src/views/LayoutView.vue",
-      "sourceBlob": "bc53289490f70568d793b52c0c5854364e8020e3",
-      "adaptedBlob": "548a1e7d7a0adf6c4c31417f368ea0e9538c909b"
-    },
-    {
-      "path": "README.md",
-      "sourceBlob": "c62509f53dc848a1f069078153f4ed8a841378fd",
-      "adaptedBlob": "60bc9537a8b21ed5841b922014d4764e13439984"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/api/admin/DataImportDtos.java",
-      "sourceBlob": "7472abaca4fd41e704982c0cd8a2e32209763216",
-      "adaptedBlob": "97d99ff185bca7cecb6451a1d560a272d010ec6a"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/application/admin/DataImportService.java",
-      "sourceBlob": "1d5a283a7c6a56918831e7d0f8d5ca4b47c757dd",
-      "adaptedBlob": "ed4607b8248fba10e2f27fbc6e841fac1c52775a"
-    },
-    {
-      "path": "backend/src/main/java/com/xsyu/academicgraph/infrastructure/openalex/OpenAlexClientException.java",
-      "sourceBlob": "dbf6d9f48f4ffc48c5a961db63704a951fe724d6",
-      "adaptedBlob": "a025e12085bd71833e2a56b0acf24f6490a5bcbd"
-    }
-  ],
   "crawler": [
     {
       "path": "README.md",
@@ -118,9 +21,19 @@
       "adaptedBlob": "5802b0a2def1ed3bccafc091393b5785b5181e9c"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/application/ScholarBundleParser.java",
+      "sourceBlob": null,
+      "adaptedBlob": "1a96e9bd6a16e4f11780903eb896e66165d53136"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/authorimport/application/ScholarImportParser.java",
       "sourceBlob": null,
       "adaptedBlob": "0f297f94a78792b5430a8a10346b2139956f3ca7"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportBundle.java",
+      "sourceBlob": null,
+      "adaptedBlob": "0994ee597974db70ce5c46e048ea29ef73326eb4"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportOptions.java",
@@ -163,14 +76,44 @@
       "adaptedBlob": "adce66e24b7fa64d026e6a5ead38e24870f2ec19"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzJob.java",
+      "sourceBlob": null,
+      "adaptedBlob": "beb9df94aa0806268d15f193909ced83317eccf5"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/catalog/api/CatalogController.java",
       "sourceBlob": "2525699bd74c2de0213130c46b0bb4a43a8a1141",
       "adaptedBlob": "ba68bf8e2905d70a088ed112106c0dd8c18a306b"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/catalog/api/CatalogEntityPageResponse.java",
+      "sourceBlob": "fdc4da83d42ac8ea27818745e2d9c39e4d023556",
+      "adaptedBlob": "075b24de995af838d01372843c2761592c8c14c6"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/catalog/domain/CatalogEntityItem.java",
+      "sourceBlob": "c1600da364ec4140a0c13c1bea3aa9ada1859e60",
+      "adaptedBlob": "da54bf4b3b184f647d0f84cf66eb863946cd6fa4"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/catalog/domain/CatalogEntityKind.java",
+      "sourceBlob": "c734e4f971a6d38736629da587ad5a0e8e6f424f",
+      "adaptedBlob": "14013d6875573a6d10c99e1c7ffcba353f0c6e1c"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/catalog/domain/CatalogQuery.java",
       "sourceBlob": "71ab31fab8235ea5012d81e8bc6cf069d5ba2421",
       "adaptedBlob": "5c6180a2bdbb3f88f0491aa26085229a744cf32b"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/catalog/infrastructure/persistence/CatalogMapper.java",
+      "sourceBlob": "9d2d98fd8d7c0d54584887aa3b49d22a14a09989",
+      "adaptedBlob": "138d4d194e78fd38d140791785042e7471247fe3"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/catalog/infrastructure/persistence/MyBatisCatalogRepository.java",
+      "sourceBlob": "586746d576fe75328b1435f0bba916545923b3ee",
+      "adaptedBlob": "7a1a548671b9df09ec9f86e611a8ee98e9c4bebe"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlScheduleResponse.java",
@@ -303,9 +246,24 @@
       "adaptedBlob": null
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/graph/api/GraphController.java",
+      "sourceBlob": "1c25a08ca4ae719f2fc28e6adaab9e1e595cf9aa",
+      "adaptedBlob": "1228af5d653a5b548a2ec1c762ac5d1edc8deed9"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/application/GraphPresentationService.java",
+      "sourceBlob": "fdb5f3e06ce96cfea30fd3b6a5fcf14122d9d280",
+      "adaptedBlob": "99bb9ee44bc84eba3df6cb6045b132199bb4148b"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/graph/application/GraphQueryService.java",
       "sourceBlob": "f8b77d89c8b592acc83b85ef4b642f079c5e508b",
-      "adaptedBlob": "1e0fc9385459c299350fa56d4fab196f85958f3f"
+      "adaptedBlob": "b4bfce57efa6f27b472373bc6f4e42a62de7b2c8"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/graph/domain/AuthorGraphView.java",
+      "sourceBlob": null,
+      "adaptedBlob": "0cf3bc4004f2178c855a3a120a40b7d585d9c3b1"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/graph/domain/GraphAchievementSnapshot.java",
@@ -325,7 +283,7 @@
     {
       "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/neo4j/Neo4jProjectionTransaction.java",
       "sourceBlob": "8c3a0c1c54e634e812cd463dce16d266de8644d0",
-      "adaptedBlob": "d9a6f6215024ac7f506abd14d9bcc6b067961658"
+      "adaptedBlob": "291276aa856d6a8a7f3fb80686e024f253484ce5"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/persistence/GraphSnapshotMapper.java",
@@ -348,6 +306,11 @@
       "adaptedBlob": "9ca7cf552238316aadd6e38c2a18907be754c9c5"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/application/SourceWorkNormalizer.java",
+      "sourceBlob": "956fe5918ae21287840943fcdf5f089eb13a28fd",
+      "adaptedBlob": "c261a7d31de0b760a60f20466e53172e8071d339"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/IngestionMapper.java",
       "sourceBlob": "3ee8b74c560291cabac13aab4ace473a654fdb29",
       "adaptedBlob": "b5ca3c4de4ec94dd2de42bbaff9c7c902c7adda1"
@@ -360,7 +323,7 @@
     {
       "path": "backend/src/main/java/com/aacv/system/operations/domain/AuditAction.java",
       "sourceBlob": "c36a02369e941228c0c2418a9ea2b6e4f76e7b63",
-      "adaptedBlob": "dc02ee54efb37b73091cee58f790b24d1de5ea9d"
+      "adaptedBlob": "d670777d22e4b1fc3dae89302ffcd36cb7f29a80"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/quality/api/QualityMetricController.java",
@@ -371,6 +334,11 @@
       "path": "backend/src/main/java/com/aacv/system/shared/domain/ErrorCode.java",
       "sourceBlob": "1496c7e6bab69446a243ffb6b09a430bd6c470e4",
       "adaptedBlob": "8860683e2eae03368123f54f766c417889ba02a2"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/shared/domain/OrcidId.java",
+      "sourceBlob": null,
+      "adaptedBlob": "31fdb52e4d83c356a65f1ffb3bf6b8e4a51c799b"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/shared/infrastructure/web/ApiExceptionHandler.java",
@@ -438,6 +406,11 @@
       "adaptedBlob": "ca3557db8684384026c598035c874370bad8c5e9"
     },
     {
+      "path": "backend/src/main/resources/db/migration/V18__author_orcid_enrichment.sql",
+      "sourceBlob": null,
+      "adaptedBlob": "d6877d36b3ebf080ed2a1d9f697af9003fc65c97"
+    },
+    {
       "path": "backend/src/main/resources/mapper/analytics/AnalyticsMapper.xml",
       "sourceBlob": "1dd4692b52319fef0ccc8fb4543dfdc6ced1b401",
       "adaptedBlob": "f550965538e5e49010de7d0bb12ebd683e912615"
@@ -450,7 +423,7 @@
     {
       "path": "backend/src/main/resources/mapper/catalog/CatalogMapper.xml",
       "sourceBlob": "1cb054a54cd3418ea2a614f8c839ba549f2b7cc2",
-      "adaptedBlob": "96edfb8ebe5f2d9e0026abca4af5df0cc964f640"
+      "adaptedBlob": "fb71142e9bf39f29602096d2098405cf60e1da76"
     },
     {
       "path": "backend/src/main/resources/mapper/crawl/CrawlMapper.xml",
@@ -463,9 +436,14 @@
       "adaptedBlob": "72f158f8721e4124e53ff080a03949c40b4f38fe"
     },
     {
+      "path": "backend/src/main/resources/mapper/graph/GraphProjectionRequestMapper.xml",
+      "sourceBlob": "9aa6cedd70bb451b57ca3b8372d5b6b5bdffd63c",
+      "adaptedBlob": "a05853159028fdfe7434ebbe24f231975f1dcb52"
+    },
+    {
       "path": "backend/src/main/resources/mapper/graph/GraphSnapshotMapper.xml",
       "sourceBlob": "e1e539b5fd33a162b8678d1d3c06ef90d6e8aa09",
-      "adaptedBlob": "679f42d799fb075091030f0c1bb3c61365af1873"
+      "adaptedBlob": "931256621eaa7b6fb6d97185b6601c4af5c80fb5"
     },
     {
       "path": "backend/src/main/resources/mapper/ingestion/IngestionMapper.xml",
@@ -480,17 +458,32 @@
     {
       "path": "backend/src/test/java/com/aacv/system/OpenApiDocumentTests.java",
       "sourceBlob": "69b0ffc6066434c4d53a4882c525ddbef77cdaa7",
-      "adaptedBlob": "0710e72117e0f70427cb226c74fa17b4781807f4"
+      "adaptedBlob": "1ecf8c4ce56b0c64b1f5f1fec31b838f1b0edc85"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/authorimport/AuthorImportIntegrationTests.java",
       "sourceBlob": null,
-      "adaptedBlob": "96fd143178b1ae644ff1f308a9a91d5d2bb2ec9f"
+      "adaptedBlob": "528bc3dd50c944bf27d31d26170e70cba2946829"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/authorimport/AutomaticAuthorImportIntegrationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "7dbb0437572f4e28ad7bab7f55e6ccad7c0d9a1a"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/authorimport/ScholarBundleParserTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "971339389ab62b70df57f3095ec914a4604a643c"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/authorimport/ScholarImportParserTests.java",
       "sourceBlob": null,
       "adaptedBlob": "303f08282ff2187a1ae4afc600f7933938758533"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/catalog/CatalogWorkEntitiesIntegrationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "5263827d16b499a396a6721821866aae9fb3d9fd"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/catalog/infrastructure/persistence/CatalogExportFilterSqlTests.java",
@@ -548,6 +541,11 @@
       "adaptedBlob": "6b2efae4acdb8d7e03e5a440b88b05e63c13d71c"
     },
     {
+      "path": "backend/src/test/java/com/aacv/system/graph/AuthorGraphIntegrationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "a3eaefc897c05cc139717e4df2d3045ad09c8e99"
+    },
+    {
       "path": "backend/src/test/java/com/aacv/system/graph/GraphQueryIntegrationTests.java",
       "sourceBlob": "5112599d565189258bcc81153595abdabaf7ad99",
       "adaptedBlob": "c9a2c10e8c3c329b7d8d6058f487a9be7e83caa3"
@@ -595,12 +593,27 @@
     {
       "path": "docs/openapi.yaml",
       "sourceBlob": "e4b21423e7782ee3ceef20150ace51a019d17dbb",
-      "adaptedBlob": "d35cf8c2fa156097c713f3df1ad4685c920e6284"
+      "adaptedBlob": "9e49f212e48b633fff34dcfe7d02d3cbb5f2e01d"
+    },
+    {
+      "path": "frontend/e2e/academic-graph.spec.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "aa1ffed066393d513de74bf0796969902f9a1f74"
+    },
+    {
+      "path": "frontend/e2e/account-management.spec.ts",
+      "sourceBlob": "b65b5e2d93a5b9139a6eff9d9a46f344658b8068",
+      "adaptedBlob": "e0618ba17d56611934bcd03c3b18bfdb8f6b0820"
     },
     {
       "path": "frontend/e2e/author-import.spec.ts",
       "sourceBlob": null,
-      "adaptedBlob": "a470b8645a78a9360113c688e197a3f03aec9746"
+      "adaptedBlob": "6531299787c86e195976aaa9728ae37081ed2263"
+    },
+    {
+      "path": "frontend/e2e/compact-research.spec.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "d740aec1377c3a2896ceb69590a90edc2a5f2fcc"
     },
     {
       "path": "frontend/e2e/fixtures/workbench.ts",
@@ -650,22 +663,27 @@
     {
       "path": "frontend/e2e/redesign-interactions.spec.ts",
       "sourceBlob": "58143f6b41746a71140176f368663f49844128da",
-      "adaptedBlob": "c71de3e23e51623644fc2ebf3008cb9d38cb5b9b"
+      "adaptedBlob": "da2f7716b3c373e2e098ab1c9e4246a7f1348695"
     },
     {
       "path": "frontend/e2e/research-dashboard.spec.ts",
       "sourceBlob": "6d2dad5871b6f155e19f6e11ebdb60e184cbf067",
-      "adaptedBlob": "87afaf2fc3c43518097e8a5573146d89034ba2f9"
+      "adaptedBlob": "39d42e472f602544fb17c7b3f49fe53cc377c156"
     },
     {
       "path": "frontend/e2e/research-theme.spec.ts",
       "sourceBlob": "433672555a41578307f5fa0a10e8ca7b408daa2f",
-      "adaptedBlob": "12b3e871815e8b8f1a9533d4f1e5797ee82f60c3"
+      "adaptedBlob": "ec3be37f826120c2d36ae55dddbf2e4c5f8c7a61"
     },
     {
       "path": "frontend/e2e/stage6.spec.ts",
       "sourceBlob": "7757c626ddc6d37c09978c42d6f8c941bf84c46f",
       "adaptedBlob": "2b64fd6f2826e2ba4254a84253e6516cda7df689"
+    },
+    {
+      "path": "frontend/e2e/stage7-analytics.spec.ts",
+      "sourceBlob": "26ff996af7c12ec3c2c685b37aeceed8f79316a7",
+      "adaptedBlob": "1e930f39bb141a85134a00d6a40a2cda1abf3c16"
     },
     {
       "path": "frontend/e2e/stage7-export.spec.ts",
@@ -678,9 +696,9 @@
       "adaptedBlob": "a63accd74d700b33f640eaa10b400b7e5eb31a0b"
     },
     {
-      "path": "frontend/management.html",
-      "sourceBlob": null,
-      "adaptedBlob": "afc872bf730ec4245513214960af8e7d2b86ad82"
+      "path": "frontend/index.html",
+      "sourceBlob": "487c4398373d2253ff6dbfc6d89e78292b2f2e7e",
+      "adaptedBlob": "77827b756624656e8d629ac9875832558f76ec91"
     },
     {
       "path": "frontend/package-lock.json",
@@ -695,17 +713,17 @@
     {
       "path": "frontend/playwright.config.ts",
       "sourceBlob": "98bdbf055a2e248e8a5ac6c3bda93b5f7736f8e1",
-      "adaptedBlob": "af26af7a1e76de18b1333798623a4e99ec7ac52f"
+      "adaptedBlob": "ec4ef5750930ec43591c1c347626744251a587cd"
     },
     {
-      "path": "frontend/src/App.vue",
-      "sourceBlob": "7cc481014f93672306cb218531e6821f74b6aa7d",
-      "adaptedBlob": "18142b5f8d8aeadb8cc2e5bbc5a92cc17c299ad7"
+      "path": "frontend/src/components/business/AcademicNodeDetail.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "edb0888ab75377b66a4c7b6dd34d23b77494a68b"
     },
     {
       "path": "frontend/src/components/business/AchievementPreview.vue",
       "sourceBlob": "39f933389f651795ead7257f6dab907650f54787",
-      "adaptedBlob": "cb6724b55cf153052a6e7d95a88fd370ef655ce2"
+      "adaptedBlob": "26caa26d4c7dd7930052362ef75b76cec083eba8"
     },
     {
       "path": "frontend/src/components/business/AppSidebar.test.ts",
@@ -720,12 +738,32 @@
     {
       "path": "frontend/src/components/business/AppTopbar.vue",
       "sourceBlob": "64f150c2313f1485558aaa743f4dec31dd5c0b16",
-      "adaptedBlob": "8e026bce33fe6a78804b8217ba8c9565e9891c5e"
+      "adaptedBlob": "8e0d101fd56198039a4cfbde8c07db5d21980b96"
     },
     {
       "path": "frontend/src/components/business/CandidateComparisonPanel.vue",
       "sourceBlob": "6eeccea0d38b47649b2581499528e33ff2262383",
       "adaptedBlob": null
+    },
+    {
+      "path": "frontend/src/components/business/CommandPalette.vue",
+      "sourceBlob": "18c9441e720b4ad203707541340a8f69e3ac7445",
+      "adaptedBlob": "9ceb3d8acbf492330d8672af1ec50bfbedd97045"
+    },
+    {
+      "path": "frontend/src/components/business/CompactFieldSearch.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "5c20db3702b8947453086e612afb26c9cca7ef6b"
+    },
+    {
+      "path": "frontend/src/components/business/DataTable.vue",
+      "sourceBlob": "dba3c2068354380ca0290d042b50e68a9075bbf2",
+      "adaptedBlob": "b3398612d619d5d382b9ad6f006615dc22084312"
+    },
+    {
+      "path": "frontend/src/components/business/EntitySuggestInput.test.ts",
+      "sourceBlob": "a85878a173f609c8d9683616f707c3510dd7340b",
+      "adaptedBlob": "091a46066928e939461294e453becde9fe80516e"
     },
     {
       "path": "frontend/src/components/business/EntitySuggestInput.vue",
@@ -740,12 +778,12 @@
     {
       "path": "frontend/src/components/business/GraphCanvas.test.ts",
       "sourceBlob": null,
-      "adaptedBlob": "6632c04f89163870ba24e2d4408036709fd77c73"
+      "adaptedBlob": "0c14c371473c5caf9344bb50a40c2c415d190000"
     },
     {
       "path": "frontend/src/components/business/GraphCanvas.vue",
       "sourceBlob": "57455b37e11bf92215c5d48ec5001a21b16ff4aa",
-      "adaptedBlob": "a087f71f89033462bd2a29070a99d734e233590a"
+      "adaptedBlob": "155df7ae07bd0a0a8216dd93931276111a652bf4"
     },
     {
       "path": "frontend/src/components/business/ImportEvidencePanel.vue",
@@ -761,6 +799,21 @@
       "path": "frontend/src/components/business/StatusPill.vue",
       "sourceBlob": "ae8eaeb22411b8c31b869fdb641abf7a0a86211f",
       "adaptedBlob": "e9fb3aecd865b97262b570c539b9e68174325a12"
+    },
+    {
+      "path": "frontend/src/components/business/UserMenu.vue",
+      "sourceBlob": "501e3cfe036db8b13e06d9cc7368b0102aee007c",
+      "adaptedBlob": "2a506b26d27ec02c56f1ea0c449d414ec8e7848c"
+    },
+    {
+      "path": "frontend/src/components/business/YearPicker.vue",
+      "sourceBlob": "7d9d8d39bdafb9636448ddde11114cf66512689b",
+      "adaptedBlob": "787a737ee5070b37ebf93faf5ce6e7a0ab6e98a1"
+    },
+    {
+      "path": "frontend/src/components/business/YearRangeFilter.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "3be5e6602115fc7888691eecb31d633e459981c3"
     },
     {
       "path": "frontend/src/components/business/graph-overview/GraphCanvas.test.ts",
@@ -781,6 +834,16 @@
       "path": "frontend/src/components/business/graph-overview/NodeDetail.vue",
       "sourceBlob": "ab4add8bced7dd86a32625d017682d732a8e9e4a",
       "adaptedBlob": "4c50208527d790c4b3763f7d6e3347b7f9855bde"
+    },
+    {
+      "path": "frontend/src/composables/useAuthorGraph.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "4cb068b4821889d1336bf1706070d81ac7d49018"
+    },
+    {
+      "path": "frontend/src/composables/useAuthorGraph.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "bd2f1d1e8c51013b2fe8bdce5642da215ef12647"
     },
     {
       "path": "frontend/src/composables/useDashboard.test.ts",
@@ -805,42 +868,22 @@
     {
       "path": "frontend/src/config/nav.ts",
       "sourceBlob": "c42cfc23f3ba624741f245f2af12ec67b3d3a395",
-      "adaptedBlob": "c3e898a9007f26bbcbf07eb938aadecfa9448162"
-    },
-    {
-      "path": "frontend/src/layouts/BusinessLayout.vue",
-      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
-      "adaptedBlob": "b0149324cdeb341f0a337bd89e4593ac5d448178"
-    },
-    {
-      "path": "frontend/src/management/ManagementApp.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "06adcde992a33a5f0bf8e46df3ff39457bd50ada"
-    },
-    {
-      "path": "frontend/src/management/PlatformLogsView.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "66aa22f1ee0f474ac57a50af439b05f58826f3bc"
-    },
-    {
-      "path": "frontend/src/management/logs.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "ce6fb69611e0da9ca786bfdb6c5cf126298181b1"
-    },
-    {
-      "path": "frontend/src/management/main.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "1fb60dd384e672fce63234ffdb4e91c4c27f51e9"
+      "adaptedBlob": "b4edac63f66845708dc03875446cd927a9812b89"
     },
     {
       "path": "frontend/src/router/index.test.ts",
       "sourceBlob": "5ffeb2ca73c9519a48fdc8bc0b37bb220ca7578c",
-      "adaptedBlob": "a7884dc4fd8ef45ebe77b408179c4c28651ae0c7"
+      "adaptedBlob": "e1cd5072d6d52ca2b108a88b7ac57dc65ba659a3"
     },
     {
       "path": "frontend/src/router/index.ts",
       "sourceBlob": "6e81f23792a79d624fb5d46158a205f330881e65",
-      "adaptedBlob": "f0e94aca6c467c8d8b7b60ce3bc499e6d50b1a87"
+      "adaptedBlob": "e55743b189232995ec41de48cb30f949be488d4a"
+    },
+    {
+      "path": "frontend/src/services/academic-graph.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "0933e90ab91b04269d55bfe71e09fe3ee34b7e41"
     },
     {
       "path": "frontend/src/services/author-import.test.ts",
@@ -873,11 +916,6 @@
       "adaptedBlob": "510dc70cfede57e22c0eaeb399b43e34c80ded48"
     },
     {
-      "path": "frontend/src/services/portal-auth.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "75f356b1e56ac94e879b651817c896281037c6e9"
-    },
-    {
       "path": "frontend/src/stores/graph-overview.test.ts",
       "sourceBlob": "ff2fcb5594b8334b8f6859423386376090ecee12",
       "adaptedBlob": "81b3a6210cf8ef7a266cb053a44f12a217851692"
@@ -893,19 +931,44 @@
       "adaptedBlob": null
     },
     {
-      "path": "frontend/src/stores/session.ts",
-      "sourceBlob": "ce69310b16953b74a59ebd9c6aa9daede7b19104",
-      "adaptedBlob": "dd154cac97d076604036fc4f38cabe31b25d91dc"
+      "path": "frontend/src/styles/research.css",
+      "sourceBlob": "c0f04953673251b6acd5a43918f38a3f34ef8267",
+      "adaptedBlob": "4f53443da08da0233cc4f3d63335bc522038dd6d"
     },
     {
       "path": "frontend/src/types/api.ts",
       "sourceBlob": "29a2105655f12adb58824a90ccc3e2a2fe73a49e",
-      "adaptedBlob": "99c5a0f83a41b8e5adb5a1a5d59aac2cfb7db0d7"
+      "adaptedBlob": "eb987f4d4737f6475683f58e3ed089dc131b51f4"
+    },
+    {
+      "path": "frontend/src/utils/academic-graph.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "6705c44323d59b0527eac1e91dc51c5fbff0b543"
+    },
+    {
+      "path": "frontend/src/utils/academic-graph.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "8669ea02b816869ced17087de6ab394d66d920b8"
+    },
+    {
+      "path": "frontend/src/utils/analytics-export.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "82f4b5342db958a380ec6a4c1f7fbda02dbfac82"
+    },
+    {
+      "path": "frontend/src/utils/analytics-export.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "5e31a45fbacb4fb5c42b6e7e8aa1cf2af5674fe5"
     },
     {
       "path": "frontend/src/utils/audit.ts",
       "sourceBlob": "6e2d1ae006462a45dab203be7736a4f4d9ce0ea9",
       "adaptedBlob": "4c1fa84907ab97b50fa2c4deb6e1fe4f5e8f8f0b"
+    },
+    {
+      "path": "frontend/src/utils/catalog-query.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "841e917472e7763cb6b111c08bccd153bbbcbfb4"
     },
     {
       "path": "frontend/src/utils/catalog-query.ts",
@@ -968,6 +1031,21 @@
       "adaptedBlob": null
     },
     {
+      "path": "frontend/src/utils/roles.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "7d22feed55be35ddebdc117aebfeebfbbf75329a"
+    },
+    {
+      "path": "frontend/src/views/AcademicGraphView.test.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "314ca8946ac0da6c961ce30edd4b7b124b933fee"
+    },
+    {
+      "path": "frontend/src/views/AcademicGraphView.vue",
+      "sourceBlob": null,
+      "adaptedBlob": "898981f16438d621c1f1969f955d8c60af17263f"
+    },
+    {
       "path": "frontend/src/views/AchievementDetailView.vue",
       "sourceBlob": "00afe78f3890098be69fb78369ee632b4b569f1e",
       "adaptedBlob": "ed2d8d44b28bf8ef571c5b0354b8fbd1a9a60e38"
@@ -975,22 +1053,27 @@
     {
       "path": "frontend/src/views/AnalyticsView.vue",
       "sourceBlob": "738d447943ce6dc8122836c75c59e51d1d7518cb",
-      "adaptedBlob": "082a0da6bf355368bed30ea64666040157b9d670"
+      "adaptedBlob": "b58085c2122c8c7d1068e56cffbd7d79b7537507"
     },
     {
       "path": "frontend/src/views/AuthorImportView.test.ts",
       "sourceBlob": null,
-      "adaptedBlob": "a71f9885d6548f4be6df2a058071e7570af32ab7"
+      "adaptedBlob": "4413b2b4ab6707de96406b2bb60edda53731d904"
     },
     {
       "path": "frontend/src/views/AuthorImportView.vue",
       "sourceBlob": null,
-      "adaptedBlob": "6462d67bc0f981307ea560461192f9bfbec78ca6"
+      "adaptedBlob": "b64720b58b64e2ba15273d1c70a5b952401c887d"
+    },
+    {
+      "path": "frontend/src/views/CatalogEntitiesView.vue",
+      "sourceBlob": "33a85be6008323733c728156880348756a4de121",
+      "adaptedBlob": "031a381af857c71bd7568e89101b34852e8d986e"
     },
     {
       "path": "frontend/src/views/CatalogView.vue",
       "sourceBlob": "767969050e6c591d7107961c33895ab15ce6eb00",
-      "adaptedBlob": "523ba31269e94a3c6eb739a4465854d56fc15a1c"
+      "adaptedBlob": "7c95ed4c000a06bb102f91851ae1e253bf8911fe"
     },
     {
       "path": "frontend/src/views/CrawlTasksView.vue",
@@ -1015,12 +1098,17 @@
     {
       "path": "frontend/src/views/GraphView.vue",
       "sourceBlob": "2e272eae4c35d548c6fc8b0711f2f073ef83dfd1",
-      "adaptedBlob": "7bbd4ca0d705b0838d876ffbf2fddf96791f7409"
+      "adaptedBlob": "b541ce9d4572676ea8e171f572d7fdda9376d249"
     },
     {
       "path": "frontend/src/views/LoginView.vue",
       "sourceBlob": "dab84e7c82b2cca27e87519f955e8f0a38ef8c41",
-      "adaptedBlob": "23f5f077e0e892c90c6e70528c96d5a3c9533bc3"
+      "adaptedBlob": "c89d267c7564d0416aae6e02fb125a0c3a68d0d8"
+    },
+    {
+      "path": "frontend/src/views/LogsView.vue",
+      "sourceBlob": "7452f3e01db23f0214f5fd05b916c697e676c02c",
+      "adaptedBlob": "2074d9e6d15887ca043ff50ea20c07cbb76ce451"
     },
     {
       "path": "frontend/src/views/OperationsView.vue",
@@ -1030,7 +1118,7 @@
     {
       "path": "frontend/src/views/OverviewView.vue",
       "sourceBlob": "734f1ba445bd6ef020a0a66e3f6d96a424798f0e",
-      "adaptedBlob": "934feb2c99cce1be60e591f3afc536681c5f92e5"
+      "adaptedBlob": "b013ab06d8f35647c8c58c98d1c5d90aa05af0d1"
     },
     {
       "path": "frontend/src/views/QualityView.vue",
@@ -1045,167 +1133,97 @@
     {
       "path": "frontend/src/views/UsersView.vue",
       "sourceBlob": "f36e251b270564b5f08a6955284eeb767c47c43e",
-      "adaptedBlob": "5c0e67c8a5c0593fb1307fa78a477daefa3fece7"
+      "adaptedBlob": "742935b7c67907d14d04372f2b4da7b19e604bbb"
     },
     {
       "path": "frontend/src/views/WorkbenchView.vue",
       "sourceBlob": null,
-      "adaptedBlob": "c58ff91069fd79cd0cb76bc73dfe6f7bfc019268"
+      "adaptedBlob": "73ec607ce6e2830cf987c43c4bfc12f41e8debc6"
     },
     {
-      "path": "frontend/vite.config.ts",
-      "sourceBlob": "58cc9ff6a28ae279d30432ad9fa06706296e64b7",
-      "adaptedBlob": "c0169672c3e6fe54587ef348a73f1cf9cac0aaa4"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/authorimport/application/ScholarBundleParser.java",
+      "path": "frontend/e2e/logs-management.spec.ts",
       "sourceBlob": null,
-      "adaptedBlob": "1a96e9bd6a16e4f11780903eb896e66165d53136"
+      "adaptedBlob": "f81420d7c1c4187eed881f1e6301eecabeef59c5"
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/authorimport/domain/ImportBundle.java",
+      "path": "frontend/src/components/business/AuditLogTable.vue",
+      "sourceBlob": "4ab760b7b0e51c2d6271872ddead9699287a1500",
+      "adaptedBlob": "67d5b146f73892a173cf91520b551b1d95634a33"
+    },
+    {
+      "path": "frontend/src/styles/tokens.css",
+      "sourceBlob": "3d0b89ecfbec373c77f167ef80130a4d4761a656",
+      "adaptedBlob": "0cccf9cb4b161c6e95e40f1446f7fef4d02ad71b"
+    },
+    {
+      "path": "frontend/src/styles/index.css",
+      "sourceBlob": "ee941fbe4a563a9e322c1977f47957e72f9a09d6",
+      "adaptedBlob": "38582e1df15616d1d39779a801e05c6eb963f32b"
+    },
+    {
+      "path": "frontend/src/styles/element-plus.css",
+      "sourceBlob": "e3f1b1796a1e5da59e4fda12a2d4329c0b6f5b5f",
+      "adaptedBlob": "73c9895cd7588cd7537cc4765f32cb7c3160dec0"
+    },
+    {
+      "path": "frontend/src/composables/useTheme.ts",
+      "sourceBlob": "f22739bf9cf94936f0b2ed5e62fb17ffedb3bf09",
+      "adaptedBlob": "e730ce3c48dd534de6ac661f1985a0c20bd62137"
+    },
+    {
+      "path": "frontend/src/composables/useTheme.test.ts",
+      "sourceBlob": "882a97ef38bb597604f6ee9267db69e429edccb1",
+      "adaptedBlob": "b695c5cf8bdd5e6b163ba8af976f6fb5ebf8ebe2"
+    },
+    {
+      "path": "frontend/src/composables/useChartTheme.ts",
+      "sourceBlob": "08ad91a1c3c2c21edadfe99c4d8a71b6757caa0a",
+      "adaptedBlob": "07dc8edad53b8c533596618400ef6f974fdeb840"
+    },
+    {
+      "path": "frontend/src/layouts/BusinessLayout.vue",
+      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
+      "adaptedBlob": "52ee8ec903c0954866168cc410a29bd646c2da03"
+    },
+    {
+      "path": "frontend/src/views/WorkbenchView.test.ts",
       "sourceBlob": null,
-      "adaptedBlob": "0994ee597974db70ce5c46e048ea29ef73326eb4"
+      "adaptedBlob": "44f37f3678801786150cd7041fa60c70677fb373"
     },
     {
-      "path": "backend/src/test/java/com/aacv/system/authorimport/ScholarBundleParserTests.java",
+      "path": "frontend/e2e/light-theme.spec.ts",
       "sourceBlob": null,
-      "adaptedBlob": "971339389ab62b70df57f3095ec914a4604a643c"
+      "adaptedBlob": "c5e84fcfd205b6caa4033e349dc6e7db382e7a40"
     },
     {
-      "path": "backend/src/test/java/com/aacv/system/authorimport/AutomaticAuthorImportIntegrationTests.java",
+      "path": "frontend/public/images/campus-banner.png",
       "sourceBlob": null,
-      "adaptedBlob": "7dbb0437572f4e28ad7bab7f55e6ccad7c0d9a1a"
+      "adaptedBlob": "e8817df4ab96922433932dc21ff0fec80841929e"
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/graph/domain/AuthorGraphView.java",
+      "path": "frontend/src/components/EChartCanvas.vue",
+      "sourceBlob": "783e29a92f996d541302fa011420a1836875b797",
+      "adaptedBlob": "3caf741937e5280d9d2762e5be0109d0c84a1c0f"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzCleanup.java",
       "sourceBlob": null,
-      "adaptedBlob": "0cf3bc4004f2178c855a3a120a40b7d585d9c3b1"
+      "adaptedBlob": "df89c1d13a4483b3be78b44d37b35294fdb2c857"
     },
     {
-      "path": "backend/src/test/java/com/aacv/system/graph/AuthorGraphIntegrationTests.java",
+      "path": "backend/src/test/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzCleanupTests.java",
       "sourceBlob": null,
-      "adaptedBlob": "1256cb2b3f6ad43fa610e91cb1de36862c8b24cb"
+      "adaptedBlob": "c44451e227c1693feb0e85669a5e545ce649dc3b"
     },
     {
-      "path": "frontend/e2e/academic-graph.spec.ts",
+      "path": "backend/src/test/java/com/aacv/system/shared/domain/OrcidIdTests.java",
       "sourceBlob": null,
-      "adaptedBlob": "181781d828a43f601b91f9e5cc8034fbf835db99"
+      "adaptedBlob": "6442c13d81f9e1bb48128df97dae186acf87843c"
     },
     {
-      "path": "frontend/src/components/business/AcademicNodeDetail.vue",
+      "path": "frontend/public/images/login-campus-background.png",
       "sourceBlob": null,
-      "adaptedBlob": "edb0888ab75377b66a4c7b6dd34d23b77494a68b"
-    },
-    {
-      "path": "frontend/src/composables/useAuthorGraph.test.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "4cb068b4821889d1336bf1706070d81ac7d49018"
-    },
-    {
-      "path": "frontend/src/composables/useAuthorGraph.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "bd2f1d1e8c51013b2fe8bdce5642da215ef12647"
-    },
-    {
-      "path": "frontend/src/services/academic-graph.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "0933e90ab91b04269d55bfe71e09fe3ee34b7e41"
-    },
-    {
-      "path": "frontend/src/utils/academic-graph.test.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "65b372ebf9b00c6d89f30219cc7da31fc233ca1a"
-    },
-    {
-      "path": "frontend/src/utils/academic-graph.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "1bd616932df0d7985b06668d5dbf52df8960c334"
-    },
-    {
-      "path": "frontend/src/views/AcademicGraphView.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "d422dce619b650aa652b6b54fb0624a69f6e9e16"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/graph/api/GraphController.java",
-      "sourceBlob": "1c25a08ca4ae719f2fc28e6adaab9e1e595cf9aa",
-      "adaptedBlob": "1228af5d653a5b548a2ec1c762ac5d1edc8deed9"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/graph/application/GraphPresentationService.java",
-      "sourceBlob": "fdb5f3e06ce96cfea30fd3b6a5fcf14122d9d280",
-      "adaptedBlob": "99bb9ee44bc84eba3df6cb6045b132199bb4148b"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/catalog/CatalogWorkEntitiesIntegrationTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "99a25e1a4a8502f64a67ad3f3e4ea8d9f5881f7e"
-    },
-    {
-      "path": "frontend/e2e/compact-research.spec.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "9574820c8507029522b9c42d746765e3f3e1fd0b"
-    },
-    {
-      "path": "frontend/src/components/business/CompactFieldSearch.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "47387d1b1c3e0533be5e5a82bd95988399826c7c"
-    },
-    {
-      "path": "frontend/src/components/business/YearRangeFilter.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "3be5e6602115fc7888691eecb31d633e459981c3"
-    },
-    {
-      "path": "frontend/src/utils/analytics-export.test.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "82f4b5342db958a380ec6a4c1f7fbda02dbfac82"
-    },
-    {
-      "path": "frontend/src/utils/analytics-export.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "5e31a45fbacb4fb5c42b6e7e8aa1cf2af5674fe5"
-    },
-    {
-      "path": "frontend/src/utils/catalog-query.test.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "841e917472e7763cb6b111c08bccd153bbbcbfb4"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/catalog/domain/CatalogEntityKind.java",
-      "sourceBlob": "c734e4f971a6d38736629da587ad5a0e8e6f424f",
-      "adaptedBlob": "14013d6875573a6d10c99e1c7ffcba353f0c6e1c"
-    },
-    {
-      "path": "frontend/e2e/stage7-analytics.spec.ts",
-      "sourceBlob": "26ff996af7c12ec3c2c685b37aeceed8f79316a7",
-      "adaptedBlob": "1e930f39bb141a85134a00d6a40a2cda1abf3c16"
-    },
-    {
-      "path": "frontend/src/components/business/CommandPalette.vue",
-      "sourceBlob": "18c9441e720b4ad203707541340a8f69e3ac7445",
-      "adaptedBlob": "9ceb3d8acbf492330d8672af1ec50bfbedd97045"
-    },
-    {
-      "path": "frontend/src/components/business/DataTable.vue",
-      "sourceBlob": "dba3c2068354380ca0290d042b50e68a9075bbf2",
-      "adaptedBlob": "816e473e2c91423fab2b7443bef9891660e3ad25"
-    },
-    {
-      "path": "frontend/src/components/business/YearPicker.vue",
-      "sourceBlob": "7d9d8d39bdafb9636448ddde11114cf66512689b",
-      "adaptedBlob": "787a737ee5070b37ebf93faf5ce6e7a0ab6e98a1"
-    },
-    {
-      "path": "frontend/src/styles/research.css",
-      "sourceBlob": "c0f04953673251b6acd5a43918f38a3f34ef8267",
-      "adaptedBlob": "b6c65ba49f91fcf012db137a0d04abf1911ee3ec"
-    },
-    {
-      "path": "frontend/src/views/CatalogEntitiesView.vue",
-      "sourceBlob": "33a85be6008323733c728156880348756a4de121",
-      "adaptedBlob": "2cff1f8bee59eb253444fa5d3451890c5bd68829"
+      "adaptedBlob": "e7ab1ab51844089043d1a581775d6537e5395de3"
     }
   ]
 }
