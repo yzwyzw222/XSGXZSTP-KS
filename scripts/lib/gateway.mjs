@@ -1,14 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { loadConfig, publicConfig, workspacePath } from './config.mjs'
-import { handlePortalAuth, identityCookies, portalCookies, readPortalSession } from './auth.mjs'
-import { auditTarget, createPlatformAudit, platformIdentity } from './platform-audit.mjs'
+import { handlePortalAuth, identityCookies, portalCookies } from './auth.mjs'
+import { safeReturnPath } from './return-path.mjs'
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, character =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character])
 
 export function maintenanceHtml(system, message = system.message) {
-  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>维护中 · ${escapeHtml(system.name)}</title><style>body{margin:0;background:#f7f7f0;color:#203f36;font-family:Microsoft YaHei,sans-serif;line-height:1.8}main{max-width:680px;margin:12vh auto;padding:32px}small{letter-spacing:.15em;color:#687568}h1{font-size:clamp(24px,5vw,36px);font-weight:500;margin:22px 0}p{color:#687568}a{display:inline-block;margin-top:28px;color:#153e36;text-underline-offset:7px}a:focus-visible{outline:3px solid #886636;outline-offset:6px}.status{display:inline-block;margin:28px 0 0;border:1px solid #d7c9ad;padding:2px 12px;color:#79613a;font-size:13px}hr{border:0;border-top:1px solid #dce1d4;margin:30px 0}</style><main><small>学术系统 · 统一门户</small><br><span class="status">维护中</span><h1>${escapeHtml(system.name)}</h1><p>${escapeHtml(message)}</p><hr><p>该系统尚未开放业务访问。完成接入验证后，门户将更新开放状态。</p><a href="/">← 返回门户</a></main></html>`
+  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>维护中 · ${escapeHtml(system.name)}</title><style>body{margin:0;background:#f7f7f0;color:#203f36;font-family:Microsoft YaHei,sans-serif;line-height:1.8}main{max-width:680px;margin:12vh auto;padding:32px}small{letter-spacing:.15em;color:#687568}h1{font-size:clamp(24px,5vw,36px);font-weight:500;margin:22px 0}p{color:#687568}a{display:inline-block;margin-top:28px;color:#153e36;text-underline-offset:7px}a:focus-visible{outline:3px solid #886636;outline-offset:6px}.status{display:inline-block;margin:28px 0 0;border:1px solid #d7c9ad;padding:2px 12px;color:#79613a;font-size:13px}hr{border:0;border-top:1px solid #dce1d4;margin:30px 0}</style><main><small>学术成果信息采集及可视化系统</small><br><span class="status">维护中</span><h1>${escapeHtml(system.name)}</h1><p>${escapeHtml(message)}</p><hr><p>该系统尚未开放业务访问。完成接入验证后，系统将更新开放状态。</p><a href="/">← 返回系统</a></main></html>`
 }
 
 function send(request, response, status, type, body) {
@@ -23,10 +23,10 @@ function send(request, response, status, type, body) {
 }
 
 const unavailable = (system, code) => JSON.stringify({ status: 503, code,
-  system: system?.id ?? null, message: '系统暂不可用，请返回门户查看接入状态。' })
+  system: system?.id ?? null, message: '系统暂不可用，请返回系统查看接入状态。' })
 
 /** 此中间件先于代理和 SPA 回退，配置失效时默认拒绝所有业务入口。 */
-export function createGateway({ root, initialConfig, development = false, readConfig = () => loadConfig(root), audit = createPlatformAudit(root) }) {
+export function createGateway({ root, initialConfig, development = false, readConfig = () => loadConfig(root) }) {
   return async (request, response, next) => {
     let url
     let pathname
@@ -55,39 +55,18 @@ export function createGateway({ root, initialConfig, development = false, readCo
       if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
       return send(request, response, 200, 'application/json', JSON.stringify(publicConfig(config)))
     }
-    const target = auditTarget(pathname)
-    if (target && !configurationFailure) audit.observe(request, response, target, platformIdentity(request, config))
-    if (pathname === '/__integration/platform/logs') {
-      if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
-      if (request.method !== 'GET') return send(request, response, 405, 'application/json', '{"detail":"仅支持 GET。"}')
-      try {
-        const user = await platformIdentity(request, config)
-        if (!user) return send(request, response, 401, 'application/json', '{"detail":"请先登录。"}')
-        if (!user.permissions.includes('AUDIT_READ')) return send(request, response, 403, 'application/json', '{"detail":"无权查看平台日志。"}')
-        return send(request, response, 200, 'application/json', JSON.stringify(audit.query(url.searchParams)))
-      } catch (failure) {
-        return send(request, response, failure instanceof RangeError ? 400 : 503, 'application/json', JSON.stringify({ detail: failure instanceof RangeError ? failure.message : '平台日志暂不可用，请稍后重试。' }))
-      }
+    const management = pathname.match(/^\/management\/(users(?:\/overview)?|logs|audits)$/)
+    if (management) {
+      const destination = management[1] === 'audits' ? 'logs' : management[1]
+      response.writeHead(302, { Location: '/crawler/' + destination + url.search, 'Cache-Control': 'no-store' })
+      return response.end()
     }
-    if (/^\/management\/(users(?:\/overview)?|logs|audits)$/.test(pathname)) {
+    if (pathname === '/' || pathname === '/index.html' || pathname === '/login') {
       if (configurationFailure) return send(request, response, 503, 'application/json', unavailable(null, 'CONFIG_CHANGED'))
-      if (!['GET', 'HEAD'].includes(request.method)) return send(request, response, 405, 'application/json', '{"status":405}')
-      try {
-        const user = await platformIdentity(request, config)
-        if (!user) {
-          response.writeHead(302, { Location: `/login?redirect=${encodeURIComponent(pathname)}`, 'Cache-Control': 'no-store' })
-          return response.end()
-        }
-        const permission = pathname.startsWith('/management/users') ? 'USER_LIST' : 'AUDIT_READ'
-        if (!user.permissions.includes(permission)) return send(request, response, 403, 'text/html', '<html lang="zh-CN"><meta charset="utf-8"><p>无权访问平台管理。</p><a class="integration-return" href="/">返回门户</a></html>')
-        if (development) { request.url = '/crawler/management.html'; return next() }
-        const system = config.systems.find(entry => entry.id === 'crawler')
-        return send(request, response, 200, 'text/html', readFileSync(path.join(workspacePath(root, system.runtime.dist, 'systems/crawler'), 'management.html')))
-      } catch { return send(request, response, 503, 'text/html', maintenanceHtml({ name: '平台管理' }, '统一管理暂不可用，请返回门户后稍后重试。')) }
-    }
-    if (/^\/crawler\/(users(?:\/overview)?|logs|operations(?:\/.*)?)\/?$/.test(pathname) || pathname === '/relation/admin') {
-      const destination = pathname.includes('users') || pathname === '/relation/admin' ? '/management/users' : '/management/logs'
-      response.writeHead(302, { Location: `/?workspace=${encodeURIComponent(destination)}`, 'Cache-Control': 'no-store' })
+      const target = safeReturnPath(url.searchParams.get(pathname === '/login' ? 'redirect' : 'workspace'))
+      const destination = pathname === '/login' ? '/crawler/login?redirect=' + encodeURIComponent(target.startsWith('/crawler/') ? target.slice(8) : '/')
+        : target === '/' ? '/crawler/' : target
+      response.writeHead(302, { Location: destination, 'Cache-Control': 'no-store' })
       return response.end()
     }
     if (pathname.startsWith('/__integration/auth/')) {
@@ -107,16 +86,12 @@ export function createGateway({ root, initialConfig, development = false, readCo
           return send(request, response, 503, 'application/json', unavailable(system, configurationFailure ? 'CONFIG_CHANGED' : 'SYSTEM_MAINTENANCE'))
         }
         return send(request, response, 503, 'text/html', maintenanceHtml(system,
-          configurationFailure ? '接入配置已变更或无效，请维护者检查配置并重新启动门户。' : system.message))
+          configurationFailure ? '接入配置已变更或无效，请维护者检查配置并重新启动系统。' : system.message))
       }
-      if (new RegExp(`^${prefix}/api/v1/auth/(?:login|register|logout)/?$`, 'i').test(pathname)) {
-        return send(request, response, 410, 'application/json', JSON.stringify({ status: 410, detail: '请使用统一登录入口。' }))
-      }
-      if (!api && ['GET', 'HEAD'].includes(request.method) &&
-        (/\/(?:login|register|session-expired)\/?$/.test(pathname) || !readPortalSession(request.headers.cookie))) {
-        const target = /\/(?:login|register|session-expired)\/?$/.test(pathname) ? `${prefix}/` : `${pathname}${url.search}`
-        response.writeHead(302, { Location: `/login?redirect=${encodeURIComponent(target)}`, 'Cache-Control': 'no-store' })
-        return response.end()
+      const auth = pathname.match(/^\/crawler\/api\/v1\/auth\/(login|logout)\/?$/i)
+      if (auth) {
+        request.url = '/__integration/auth/' + auth[1].toLowerCase()
+        return handlePortalAuth(request, response, config)
       }
       request.url = `${url.pathname}${url.search}`
       if (api || development) return next()
@@ -137,9 +112,7 @@ export function createGateway({ root, initialConfig, development = false, readCo
     }
     if (pathname === '/favicon.ico') { response.writeHead(204); return response.end() }
     if (/^\/api(?:\/|$)/i.test(pathname)) return send(request, response, 404, 'application/json', '{"status":404,"code":"UNKNOWN_API"}')
-    if (pathname === '/' || pathname === '/login' || pathname === '/index.html' || pathname.startsWith('/assets/') ||
-      (development && /^\/(src\/|@|node_modules\/)/.test(pathname))) return next()
-    return send(request, response, 404, 'text/html', '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><h1>页面不存在</h1><a href="/">返回门户</a></html>')
+    return send(request, response, 404, 'text/html', '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><h1>页面不存在</h1><a href="/">返回系统</a></html>')
   }
 }
 

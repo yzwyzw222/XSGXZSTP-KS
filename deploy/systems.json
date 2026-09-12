@@ -3,62 +3,12 @@
   "portalPort": 18000,
   "systems": [
     {
-      "id": "relation",
-      "name": "学术关系知识图谱构建平台",
-      "description": "围绕论文、作者与机构，探索合作网络、引用影响和研究主题之间的学术关系。",
-      "capabilities": [
-        "关系分析",
-        "合作网络",
-        "知识图谱"
-      ],
-      "status": "enabled",
-      "message": "本地服务已启用，可登录使用。",
-      "sourceBranch": "feature/Ye",
-      "sourceSha": "184f651b223efe9a07ea6d352146e5df34a537da",
-      "runtime": {
-        "acceptance": "docs/relation-acceptance.md",
-        "acceptanceSha": "184f651b223efe9a07ea6d352146e5df34a537da",
-        "dist": "systems/relation/frontend/dist",
-        "backendPort": 18081,
-        "frontendPort": 5174,
-        "contextPath": "/relation",
-        "readinessPath": "/relation/api/integration/health",
-        "backend": {
-          "executable": "java",
-          "cwd": "systems/relation/backend",
-          "args": [
-            "-Xms128m",
-            "-Xmx512m",
-            "-Djava.io.tmpdir={workspace}/.local/integration-runtime/relation/tmp",
-            "-Djdk.net.unixdomain.tmpdir={workspace}/.local/integration-runtime/relation/tmp",
-            "-jar",
-            "target/academic-graph-0.0.1-SNAPSHOT.jar",
-            "--spring.config.additional-location=file:{workspace}/.local/integration-runtime/relation/application.properties"
-          ]
-        },
-        "frontend": {
-          "executable": "node",
-          "cwd": "systems/relation/frontend",
-          "args": [
-            "node_modules/vite/bin/vite.js",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "5174",
-            "--strictPort",
-            "--base",
-            "/relation/"
-          ]
-        }
-      }
-    },
-    {
       "id": "crawler",
       "name": "学术成果信息采集及可视化系统",
-      "description": "汇集学术成果元数据，支持成果检索、数据治理、关系探索与多维可视化分析。",
+      "description": "导入学者信息表，检索学术成果并展示学术关系、成果与背景图谱。",
       "capabilities": [
-        "成果采集",
-        "数据治理",
+        "作者导入",
+        "成果检索",
         "可视化分析"
       ],
       "status": "enabled",

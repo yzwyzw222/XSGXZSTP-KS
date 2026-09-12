@@ -33,7 +33,7 @@ if errorlevel 1 (
     goto finish
 )
 rem 复用已有进程归属校验，只停止当前仓库记录的应用进程。
-echo 正在停止统一门户、关系分析和信息采集系统……
+echo 正在停止学术成果信息采集及可视化系统……
 "%COURSE_PWSH%" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%COURSE_STOP_SCRIPT%" -System all
 set "COURSE_EXIT_CODE=%errorlevel%"
 popd

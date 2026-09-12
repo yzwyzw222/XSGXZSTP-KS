@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import test from 'node:test'
 import { handlePortalAuth, identityCookies, portalCookies, readPortalSession } from '../lib/auth.mjs'
-import { safeReturnPath } from '../../portal/src/services/auth.js'
+import { safeReturnPath } from '../lib/return-path.mjs'
 
 test('统一 Cookie 隔离旧会话，拒绝重复值和异常字符', () => {
   assert.equal(readPortalSession('PORTAL_SESSION=valid-session'), 'valid-session')
@@ -15,9 +15,9 @@ test('统一 Cookie 隔离旧会话，拒绝重复值和异常字符', () => {
 })
 
 test('回跳允许业务深链接，拒绝外站、路径逃逸、认证接口与登录循环', () => {
-  assert.equal(safeReturnPath('/relation/relations/overview?year=2025#papers'), '/relation/relations/overview?year=2025#papers')
+  assert.equal(safeReturnPath('/crawler/academic-relations?year=2025#papers'), '/crawler/academic-relations?year=2025#papers')
   assert.equal(safeReturnPath('/crawler/graph?query=%E5%AD%A6%E6%9C%AF'), '/crawler/graph?query=%E5%AD%A6%E6%9C%AF')
-  for (const removed of ['/extraction/', '/extraction/papers?id=1', '/scholar/', '/scholar/dashboard']) {
+  for (const removed of ['/extraction/', '/extraction/papers?id=1', '/scholar/', '/scholar/dashboard', '/relation/', '/relation/relations/overview']) {
     assert.equal(safeReturnPath(removed), '/', '已删除系统不能作为登录回跳或工作区地址')
   }
   for (const path of [null, '//evil.test', 'https://evil.test', '/crawler/../../evil', '/crawler/%2f/evil',

@@ -10,7 +10,7 @@ if not "%~1"=="" if /i not "%~1"=="--no-pause" goto usage_error
 
 set "COURSE_START_SCRIPT=%~dp0scripts\Start-Integration.ps1"
 set "COURSE_START_ARGS=-System all -Mode Demo"
-rem 本机 MySQL 入口负责安全输入凭据，并调用统一启动流程。
+rem 本机入口按已有配置决定是否需要安全输入凭据，并调用统一启动流程。
 if exist "%~dp0.local\Start-LocalProject.ps1" (
     set "COURSE_START_SCRIPT=%~dp0.local\Start-LocalProject.ps1"
     set "COURSE_START_ARGS=-System all"
@@ -38,7 +38,7 @@ if errorlevel 1 (
     set "COURSE_EXIT_CODE=1"
     goto finish
 )
-echo 正在启动统一门户、关系分析和信息采集系统……
+echo 正在启动学术成果信息采集及可视化系统……
 "%COURSE_PWSH%" -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%COURSE_START_SCRIPT%" %COURSE_START_ARGS%
 set "COURSE_EXIT_CODE=%errorlevel%"
 popd
@@ -55,7 +55,7 @@ set "COURSE_EXIT_CODE=2"
 :help
 echo 用法：start.bat [--no-pause ^| --help]
 echo 默认启动全部应用，完成后按任意键关闭窗口。
-echo 本机 MySQL 环境按提示输入数据库密码，密码不会回显。
+echo 本机已有固定配置时直接启动；使用环境变量配置时按提示安全输入密码。
 echo 首次使用需按 README.md 完成环境初始化和构建。
 echo --no-pause  完成后直接退出，保留实际退出码。
 echo --help      显示帮助，不启动应用。

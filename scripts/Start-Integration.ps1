@@ -1,15 +1,15 @@
 param(
-    [ValidateSet('all', 'portal', 'relation', 'crawler')][string]$System = 'all',
+    [ValidateSet('all', 'portal', 'crawler')][string]$System = 'all',
     [ValidateSet('Development', 'Demo')][string]$Mode = 'Demo'
 )
 . (Join-Path $PSScriptRoot 'Integration.Common.ps1')
 
 $plan = Get-IntegrationPlan $System $Mode
-if (-not (Test-Path -LiteralPath (Join-Path $script:IntegrationRoot 'portal/node_modules/vite/package.json'))) {
-    throw '门户依赖尚未安装，请执行 npm --prefix portal ci。'
+if (-not (Test-Path -LiteralPath (Join-Path $script:IntegrationRoot 'systems/crawler/frontend/node_modules/vite/package.json'))) {
+    throw '系统网关依赖尚未安装，请执行 npm --prefix systems/crawler/frontend ci。'
 }
-if ($Mode -eq 'Demo' -and -not (Test-Path -LiteralPath (Join-Path $script:IntegrationRoot 'portal/dist/index.html'))) {
-    throw '门户尚未构建，请执行 npm --prefix portal run build。'
+if ($Mode -eq 'Demo' -and -not (Test-Path -LiteralPath (Join-Path $script:IntegrationRoot 'systems/crawler/frontend/dist/index.html'))) {
+    throw '系统网关尚未构建，请执行 scripts/Build-Integration.ps1。'
 }
 $operationLock = Enter-IntegrationLock
 try {
@@ -23,17 +23,17 @@ try {
     }
     $portal = $records | Where-Object system -eq 'portal' | Select-Object -First 1
     if ($portal) {
-        if ($portal.commandLine -notmatch ('"' + $Mode + '"$')) { throw '现有门户运行模式不同，请先停止所有组件再切换模式。' }
+        if ($portal.commandLine -notmatch ('"' + $Mode + '"$')) { throw '现有系统网关运行模式不同，请先停止所有组件再切换模式。' }
     } else {
         Assert-IntegrationPort $plan.portalPort
         $portal = Start-IntegrationProcess -Id 'portal' -System 'portal' -Executable 'node' `
-            -Arguments @((Join-Path $script:IntegrationRoot 'portal/server.mjs'), $Mode) `
-            -WorkingDirectory (Join-Path $script:IntegrationRoot 'portal') -Port $plan.portalPort
+            -Arguments @((Join-Path $script:IntegrationRoot 'scripts/server.mjs'), $Mode) `
+            -WorkingDirectory (Join-Path $script:IntegrationRoot 'scripts') -Port $plan.portalPort
         $records += $portal
         Save-IntegrationState $records
     }
     Wait-IntegrationReady $portal "http://127.0.0.1:$($plan.portalPort)/__integration/health" $plan.revision
-    Write-Output "门户已启动：http://127.0.0.1:$($plan.portalPort)/ （$Mode）"
+    Write-Output "系统网关已启动：http://127.0.0.1:$($plan.portalPort)/ （$Mode）"
     foreach ($id in $plan.skipped) { Write-Output "${id}：维护中，未启动。" }
     $failures = @()
     foreach ($component in $plan.processes) {

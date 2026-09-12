@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const rootDirectory = fileURLToPath(new URL('../../', import.meta.url))
-export const systemIds = ['relation', 'crawler']
+export const systemIds = ['crawler']
 const statuses = ['maintenance', 'enabled']
 
 function requireValue(condition, message) {
@@ -35,7 +35,7 @@ export function validateConfig(config) {
     ports.add(value)
   }
   port(config.portalPort)
-  requireValue(Array.isArray(config.systems) && config.systems.length === systemIds.length, '必须配置两个系统')
+  requireValue(Array.isArray(config.systems) && config.systems.length === systemIds.length, '必须且只能配置成果系统 crawler')
   for (const id of systemIds) {
     const matches = config.systems.filter(system => system?.id === id)
     requireValue(matches.length === 1, `${id} 缺失或重复`)
@@ -100,7 +100,7 @@ export function startupPlan(config, selected = 'all', mode = 'Demo') {
     processes: enabled.flatMap(system => {
       const runtime = system.runtime
       const backend = { ...runtime.backend, id: `${system.id}-backend`, system: system.id,
-        args: [...runtime.backend.args, ...(system.id !== 'crawler' ? [`--integration.portal-url=http://127.0.0.1:${config.portalPort}`] : [])],
+        args: [...runtime.backend.args],
         port: runtime.backendPort, readinessUrl: `http://127.0.0.1:${runtime.backendPort}${runtime.readinessPath}` }
       return mode === 'Demo' ? [backend] : [backend, { ...runtime.frontend, id: `${system.id}-frontend`,
         system: system.id, port: runtime.frontendPort, readinessUrl: `http://127.0.0.1:${runtime.frontendPort}/${system.id}/` }]

@@ -11,7 +11,6 @@ assert.ok(systems.length > 0, '未找到待验证系统')
 const portal = `http://127.0.0.1:${config.portalPort}`
 const base = system => `http://127.0.0.1:${direct ? system.runtime.backendPort : config.portalPort}/${system.id}`
 const paths = {
-  relation: ['/papers?page=0&size=5', '/authors?page=0&size=5', '/analytics/collaborations'],
   crawler: ['/catalog/achievements?page=0&size=5', '/analytics/overview', '/graph/overview'],
 }
 const client = await request.newContext({ timeout: 15000 })

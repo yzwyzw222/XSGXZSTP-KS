@@ -34,7 +34,7 @@ test('维护页面、深链接、API 各方法和规范路径不会访问下游'
   const upstreamUrl = await listen(upstream)
   t.after(() => { upstream.closeAllConnections(); upstream.close() })
   let current = config
-  const middleware = createGateway({ root: rootDirectory, initialConfig: config, audit: { observe: (_request, _response, _target, identity) => { identity.catch(() => {}) } }, readConfig: () => {
+  const middleware = createGateway({ root: rootDirectory, initialConfig: config, readConfig: () => {
     if (current instanceof Error) throw current
     return current
   } })
@@ -48,7 +48,7 @@ test('维护页面、深链接、API 各方法和规范路径不会访问下游'
       const result = await request(url, route)
       assert.equal(result.status, 503)
       assert.match(result.headers['content-type'], /text\/html/)
-      assert.ok(result.body.includes(system.name) && result.body.includes('返回门户') && result.body.includes('href="/"'))
+      assert.ok(result.body.includes(system.name) && result.body.includes('返回系统') && result.body.includes('href="/"'))
     }
     for (const suffix of ['/api', '/api/', '/api/v1/auth/login?target=%2F', '/API/v1/unknown', '/actuator/health']) {
       for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']) {
@@ -68,14 +68,14 @@ test('维护页面、深链接、API 各方法和规范路径不会访问下游'
   assert.deepEqual(proxyOptions(config, false), {})
   assert.equal((await request(url, '/relation-other/')).status, 404)
   assert.equal((await request(url, '/api/v1/missing')).status, 404)
-  for (const route of ['/%', '/relation/%00', '/relation/%5Capi', '//relation/']) {
+  for (const route of ['/%', '/crawler/%00', '/crawler/%5Capi', '//crawler/']) {
     assert.equal((await request(url, route)).status, 400)
   }
   assert.equal((await request(url, '/__integration/health')).status, 200)
-  assert.equal(JSON.parse((await request(url, '/integration.json')).body).systems.length, 2)
+  assert.equal(JSON.parse((await request(url, '/integration.json')).body).systems.length, 1)
   current = { ...config, revision: 'changed' }
   assert.equal((await request(url, '/integration.json')).status, 503)
-  assert.equal(JSON.parse((await request(url, '/relation/api/v1/test')).body).code, 'CONFIG_CHANGED')
+  assert.equal(JSON.parse((await request(url, '/crawler/api/v1/test')).body).code, 'CONFIG_CHANGED')
   current = new Error('invalid config')
   assert.equal((await request(url, '/__integration/health')).status, 503)
   assert.equal((await request(url, '/crawler/')).status, 503)
@@ -88,34 +88,29 @@ test('维护说明中的 HTML 被转义', () => {
   assert.ok(html.includes('&lt;script&gt;') && html.includes('&quot;'))
 })
 
-test('已启用系统的匿名深链接和旧登录页统一回跳，旧认证写接口关闭', async t => {
+test('根入口进入成果系统，旧管理书签兼容，移除系统及静态资源均不可访问', async t => {
   const config = loadConfig()
   const middleware = createGateway({ root: rootDirectory, initialConfig: config, development: true,
-    audit: { observe: (_request, _response, _target, identity) => { identity.catch(() => {}) } }, readConfig: () => config })
+    readConfig: () => config })
   const gateway = http.createServer((req, res) => middleware(req, res, () => { res.end('next') }))
   const base = await listen(gateway)
   t.after(() => { gateway.closeAllConnections(); gateway.close() })
-  for (const system of config.systems.filter(entry => entry.status === 'enabled')) {
-    const prefix = `/${system.id}`
-    const deep = await request(base, `${prefix}/graph?view=network`)
-    assert.equal(deep.status, 302)
-    assert.equal(deep.headers.location, `/login?redirect=${encodeURIComponent(`${prefix}/graph?view=network`)}`)
-    for (const path of ['login', 'register', 'session-expired']) {
-      const legacy = await request(base, `${prefix}/${path}`, 'GET', { Cookie: 'PORTAL_SESSION=test' })
-      assert.equal(legacy.status, 302)
-      assert.equal(legacy.headers.location, `/login?redirect=${encodeURIComponent(`${prefix}/`)}`)
-    }
-    for (const action of ['login', 'logout', 'register']) {
-      assert.equal((await request(base, `${prefix}/api/v1/auth/${action}`, 'POST')).status, 410)
-    }
-    assert.equal((await request(base, `${prefix}/graph`, 'GET', { Cookie: 'PORTAL_SESSION=test' })).body, 'next')
+  assert.equal((await request(base, '/')).headers.location, '/crawler/')
+  assert.equal((await request(base, '/login')).headers.location, '/crawler/login?redirect=%2F')
+  assert.equal((await request(base, '/login?redirect=%2Fcrawler%2Fcatalog%2Fmaster-theses')).headers.location, '/crawler/login?redirect=%2Fcatalog%2Fmaster-theses')
+  assert.equal((await request(base, '/?workspace=%2Fmanagement%2Fusers')).headers.location, '/management/users')
+  assert.equal((await request(base, '/management/users')).headers.location, '/crawler/users')
+  assert.equal((await request(base, '/management/logs')).headers.location, '/crawler/logs')
+  assert.equal((await request(base, '/management/audits?category=LOGIN')).headers.location, '/crawler/logs?category=LOGIN')
+  for (const path of ['/crawler/login', '/crawler/session-expired', '/crawler/catalog/master-theses', '/crawler/users']) {
+    assert.equal((await request(base, path)).body, 'next')
   }
-  assert.equal((await request(base, '/login')).body, 'next')
-  for (const removed of ['extraction', 'scholar']) {
-    for (const suffix of ['', '/', '/papers/1', '/api/v1/papers', '/actuator/health', '/assets/app.js']) {
-      for (const method of ['GET', 'POST', 'HEAD']) {
-        assert.equal((await request(base, `/${removed}${suffix}`, method, { Cookie: 'PORTAL_SESSION=test' })).status, 404)
-      }
+  for (const action of ['login', 'logout']) {
+    assert.equal((await request(base, '/crawler/api/v1/auth/' + action, 'POST')).status, 403)
+  }
+  for (const removed of ['extraction', 'scholar', 'relation', 'portal']) {
+    for (const suffix of ['', '/', '/admin', '/api/v1/papers', '/actuator/health', '/assets/app.js']) {
+      for (const method of ['GET', 'POST', 'HEAD']) assert.equal((await request(base, '/' + removed + suffix, method)).status, 404)
     }
     assert.ok(Object.keys(proxyOptions(config, true)).every(route => !route.includes(removed)))
   }
@@ -127,14 +122,14 @@ test('已启用系统保留查询参数及认证 Cookie，并按后端上下文�
   enabled.status = 'enabled'
   enabled.runtime = { backendPort: 18081, frontendPort: 5174 }
   const proxies = proxyOptions(config, true)
-  const api = proxies['^/relation/(?:[aA][pP][iI]|actuator)(?:/|$)']
+  const api = proxies['^/crawler/(?:[aA][pP][iI]|actuator)(?:/|$)']
   assert.equal(api.target, 'http://127.0.0.1:18081')
-  assert.equal(api.rewrite('/relation/api/v1/download?a=1'), '/api/v1/download?a=1')
+  assert.equal(api.rewrite('/crawler/api/v1/download?a=1'), '/api/v1/download?a=1')
   assert.equal(api.changeOrigin, false)
-  assert.equal(proxies['^/relation/'].ws, true)
+  assert.equal(proxies['^/crawler/'].ws, true)
   assert.ok(!('cookiePathRewrite' in api))
   assert.equal(Object.keys(proxies).length, 2)
   enabled.runtime.contextPath = '/relation'
-  const contextual = proxyOptions(config, false)['^/relation/(?:[aA][pP][iI]|actuator)(?:/|$)']
-  assert.equal(contextual.rewrite('/relation/api/v1/download?a=1'), '/relation/api/v1/download?a=1')
+  const contextual = proxyOptions(config, false)['^/crawler/(?:[aA][pP][iI]|actuator)(?:/|$)']
+  assert.equal(contextual.rewrite('/crawler/api/v1/download?a=1'), '/crawler/api/v1/download?a=1')
 })

@@ -28,13 +28,13 @@ try {
     $runtime = Join-Path $fixtureRoot '.local/integration-runtime'
     $compose = Get-Content -LiteralPath (Join-Path $runtime 'compose.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $serviceNames = @($compose.services.PSObject.Properties.Name | Sort-Object)
-    Assert-Initialization (($serviceNames -join ',') -eq 'crawler-mysql,crawler-neo4j,relation-mysql,relation-neo4j') '初始化必须只创建两个系统的数据库和图服务。'
-    Assert-Initialization (@($compose.volumes.PSObject.Properties).Count -eq 4) '初始化必须只声明四个有效数据卷。'
-    foreach ($removed in @('extraction', 'scholar')) {
+    Assert-Initialization (($serviceNames -join ',') -eq 'crawler-mysql,crawler-neo4j') '初始化必须只创建成果系统的数据库和图服务。'
+    Assert-Initialization (@($compose.volumes.PSObject.Properties).Count -eq 2) '初始化必须只声明两个有效数据卷。'
+    foreach ($removed in @('extraction', 'scholar', 'relation')) {
         Assert-Initialization (-not (Test-Path -LiteralPath (Join-Path $runtime $removed))) '初始化不能生成已删除系统的运行配置。'
     }
     $before = @{}
-    foreach ($id in @('relation', 'crawler')) {
+    foreach ($id in @('crawler')) {
         $application = Join-Path $runtime "$id/application.properties"
         $properties = Get-Content -LiteralPath $application -Raw -Encoding UTF8
         Assert-Initialization ($properties -match '(?m)^integration.bootstrap-admin.enabled=false\r?$') "$id 未默认关闭账号引导。"
@@ -50,7 +50,7 @@ try {
     $crawlerCredentials = Get-Content -LiteralPath (Join-Path $runtime 'crawler/credentials.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Initialization (-not [string]::IsNullOrWhiteSpace($crawlerCredentials.admin)) '未保留供手动建号使用的本机密码。'
 
-    $existingConfiguration = Join-Path $runtime 'relation/application.properties'
+    $existingConfiguration = Join-Path $runtime 'crawler/application.properties'
     Add-Content -LiteralPath $existingConfiguration -Value '# 开发者已有配置应在重复初始化时保留。' -Encoding UTF8
     $before[$existingConfiguration] = (Get-FileHash -LiteralPath $existingConfiguration).Hash
     & $initialize | Out-Null

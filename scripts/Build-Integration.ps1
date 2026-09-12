@@ -8,7 +8,6 @@ foreach ($record in @(Read-IntegrationState)) {
 }
 
 $builds = @(
-    @{ id='relation'; frontend='systems/relation/frontend'; backend='systems/relation/backend'; wrapper='systems/relation/backend/mvnw.cmd'; pom='pom.xml' },
     @{ id='crawler'; frontend='systems/crawler/frontend'; backend='systems/crawler'; wrapper='systems/crawler/mvnw.cmd'; pom='backend/pom.xml' }
 )
 $logDirectory = Join-Path $script:IntegrationRoot '.local/integration-build'
@@ -28,10 +27,4 @@ foreach ($build in $builds) {
         if ($LASTEXITCODE -ne 0) { throw "$($build.id) 后端打包失败，见 .local/integration-build。" }
     } finally { Pop-Location }
 }
-if ($Restore) {
-    & npm.cmd --prefix (Join-Path $script:IntegrationRoot 'portal') ci --no-audit --no-fund --offline=false --registry=https://registry.npmjs.org --cache (Join-Path $script:IntegrationRoot '.local/npm-cache')
-    if ($LASTEXITCODE -ne 0) { throw '门户依赖恢复失败。' }
-}
-& npm.cmd --prefix (Join-Path $script:IntegrationRoot 'portal') run build
-if ($LASTEXITCODE -ne 0) { throw '门户构建失败。' }
-Write-Output '两套子系统与门户构建完成。'
+Write-Output '学术成果信息采集及可视化系统构建完成。'

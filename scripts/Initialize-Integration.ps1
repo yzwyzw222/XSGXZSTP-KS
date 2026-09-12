@@ -30,7 +30,6 @@ function New-IntegrationSecret {
 }
 
 $systems = @(
-    @{ id='relation'; port=18081; db=23361; bolt=27681; http=27471 },
     @{ id='crawler'; port=18083; db=23363; bolt=27683; http=27473 }
 )
 $services = [ordered]@{}
@@ -101,4 +100,4 @@ $composePath = Join-Path $runtimeRoot 'compose.json'
 [IO.File]::WriteAllText($composePath, (@{name='course-integration';services=$services;volumes=$volumes} | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
 & docker compose -f $composePath up -d --wait --wait-timeout 240
 if ($LASTEXITCODE -ne 0) { throw '隔离基础服务未就绪，请检查 course-integration 项目容器状态。' }
-Write-Output '两个独立 MySQL 与两个 Neo4j 已就绪。本机配置位于 .local/integration-runtime；新环境不会自动创建用户，请在后端首次启动建表后，按 README 在 crawler 数据库手动添加 admin。已有配置和账号保持不变。'
+Write-Output '成果系统 MySQL 与 Neo4j 已就绪。本机配置位于 .local/integration-runtime；新环境不会自动创建用户，请在后端首次启动建表后，按 README 在 crawler 数据库手动添加 admin。已有配置和账号保持不变。'

@@ -54,7 +54,9 @@ http {
     listen 127.0.0.1:${config.portalPort};
     server_name 127.0.0.1 localhost;
     charset utf-8;
-    root ${absolute('portal/dist')};
+    root ${absolute('systems/crawler/frontend/dist')};
+    location = / { return 302 /crawler/; }
+    location = /login { return 302 /crawler/login$is_args$args; }
     add_header X-Content-Type-Options nosniff always;
     location = /integration.json {
       default_type application/json;

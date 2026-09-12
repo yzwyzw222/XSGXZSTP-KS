@@ -30,14 +30,14 @@ function reply(response, status, message, headers = {}) {
   response.end(JSON.stringify({ status, detail: message }))
 }
 
-/** 统一入口复用 crawler 的会话和 CSRF 校验，不保存或记录用户密码。 */
+/** 系统页面复用 crawler 的会话和 CSRF 校验，不保存或记录用户密码。 */
 export async function handlePortalAuth(request, response, config) {
   const action = new URL(request.url, 'http://127.0.0.1').pathname.slice(endpoint.length)
   const method = { csrf: 'GET', me: 'GET', login: 'POST', logout: 'POST' }[action]
   if (!method) return reply(response, 404, '认证接口不存在。')
   if (request.method !== method) return reply(response, 405, '请求方法不支持。', { Allow: method })
   if (method === 'POST' && request.headers.origin !== `http://${request.headers.host}`) {
-    return reply(response, 403, '请求来源校验失败，请从统一入口重新操作。')
+    return reply(response, 403, '请求来源校验失败，请从系统页面重新操作。')
   }
   const identity = config.systems.find(system => system.id === 'crawler' && system.status === 'enabled')
   if (!identity) return reply(response, 503, '统一认证服务暂不可用，请稍后重试。')
