@@ -32,7 +32,7 @@ class RenderingSampleDataSqlTests {
                 .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(17, flyway.migrate().migrationsExecuted);
+        assertEquals(18, flyway.migrate().migrationsExecuted);
         assertEquals(0, flyway.info().pending().length);
 
         try (Connection connection = MYSQL.createConnection("");

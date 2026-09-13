@@ -3,7 +3,7 @@
     {
       "path": "README.md",
       "sourceBlob": "792c7df542e2ff8dd185d52406793b040a37907b",
-      "adaptedBlob": "1c0c827b1d0e5fdc725dbc4695ce082ead0cd0be"
+      "adaptedBlob": "37ee3e68089c91f446c37cfb6b05932179ff4c23"
     },
     {
       "path": "backend/pom.xml",
@@ -76,6 +76,11 @@
       "adaptedBlob": "adce66e24b7fa64d026e6a5ead38e24870f2ec19"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzCleanup.java",
+      "sourceBlob": null,
+      "adaptedBlob": "df89c1d13a4483b3be78b44d37b35294fdb2c857"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzJob.java",
       "sourceBlob": null,
       "adaptedBlob": "beb9df94aa0806268d15f193909ced83317eccf5"
@@ -116,9 +121,19 @@
       "adaptedBlob": "7a1a548671b9df09ec9f86e611a8ee98e9c4bebe"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlFailurePageResponse.java",
+      "sourceBlob": "a0c554e64f2e5b871308220c23f6a96d6a7486e1",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlRunResponse.java",
+      "sourceBlob": "0d2f77a6eb6302c6a173ad2e7c74818659a3c526",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlScheduleResponse.java",
       "sourceBlob": "3d6aaed4f8408112628ea2d739a051ac409a70d3",
-      "adaptedBlob": "b459fbb49184bdb300bd79ca1d343393ffe89c69"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlTaskController.java",
@@ -126,94 +141,219 @@
       "adaptedBlob": null
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlTaskPageResponse.java",
+      "sourceBlob": "1f6522fe787e9a1bcfbb43dd23e3b1571c9cbb29",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlTaskParametersRequest.java",
+      "sourceBlob": "cdab6612abda68ed86227d6eba10772da4ca247b",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/CrawlTaskResponse.java",
+      "sourceBlob": "92c4428e2dcb9a8bf122d50d030e59e6bd99c5ee",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/CreateCrawlTaskRequest.java",
+      "sourceBlob": "76a83d7f81d41b90903fad4c00303e4378465e4d",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/crawl/api/DailyScheduleRequest.java",
       "sourceBlob": "931d1fb32dd465510cccedbb5f491708282f73fb",
-      "adaptedBlob": "f58b67074b7004b707442bd33ce1e6cc7856b8be"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/api/UpdateCrawlTaskRequest.java",
+      "sourceBlob": "02154bf4553cdefc207f39e7b63b20a8cb8097b7",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlRecoveryService.java",
       "sourceBlob": "a41edced8bd2c656224e9f5906378cb14dd2b1c8",
-      "adaptedBlob": "ebaf7eed020063b232d7d8076a6a2dcde7960585"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlRunService.java",
       "sourceBlob": "c9ef3dc65b628af28d8d6585b1e182daf5c433ac",
-      "adaptedBlob": "f34780935f32acfe443302783697b80c590fec48"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlTaskService.java",
       "sourceBlob": "cbbdb45b967788356604be007f85b16641ab4956",
-      "adaptedBlob": "db369f02b5579bd207b409293cfd361838d6f255"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/crawl/application/CrawlWindowService.java",
-      "sourceBlob": null,
-      "adaptedBlob": "aa3b9ef96124e04da53a4cf5230e24b3422e8157"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/application/port/CrawlRepository.java",
       "sourceBlob": "90150bbecf0fe6899d7f1bef21f17ff71f4c4856",
-      "adaptedBlob": "81d94a7d59b5b35d0b186eb43012f86874699016"
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlExecutionFailure.java",
-      "sourceBlob": null,
-      "adaptedBlob": "f04b02eee3acdbcd6b9b201764b28a394731b898"
+      "path": "backend/src/main/java/com/aacv/system/crawl/application/port/CrawlRunLaunchPort.java",
+      "sourceBlob": "3474ab588638238d30e41914f6ad083cb315f3c3",
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlLaunchFailure.java",
-      "sourceBlob": null,
-      "adaptedBlob": "4e889b0482582598eb61e8658ed56b539cb6c9c6"
+      "path": "backend/src/main/java/com/aacv/system/crawl/application/port/CrawlSchedulePort.java",
+      "sourceBlob": "a9f3349c280927246f5bfcb1da8a944b552b570c",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/application/port/CrawlScopeCodec.java",
+      "sourceBlob": "2b50476b3b4d8d97e06e218e9e1bd98be54506cc",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlCheckpointState.java",
+      "sourceBlob": "20f9745d41d1a112b5afeef2d9be4e13b1d4b2ef",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlCompletionReason.java",
+      "sourceBlob": "146a2f79e118b92f421299c25a65d36a28142b9f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlControlIntent.java",
+      "sourceBlob": "4909ffaa28f492739efb1393507ce9685c54b390",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlFailure.java",
+      "sourceBlob": "2776a99cae80a2319d4932db4f8955a3926af947",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlRecoveryCandidate.java",
+      "sourceBlob": "8963d1ee9d50006e3521b7b8e163bc9e04d5d95c",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlRun.java",
+      "sourceBlob": "e13825bf274a7cd98a946f71f0792bae350f5392",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlRunStateMachine.java",
       "sourceBlob": "0e351c371f1ae2a86ad51170f24a5e1a986d686b",
-      "adaptedBlob": "422a172c983ca415e9beafd56a4464aed297a3e4"
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlWindow.java",
-      "sourceBlob": null,
-      "adaptedBlob": "852885ac55cf1c4f2a7736ffd7f88c88f2a7c9a7"
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlRunStatus.java",
+      "sourceBlob": "5272448fb2e2d444920e62923d1d201ac965661f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlSchedule.java",
+      "sourceBlob": "e4e35d139c01c5fd55839e68494f1a2a00d8a369",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlScope.java",
+      "sourceBlob": "7ebb9842c224e6925eeb20b356159ae08bebaaf5",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlTask.java",
+      "sourceBlob": "e46df7134faa2bf3c216f7e6d60509cde8809f0f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/domain/CrawlTriggerType.java",
+      "sourceBlob": "b624abedc796fc63e3f87a6024d65e894ded8ace",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/CrawlBatchConfiguration.java",
+      "sourceBlob": "54513045ea9968a52145104cea3955b703567684",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/CrawlJobExecutionListener.java",
       "sourceBlob": "47890290e9eb55a54bfc1429aa8d1b0608cd9da8",
-      "adaptedBlob": "1b932294aaad31b002d1598aa9b17a0b14449330"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/CrawlJobLauncherConfiguration.java",
+      "sourceBlob": "da6ffe29e87f83b990d41bfca2324dd4e425b221",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/CrawlPageItem.java",
+      "sourceBlob": "3d8912b8981eb15d9811398fefbdb7b479d1c0eb",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/OpenAlexPageItemReader.java",
       "sourceBlob": "8e9531b71e0ca7d9df940eb58fcb3b58829d3757",
-      "adaptedBlob": "b7ade88df2c32f024bdb89f15a7629ecb4c580ba"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/batch/SpringBatchCrawlRunLauncher.java",
       "sourceBlob": "70221e8c1863c7bec00ac565e759cc47d92883d9",
-      "adaptedBlob": "2f6b35422fb2512014bd150f4712f8a644bfaa2f"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlCheckpointRow.java",
+      "sourceBlob": "8690ac983322fd719e58b27f1be40a555e431f59",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlFailureRow.java",
+      "sourceBlob": "ba2517348dbceb521428375194d34db64455d3d8",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlMapper.java",
       "sourceBlob": "67f4d04ad627b3ed9893e2aab752212cedeaa592",
-      "adaptedBlob": "99c9fc0bb026f6baccb6b841e846ddca207aeaa4"
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlWindowRow.java",
-      "sourceBlob": null,
-      "adaptedBlob": "6a3922b591ca67baf317e401e86e4ed511837897"
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlRecoveryCandidateRow.java",
+      "sourceBlob": "45c3c5005dd83e62c5ebdd2e886bd0d28275e341",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlRunRow.java",
+      "sourceBlob": "6c3ef0ed1159755c8e5d80a0bd341e3b66a333df",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlScheduleRow.java",
+      "sourceBlob": "74e2c04f68b04a94ebea3646d25e9e731be0ccce",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/CrawlTaskRow.java",
+      "sourceBlob": "ace824191e9944626a40ef1d7bba57f8563138dd",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/persistence/MyBatisCrawlRepository.java",
       "sourceBlob": "6ad51c5f75edaba9a4794355cf3f557989d82ca4",
-      "adaptedBlob": "9e01ba0fce7d8fe56d5be80b811a623e22e02d41"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/AutowiringSpringBeanJobFactory.java",
+      "sourceBlob": "a8e9f1ae0743951f44de3cf12265ab372b207833",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzCrawlScheduleAdapter.java",
       "sourceBlob": "d82ce492be4463546ccbc213bcd109a68343539d",
-      "adaptedBlob": "708961a94a4a8c1683a7cc78f80cfe6fb7816599"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzCrawlTriggerJob.java",
       "sourceBlob": "ae9de6b3bed7beb8caf92951f2a2c7fa19372b95",
       "adaptedBlob": "db5d78727847564b60302eb5e925635bf8ad4736"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzJobFactoryConfiguration.java",
+      "sourceBlob": "31afb567dcdb25493161899927f8e2b980663459",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/quartz/QuartzQuotaResumeConfiguration.java",
@@ -226,6 +366,11 @@
       "adaptedBlob": "d3420cd0cedf5e8f4c06a593d2823b32c419c116"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/crawl/infrastructure/serialization/JacksonCrawlScopeCodec.java",
+      "sourceBlob": "605d420098ecaa674b6220c4bfc11f6a05dbddc6",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/export/domain/ExportFilter.java",
       "sourceBlob": "1a48708b5cd7e867187e97cb7b63e707f8ee111f",
       "adaptedBlob": "82b06da55a6bc388ace29524be5c76e3e3ede4c5"
@@ -236,13 +381,123 @@
       "adaptedBlob": null
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/CandidateAcceptRequest.java",
+      "sourceBlob": "cb2d609f76c98a298da22eecae6c529a08578857",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/governance/api/DuplicateCandidateController.java",
       "sourceBlob": "7b2a3b05ec6678108c966ed61a38e33ebf71d18f",
       "adaptedBlob": null
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/DuplicateCandidatePageResponse.java",
+      "sourceBlob": "dc3a6d467eacfe0d0327ce7c7d59f9898111e11f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/DuplicateCandidateResponse.java",
+      "sourceBlob": "07ba64b4b1ada6b866cd39eef2353220f8b4d9c9",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/FieldOverrideRequest.java",
+      "sourceBlob": "81b695ba87a8cf6c0b4db77354c37b54f9beb562",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/FieldOverrideResponse.java",
+      "sourceBlob": "6a0a8cffd6e2caee7b1408d18ad8cd8f9a7b99ae",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/governance/api/MergeDecisionController.java",
       "sourceBlob": "91fd6c5c261cb6ae6a4ad98b075bac012219b36a",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/MergeDecisionResponse.java",
+      "sourceBlob": "2002dd3fb407b12e40e793dfeea1c8ab9830d8c6",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/api/VersionReasonRequest.java",
+      "sourceBlob": "8525ba833789e59d8decb8e6d831784ae3724e02",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/application/GovernanceService.java",
+      "sourceBlob": "0b8bc2e13c34d2ef89a5bff8cac29ff87a6bfc63",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/application/port/GovernanceRepository.java",
+      "sourceBlob": "f13643749fa94d7dedbaea099b3ac13af2d7400b",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/CandidateComparison.java",
+      "sourceBlob": "89d7901689f149810c453011a911a448fd3b870a",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/CandidateStatus.java",
+      "sourceBlob": "30b31fbdfe2009b007e3a30d3b81d665cdc80a54",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/DuplicateCandidate.java",
+      "sourceBlob": "c2a0ec2de7ee076dddce6ea510f24bcf7fb99568",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/DuplicateCandidateQuery.java",
+      "sourceBlob": "0e18919f1cc95659ce3be0c90d27d3cdca9d16ad",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/FieldOverride.java",
+      "sourceBlob": "f615d730d81d4f4b1086a5415633708735cd7d75",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/GovernedEntityType.java",
+      "sourceBlob": "0ddcfd79eb4dffef59a9c351a2b1d9ffe2307b94",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/domain/MergeDecision.java",
+      "sourceBlob": "bcae6e892d74ba3d75e3f50eb22c30429100a4fa",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/infrastructure/persistence/CandidateRow.java",
+      "sourceBlob": "905ab1b263faa884547f6a6c1e9da0949cb05746",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/infrastructure/persistence/DecisionRow.java",
+      "sourceBlob": "594563bae8fc69bca4a887453518803771629915",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/infrastructure/persistence/GovernanceMapper.java",
+      "sourceBlob": "ddb74123c8af5335338f5099739572ca143f12e5",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/infrastructure/persistence/MyBatisGovernanceRepository.java",
+      "sourceBlob": "815348e4721d2a3252f7308d698d7c3670d59215",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/infrastructure/persistence/OverrideRow.java",
+      "sourceBlob": "5a18ee1c310e5f57e6a23785eb18e415160aed77",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/governance/infrastructure/persistence/RevisionRow.java",
+      "sourceBlob": "656394d1929dad2b075075ae63e2ff921ce1345a",
       "adaptedBlob": null
     },
     {
@@ -276,6 +531,11 @@
       "adaptedBlob": "dccb68233644b5d8a7027c47d9260521a3b5fd79"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/batch/SpringBatchGraphMaintenanceLauncher.java",
+      "sourceBlob": "612a807dcbad26ed21f65afbdb419d6a975ad5d4",
+      "adaptedBlob": "a65de16c7e99b91d115fb7e47f7bd56f389bb44e"
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/graph/infrastructure/neo4j/Neo4jProjectionInspector.java",
       "sourceBlob": "4bb5bddb68d97b737381eb3babfa7b4adf392467",
       "adaptedBlob": "0c286c8e25135bb2508b0e3d443c59c436077d87"
@@ -306,19 +566,104 @@
       "adaptedBlob": "9ca7cf552238316aadd6e38c2a18907be754c9c5"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/infrastructure/batch/BatchJobLauncherConfiguration.java",
+      "sourceBlob": null,
+      "adaptedBlob": "2c433f516163dfcc2b4ebe299c032ac4118f2ace"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/infrastructure/quartz/AutowiringSpringBeanJobFactory.java",
+      "sourceBlob": null,
+      "adaptedBlob": "cfe10555036bafdcfb7af4d855437f534f244023"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/infrastructure/quartz/QuartzJobFactoryConfiguration.java",
+      "sourceBlob": null,
+      "adaptedBlob": "65e17090c13aea51591ceb11eda48f03d1fdccb6"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/application/IngestionPageResult.java",
+      "sourceBlob": "0c114363ae179acba9fe2fe492c3a5673a34036d",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/application/IngestionPageService.java",
+      "sourceBlob": "064e12258706d126016f38a6c71225486512ec5b",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/application/OpenAlexWorkNormalizer.java",
+      "sourceBlob": "c642ae85e77131d885137d55bb3ceca287e4cdd2",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/ingestion/application/SourceWorkNormalizer.java",
       "sourceBlob": "956fe5918ae21287840943fcdf5f089eb13a28fd",
-      "adaptedBlob": "c261a7d31de0b760a60f20466e53172e8071d339"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/application/port/IngestionRepository.java",
+      "sourceBlob": "c50d82d379709a42556d37ba3b038905bad2e4fa",
+      "adaptedBlob": "8ebf3130e88e5049270df3f32e167ab7deecfde6"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/domain/NormalizedWork.java",
+      "sourceBlob": "82d8d8c6453e244c92bf2ecd243102c4aa42227f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/domain/RawSourceRecord.java",
+      "sourceBlob": "7256086ee2d85800b387bea31bade8a342aa160d",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/domain/RetryFailureRecord.java",
+      "sourceBlob": "61ccb159774e6ed06438d1d0fbe216e501419bb2",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/AchievementPersistenceRow.java",
+      "sourceBlob": "889c6fac7c29f9370ee2e10480dcc2597b7f507e",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/CanonicalEntityRow.java",
+      "sourceBlob": "ed75e0af0de6482762233a69b8279427e1c634f8",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/GeneratedIdRow.java",
+      "sourceBlob": "d96f5f17abed3897a7ba4f94930dac8445cabbe9",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/IngestionMapper.java",
       "sourceBlob": "3ee8b74c560291cabac13aab4ace473a654fdb29",
-      "adaptedBlob": "b5ca3c4de4ec94dd2de42bbaff9c7c902c7adda1"
+      "adaptedBlob": "73ce4ef93e55cfc06053b2341303a47037e28fc9"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/MyBatisIngestionRepository.java",
       "sourceBlob": "4797c123e1f3e64b01f24f141d7dfd7926e38cb4",
-      "adaptedBlob": "4190ac556b1dec737005808c70a6c869bfd5d5ee"
+      "adaptedBlob": "6a8da65c796c2930245e53aaf76af9f9c987a8e9"
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/RawRecordPersistenceRow.java",
+      "sourceBlob": "d0c2cfe7dd3ba97199e5bdaf183b6b36a450c961",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/RawRecordState.java",
+      "sourceBlob": "b1f5770a9901ac84cf538e36c3b8fc48fa40a754",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/RetryFailureRow.java",
+      "sourceBlob": "2b5d861f880f8d379237f74eef04ad53c68d1d16",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/ingestion/infrastructure/persistence/SourceSnapshotRow.java",
+      "sourceBlob": "0b0b217482c844c83300c2e2574010767f41320a",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/operations/domain/AuditAction.java",
@@ -326,8 +671,83 @@
       "adaptedBlob": "d670777d22e4b1fc3dae89302ffcd36cb7f29a80"
     },
     {
+      "path": "backend/src/main/java/com/aacv/system/quality/api/QualityIssueSampleResponse.java",
+      "sourceBlob": "d6d1830623be808d0c042aa1d6c76bcf56b66a2a",
+      "adaptedBlob": null
+    },
+    {
       "path": "backend/src/main/java/com/aacv/system/quality/api/QualityMetricController.java",
       "sourceBlob": "4bcb013cffe7412fdb22f38a2fbdd871b05125eb",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/api/QualityMetricDetailResponse.java",
+      "sourceBlob": "3bd7071866efd37ef4c16c87ba11de6030cf978f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/api/QualityMetricPageResponse.java",
+      "sourceBlob": "553a0f2dc451c8ef15b82b68aca11e53c36a2557",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/api/QualityMetricResponse.java",
+      "sourceBlob": "8d4dcc19d6c7382d9254e0f04956796e8cfacb41",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/application/QualityMetricService.java",
+      "sourceBlob": "49f96f838a684fc40c3fce79c3fcb8e761e1eeea",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/application/port/QualityMetricRepository.java",
+      "sourceBlob": "7f7f6b2be4166bac4b400a3c7fdcf20fc3b90559",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/domain/QualityIssueSample.java",
+      "sourceBlob": "23c9f870187ea795a22b2bf97ad2f58067b9507e",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/domain/QualityMetric.java",
+      "sourceBlob": "8c6667c666839f520f865af685ccb84e2644929c",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/domain/QualityMetricCode.java",
+      "sourceBlob": "a6e7719ef6d1734944b7a63ca4b6594c1e8f1cc0",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/domain/QualityMetricDetail.java",
+      "sourceBlob": "45ea8a1c99e84be1a7133431ae12f0583cc99da6",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/domain/QualityMetricQuery.java",
+      "sourceBlob": "44e3fb229639855baa8e74f042c24635553764f7",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/infrastructure/persistence/MyBatisQualityMetricRepository.java",
+      "sourceBlob": "6c41002aa022eb1f720fcb5951a76545c0ab9e79",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/infrastructure/persistence/QualityIssueRow.java",
+      "sourceBlob": "30e267827d23ab415cd231e694525f0cf7d7c5dd",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/infrastructure/persistence/QualityMetricMapper.java",
+      "sourceBlob": "0939e5a59999879dda84d1e87ce7af5c03c3a8db",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/quality/infrastructure/persistence/QualityMetricRow.java",
+      "sourceBlob": "bd2b4db3d1f17f0cfa9926411d85cbdfa136f35d",
       "adaptedBlob": null
     },
     {
@@ -343,7 +763,7 @@
     {
       "path": "backend/src/main/java/com/aacv/system/shared/infrastructure/web/ApiExceptionHandler.java",
       "sourceBlob": "87b32ae361582143e8db4047ec0cf4eae2b6f324",
-      "adaptedBlob": "067947501c07d89c148b6186e9cc4502bf3f8f26"
+      "adaptedBlob": "4964a933baf72b18218c005595b2fee6e78e01fe"
     },
     {
       "path": "backend/src/main/java/com/aacv/system/source/api/DataSourceController.java",
@@ -351,49 +771,189 @@
       "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/application/SourceEntityLookupException.java",
-      "sourceBlob": null,
-      "adaptedBlob": "d05df9e7eb42dcd300fa52c84bf90ff84fa77a6f"
+      "path": "backend/src/main/java/com/aacv/system/source/api/DataSourcePageResponse.java",
+      "sourceBlob": "38d76d226603e51d07c327fb8d36217793820008",
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/application/SourceEntityService.java",
-      "sourceBlob": null,
-      "adaptedBlob": "553e561da8f6a7a3f651e87d95de53a8a715b166"
+      "path": "backend/src/main/java/com/aacv/system/source/api/DataSourceResponse.java",
+      "sourceBlob": "5e28496caf3f9a822626ffdfdbb47fbb1455c8b9",
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/application/port/SourceEntityLookup.java",
-      "sourceBlob": null,
-      "adaptedBlob": "1f6ffd8f013c140d88bcc06e7c81a7620c78b108"
+      "path": "backend/src/main/java/com/aacv/system/source/api/SourceConfigurationRequest.java",
+      "sourceBlob": "82149ebdf6fea2f9b72ac4e5e4b6ee07ce4b51d4",
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/domain/SourceEntity.java",
-      "sourceBlob": null,
-      "adaptedBlob": "2804c776cf1a05e2e1dda6909047e01b2368b10d"
+      "path": "backend/src/main/java/com/aacv/system/source/api/SourceProbeResponse.java",
+      "sourceBlob": "951d773b332599b4c4dba789acb90ced6cfdda9d",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/application/DataSourceAdapterRegistry.java",
+      "sourceBlob": "67cf076865c2dba706560a7b6a95aef860547ff1",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/application/DataSourceService.java",
+      "sourceBlob": "f8162f52a6fa0a911072bc3ac312ebb314d48dd5",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/application/SourceClientException.java",
+      "sourceBlob": "131703da80803105ddbd5ba68847e9855439afa7",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/application/SourceQuotaExhaustedException.java",
+      "sourceBlob": "b34348dd9950ddc15baa3e95e005fcbdb103ec40",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/application/port/DataSourceAdapter.java",
+      "sourceBlob": "be60ba27a527e64c78992bf4b46d02c3177e0ff8",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/application/port/DataSourceRepository.java",
+      "sourceBlob": "4bf8f390eb6640deb886f9f5d2037b63122569dc",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/DataSourceConfiguration.java",
+      "sourceBlob": "6cfe6235348364b0838be937051f71c951ec1a72",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/OpaqueCursor.java",
+      "sourceBlob": "411265d2517af886c931589bf13e11a626fa329f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/SourceCapabilities.java",
+      "sourceBlob": "4723fdd428e31b9d8862c2cc8cf1054e4101afa0",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/SourceConnectionSettings.java",
+      "sourceBlob": "0b2cc6126587afbda490ba4c722868c55d484547",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/SourcePage.java",
+      "sourceBlob": "7acdcdd19b794ca638a427a2c6aad3dae2743a9f",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/SourceProbeResult.java",
+      "sourceBlob": "953bb059693fff0c775ef77235ff9a0cb43832ad",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/SourceValidationResult.java",
+      "sourceBlob": "9e09d88be1b0bffc51c735ba7d473d30675caa52",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/domain/SourceWork.java",
+      "sourceBlob": "34a739bbfefbd185c5db0ffd11d4edab4800de16",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/ScholarlyMetadataParser.java",
+      "sourceBlob": "e18a92053950e8d76cd8d72215eb920a4b02fc94",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefClientException.java",
+      "sourceBlob": "a986d923fb6b5eec972247159da16ad3a160fa15",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefDataSourceAdapter.java",
       "sourceBlob": "e880e8ba65020a6435d42503caf279db197dca2f",
-      "adaptedBlob": "2aa7fbabc0680d48032c105cc714e20d578d3269"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpResponse.java",
+      "sourceBlob": "f3d6187624e6641a30560e192b524532eb4b4599",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpTransport.java",
       "sourceBlob": "c4c2a17352c90fe5a1ce08848266018cb465842c",
-      "adaptedBlob": "bb9d93c121995da36c5b3c85058a21667cf39d4f"
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexEntityLookup.java",
-      "sourceBlob": null,
-      "adaptedBlob": "0782a27396c7db3decdb75cd43b1cc61e7db1723"
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefRequestGate.java",
+      "sourceBlob": "c970cb7f310f3db0b91bec49ddf1f15c108862bd",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefResponseParser.java",
+      "sourceBlob": "ec2184d5b274f4b36b3c93ffe26d3718218fa05d",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/crossref/CrossrefRestClientFactory.java",
+      "sourceBlob": "6dca1f5b9b5bd0851cc8d4bc182cc5356db33411",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexClientException.java",
+      "sourceBlob": "fbaac88abfb66c5a163b81cf571e7d954aa029aa",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexDataSourceAdapter.java",
+      "sourceBlob": "fcf7d578b870363752653581e6d6bc9039acae2c",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexHttpResponse.java",
+      "sourceBlob": "c323064752bf47d3187a078be0363723fe6377a6",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexHttpTransport.java",
       "sourceBlob": "341d1068b245d9a997bc55dbd29a338594f41e66",
-      "adaptedBlob": "e2be808c452ca24a57088f9fa58e6c5ab24b6927"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexQuota.java",
+      "sourceBlob": "77e51884371a85acc23aca3fb0c9b476746d7328",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexRequestGate.java",
       "sourceBlob": "96c65ab9d76dec7270b632703c371c685859a0c5",
-      "adaptedBlob": "f7fde04f208c698ca6bdbe7be02a5ee82a17a3c3"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexResponseParser.java",
+      "sourceBlob": "2b2e48f4317d6aff480dddbeec3ad86a7932123b",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/openalex/OpenAlexRestClientFactory.java",
+      "sourceBlob": "ae37fb050f230a3b875f41347a2b11aa3ca039e8",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/persistence/DataSourceMapper.java",
+      "sourceBlob": "ce736ecc58c7c72d74ec8ef549845f6b3a39d14a",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/persistence/DataSourceRow.java",
+      "sourceBlob": "92e82fd6e0270bcdf1aa533dbe980169484421aa",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/java/com/aacv/system/source/infrastructure/persistence/MyBatisDataSourceRepository.java",
+      "sourceBlob": "65a130c8ab68dd5eeae5a27ce0c7c29456004960",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/resources/db/migration/V16__persist_crawl_windows.sql",
@@ -428,12 +988,17 @@
     {
       "path": "backend/src/main/resources/mapper/crawl/CrawlMapper.xml",
       "sourceBlob": "810a6376a80c76c16901463425277182ef3c325a",
-      "adaptedBlob": "8bbe4f170031b5a0d380f693b7cf32893c629ff1"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/resources/mapper/export/ExportMapper.xml",
       "sourceBlob": "fc70e87b71d220c002a71a2cec250b3e5ef3786f",
       "adaptedBlob": "72f158f8721e4124e53ff080a03949c40b4f38fe"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/governance/GovernanceMapper.xml",
+      "sourceBlob": "06af994b24962d7706b172fa6158b64642b40441",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/main/resources/mapper/graph/GraphProjectionRequestMapper.xml",
@@ -448,12 +1013,22 @@
     {
       "path": "backend/src/main/resources/mapper/ingestion/IngestionMapper.xml",
       "sourceBlob": "56baafa14fd1bb4a919273359e69106945fb6d9e",
-      "adaptedBlob": "4b72a3c4a5e87535b5b75ab3e17d49acda1aa10e"
+      "adaptedBlob": "2fb4ef9be195b82b45f11f7489a2f81b3595b4c7"
+    },
+    {
+      "path": "backend/src/main/resources/mapper/quality/QualityMetricMapper.xml",
+      "sourceBlob": "ed90b89cc49a1485c1269a2514dc401400ed631c",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/main/resources/mapper/source/DataSourceMapper.xml",
+      "sourceBlob": "d94584595173ea8a5614152b683f042aafda2364",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/AacvSystemApplicationTests.java",
       "sourceBlob": "71994ed7cd8727b443eacb42688c0f05add11c26",
-      "adaptedBlob": "f825fc84e9cf1d077b48494ccb0bc2a0fd746175"
+      "adaptedBlob": "0d323a82014aababc2dbed97950800943c3ad9cd"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/OpenApiDocumentTests.java",
@@ -481,6 +1056,11 @@
       "adaptedBlob": "303f08282ff2187a1ae4afc600f7933938758533"
     },
     {
+      "path": "backend/src/test/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzCleanupTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "c44451e227c1693feb0e85669a5e545ce649dc3b"
+    },
+    {
       "path": "backend/src/test/java/com/aacv/system/catalog/CatalogWorkEntitiesIntegrationTests.java",
       "sourceBlob": null,
       "adaptedBlob": "5263827d16b499a396a6721821866aae9fb3d9fd"
@@ -488,57 +1068,57 @@
     {
       "path": "backend/src/test/java/com/aacv/system/catalog/infrastructure/persistence/CatalogExportFilterSqlTests.java",
       "sourceBlob": null,
-      "adaptedBlob": "863148bbb50503f50c7aa8f8ba7cb36051b2b3f8"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlActivitySecurityTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "0a915f4e58aaf411b8b82d84360d19f27933492e"
+      "adaptedBlob": "46782f41ff662699549a07592c95f96ee5637d3a"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlRecoveryServiceTests.java",
       "sourceBlob": "a66bffe30ff442aba59b8b493600b6d91ccabd06",
-      "adaptedBlob": "c40a147f18eb1a45157a28c649916fcfcb0eb360"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlRunServiceTests.java",
       "sourceBlob": "364435ca287edeea46b17a18f8612c6055e25921",
-      "adaptedBlob": "66c2cd6d336335dec1f4af4b467025c7a29b6636"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlTaskServiceTests.java",
       "sourceBlob": "7a51c96988b42fee315f90617cb9bd5fd59f486f",
-      "adaptedBlob": "0deb4f398a4e5840eedc7bf98933659f44f8c0da"
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/test/java/com/aacv/system/crawl/application/CrawlWindowServiceTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "d1d899e0f808599970e7c443f72678d7f8832850"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/CrawlJobExecutionListenerTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "a1776504b42a40a50b2fca4897b0069da26c30ba"
+      "path": "backend/src/test/java/com/aacv/system/crawl/domain/CrawlRunStateMachineTests.java",
+      "sourceBlob": "2b0b78525e6a1a0efacb5fe374aa67ffd62678ce",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/OpenAlexPageItemReaderTests.java",
       "sourceBlob": "7a9c024715e188cb44f80239798f2d7d76db815d",
-      "adaptedBlob": "1665e30e7959b49672eae4a8d672560fcff5d187"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/batch/SpringBatchCrawlRunLauncherTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "f4a8c25ec2b04c79bbed189107a067e487ef59d2"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/persistence/SourceCrawlPersistenceTests.java",
       "sourceBlob": "4caa8a9ac0ac9bb006dfe96f865006c9bd999bfa",
-      "adaptedBlob": "d24a4994d17dd9ae13adcff54949c12b931928fd"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/crawl/infrastructure/quartz/LegacyCrawlQuartzJobsTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "39c9cbcde1203be9e9928eb2309385f94474f87d"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/export/domain/ExportFilterTests.java",
       "sourceBlob": "95a3dfabb33becad8ae5d64fd97ce4ac16e002fa",
       "adaptedBlob": "6b2efae4acdb8d7e03e5a440b88b05e63c13d71c"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/governance/application/GovernanceServiceTests.java",
+      "sourceBlob": "41cb1b91dd445381bd6d1c68a3670e1e1cdd4c07",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/governance/infrastructure/persistence/GovernancePersistenceIntegrationTests.java",
+      "sourceBlob": "046afa1ef27066d1a308dbb25df88b0fbfc07ca2",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/graph/AuthorGraphIntegrationTests.java",
@@ -556,39 +1136,114 @@
       "adaptedBlob": "b46b694f1ac8f231152a6c959217dd7e7419073d"
     },
     {
+      "path": "backend/src/test/java/com/aacv/system/infrastructure/batch/BatchJobLauncherConfigurationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "5a669ef137db7ddbe52af5be301a74a8e0c4bc12"
+    },
+    {
       "path": "backend/src/test/java/com/aacv/system/infrastructure/database/FlywayMigrationTests.java",
       "sourceBlob": "1b079aab1f3a1fe773a04e2a589ad58a981d5574",
-      "adaptedBlob": "5f5de43b4d0c1f983ce77961ac6591a3a8d6cf02"
+      "adaptedBlob": "609c6d95961569a235ae0cff47e5403d89a02afe"
     },
     {
       "path": "backend/src/test/java/com/aacv/system/infrastructure/database/RenderingSampleDataSqlTests.java",
       "sourceBlob": "d4fc515a8df0d4ce424cd23f95e40e7113319c7e",
-      "adaptedBlob": "9e2d4219080d6c24e5c0144766c84d1c0293cfbb"
+      "adaptedBlob": "73dd039dfeae0eb652723256546ecc18987e7bf6"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/infrastructure/quartz/QuartzJobFactoryTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "f3e1655b8b2fa051777d8993692e532f248eebc6"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/ingestion/application/OpenAlexWorkNormalizerTests.java",
+      "sourceBlob": "5b7d95b4e06444ee9485a4efad3d9bb6d5be1506",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/ingestion/application/RawPayloadRetentionServiceTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "e99c4548a7e0dfc5756daf3db745c347f351a458"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/ingestion/infrastructure/persistence/CrossrefFusionIntegrationTests.java",
+      "sourceBlob": "e0d1f7a74b619cdac3716152c8ff0456e339e2b8",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/ingestion/infrastructure/persistence/IngestionPipelineIntegrationTests.java",
       "sourceBlob": "32b3223c45d9f12801a9ecd49061a46f509e404a",
-      "adaptedBlob": "da0bd337d66526daedf391fa11fb7307474bbe3c"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/ingestion/infrastructure/persistence/RawPayloadRetentionIntegrationTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "6dd513049a48f1669fc3db366859d05347a2dd90"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/quality/infrastructure/persistence/QualityMetricIntegrationTests.java",
+      "sourceBlob": "4bcbbe55801be5d61a6d2a0f1951436e2ab8bdae",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/shared/domain/OrcidIdTests.java",
+      "sourceBlob": null,
+      "adaptedBlob": "6442c13d81f9e1bb48128df97dae186acf87843c"
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/application/DataSourceServiceTests.java",
+      "sourceBlob": "a0b90c8e5c709af710a00c9b3fc66b17076533b9",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/ScholarlyMetadataParserTests.java",
+      "sourceBlob": "39460c3dd329cce06a2f9a2d491b4a5db09fc4d0",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefDataSourceAdapterTests.java",
       "sourceBlob": "46dbf50f9a6446bccaed51249e588d63f791eb52",
-      "adaptedBlob": "0602bebc1e58014cfdb3815a0a7dbe2c1bc98681"
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefHttpTransportTests.java",
       "sourceBlob": "d8dd73048e6046970e70b3bfcb6f6457c2f0f48d",
-      "adaptedBlob": "4c413405ebc54b63288aa060e339c3c773dac8d9"
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/crossref/CrossrefResponseParserTests.java",
+      "sourceBlob": "9597986d3dbfe290269ca78e83fdbd9b0e1d0cc4",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexAuthenticationTests.java",
+      "sourceBlob": "0a50f0ed6adbfad319dbd8ee7da7f6c4fee8ed29",
+      "adaptedBlob": null
     },
     {
       "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexBatchOrchestrationIntegrationTests.java",
       "sourceBlob": "5497d995fdcf63e62ddf840c331248ef981b1579",
-      "adaptedBlob": "de024779170271692e6acaaa9cb6da28a39f6296"
+      "adaptedBlob": null
     },
     {
-      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexEntityLookupTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "fc9a52036656c2cf1949c2a648a915e8d5036cc1"
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexDataSourceAdapterTests.java",
+      "sourceBlob": "fc39db5d2607f7f5c794ff72f5e5b606dcbf8be3",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexOnlineAcceptanceIT.java",
+      "sourceBlob": "46223217b9942b76a70326e34a850cc60d50ca9c",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexQuotaTests.java",
+      "sourceBlob": "7effc989254e77bb8eeed67e239a4499dba15813",
+      "adaptedBlob": null
+    },
+    {
+      "path": "backend/src/test/java/com/aacv/system/source/infrastructure/openalex/OpenAlexResponseParserTests.java",
+      "sourceBlob": "f11e493155ddcf0446037b2cb89e9a04851098bf",
+      "adaptedBlob": null
     },
     {
       "path": "docs/openapi.yaml",
@@ -634,6 +1289,16 @@
       "path": "frontend/e2e/graph-types.spec.ts",
       "sourceBlob": "60ecb0318e19cda25700398eba40f3420fe040c0",
       "adaptedBlob": "e0e358c108de2273c30054f32efc4bf62953770a"
+    },
+    {
+      "path": "frontend/e2e/light-theme.spec.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "c5e84fcfd205b6caa4033e349dc6e7db382e7a40"
+    },
+    {
+      "path": "frontend/e2e/logs-management.spec.ts",
+      "sourceBlob": null,
+      "adaptedBlob": "f81420d7c1c4187eed881f1e6301eecabeef59c5"
     },
     {
       "path": "frontend/e2e/migration-visual.spec.ts",
@@ -716,6 +1381,21 @@
       "adaptedBlob": "ec4ef5750930ec43591c1c347626744251a587cd"
     },
     {
+      "path": "frontend/public/images/campus-banner.png",
+      "sourceBlob": null,
+      "adaptedBlob": "e8817df4ab96922433932dc21ff0fec80841929e"
+    },
+    {
+      "path": "frontend/public/images/login-campus-background.png",
+      "sourceBlob": null,
+      "adaptedBlob": "e7ab1ab51844089043d1a581775d6537e5395de3"
+    },
+    {
+      "path": "frontend/src/components/EChartCanvas.vue",
+      "sourceBlob": "783e29a92f996d541302fa011420a1836875b797",
+      "adaptedBlob": "3caf741937e5280d9d2762e5be0109d0c84a1c0f"
+    },
+    {
       "path": "frontend/src/components/business/AcademicNodeDetail.vue",
       "sourceBlob": null,
       "adaptedBlob": "edb0888ab75377b66a4c7b6dd34d23b77494a68b"
@@ -739,6 +1419,11 @@
       "path": "frontend/src/components/business/AppTopbar.vue",
       "sourceBlob": "64f150c2313f1485558aaa743f4dec31dd5c0b16",
       "adaptedBlob": "8e0d101fd56198039a4cfbde8c07db5d21980b96"
+    },
+    {
+      "path": "frontend/src/components/business/AuditLogTable.vue",
+      "sourceBlob": "4ab760b7b0e51c2d6271872ddead9699287a1500",
+      "adaptedBlob": "67d5b146f73892a173cf91520b551b1d95634a33"
     },
     {
       "path": "frontend/src/components/business/CandidateComparisonPanel.vue",
@@ -846,6 +1531,11 @@
       "adaptedBlob": "bd2f1d1e8c51013b2fe8bdce5642da215ef12647"
     },
     {
+      "path": "frontend/src/composables/useChartTheme.ts",
+      "sourceBlob": "08ad91a1c3c2c21edadfe99c4d8a71b6757caa0a",
+      "adaptedBlob": "07dc8edad53b8c533596618400ef6f974fdeb840"
+    },
+    {
       "path": "frontend/src/composables/useDashboard.test.ts",
       "sourceBlob": "4cebe6d416c1b3338dd1a8eec56387337ba633b6",
       "adaptedBlob": "1341d4e9325bbd9c0394dc57171bcb9946db162b"
@@ -866,9 +1556,24 @@
       "adaptedBlob": "aa2403cb784542ebe43fac93606648e161646688"
     },
     {
+      "path": "frontend/src/composables/useTheme.test.ts",
+      "sourceBlob": "882a97ef38bb597604f6ee9267db69e429edccb1",
+      "adaptedBlob": "b695c5cf8bdd5e6b163ba8af976f6fb5ebf8ebe2"
+    },
+    {
+      "path": "frontend/src/composables/useTheme.ts",
+      "sourceBlob": "f22739bf9cf94936f0b2ed5e62fb17ffedb3bf09",
+      "adaptedBlob": "e730ce3c48dd534de6ac661f1985a0c20bd62137"
+    },
+    {
       "path": "frontend/src/config/nav.ts",
       "sourceBlob": "c42cfc23f3ba624741f245f2af12ec67b3d3a395",
       "adaptedBlob": "b4edac63f66845708dc03875446cd927a9812b89"
+    },
+    {
+      "path": "frontend/src/layouts/BusinessLayout.vue",
+      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
+      "adaptedBlob": "52ee8ec903c0954866168cc410a29bd646c2da03"
     },
     {
       "path": "frontend/src/router/index.test.ts",
@@ -931,9 +1636,24 @@
       "adaptedBlob": null
     },
     {
+      "path": "frontend/src/styles/element-plus.css",
+      "sourceBlob": "e3f1b1796a1e5da59e4fda12a2d4329c0b6f5b5f",
+      "adaptedBlob": "73c9895cd7588cd7537cc4765f32cb7c3160dec0"
+    },
+    {
+      "path": "frontend/src/styles/index.css",
+      "sourceBlob": "ee941fbe4a563a9e322c1977f47957e72f9a09d6",
+      "adaptedBlob": "38582e1df15616d1d39779a801e05c6eb963f32b"
+    },
+    {
       "path": "frontend/src/styles/research.css",
       "sourceBlob": "c0f04953673251b6acd5a43918f38a3f34ef8267",
       "adaptedBlob": "4f53443da08da0233cc4f3d63335bc522038dd6d"
+    },
+    {
+      "path": "frontend/src/styles/tokens.css",
+      "sourceBlob": "3d0b89ecfbec373c77f167ef80130a4d4761a656",
+      "adaptedBlob": "0cccf9cb4b161c6e95e40f1446f7fef4d02ad71b"
     },
     {
       "path": "frontend/src/types/api.ts",
@@ -1136,94 +1856,19 @@
       "adaptedBlob": "742935b7c67907d14d04372f2b4da7b19e604bbb"
     },
     {
-      "path": "frontend/src/views/WorkbenchView.vue",
-      "sourceBlob": null,
-      "adaptedBlob": "73ec607ce6e2830cf987c43c4bfc12f41e8debc6"
-    },
-    {
-      "path": "frontend/e2e/logs-management.spec.ts",
-      "sourceBlob": null,
-      "adaptedBlob": "f81420d7c1c4187eed881f1e6301eecabeef59c5"
-    },
-    {
-      "path": "frontend/src/components/business/AuditLogTable.vue",
-      "sourceBlob": "4ab760b7b0e51c2d6271872ddead9699287a1500",
-      "adaptedBlob": "67d5b146f73892a173cf91520b551b1d95634a33"
-    },
-    {
-      "path": "frontend/src/styles/tokens.css",
-      "sourceBlob": "3d0b89ecfbec373c77f167ef80130a4d4761a656",
-      "adaptedBlob": "0cccf9cb4b161c6e95e40f1446f7fef4d02ad71b"
-    },
-    {
-      "path": "frontend/src/styles/index.css",
-      "sourceBlob": "ee941fbe4a563a9e322c1977f47957e72f9a09d6",
-      "adaptedBlob": "38582e1df15616d1d39779a801e05c6eb963f32b"
-    },
-    {
-      "path": "frontend/src/styles/element-plus.css",
-      "sourceBlob": "e3f1b1796a1e5da59e4fda12a2d4329c0b6f5b5f",
-      "adaptedBlob": "73c9895cd7588cd7537cc4765f32cb7c3160dec0"
-    },
-    {
-      "path": "frontend/src/composables/useTheme.ts",
-      "sourceBlob": "f22739bf9cf94936f0b2ed5e62fb17ffedb3bf09",
-      "adaptedBlob": "e730ce3c48dd534de6ac661f1985a0c20bd62137"
-    },
-    {
-      "path": "frontend/src/composables/useTheme.test.ts",
-      "sourceBlob": "882a97ef38bb597604f6ee9267db69e429edccb1",
-      "adaptedBlob": "b695c5cf8bdd5e6b163ba8af976f6fb5ebf8ebe2"
-    },
-    {
-      "path": "frontend/src/composables/useChartTheme.ts",
-      "sourceBlob": "08ad91a1c3c2c21edadfe99c4d8a71b6757caa0a",
-      "adaptedBlob": "07dc8edad53b8c533596618400ef6f974fdeb840"
-    },
-    {
-      "path": "frontend/src/layouts/BusinessLayout.vue",
-      "sourceBlob": "0e136996177b9665671b47bcfe11cd36e04e0a19",
-      "adaptedBlob": "52ee8ec903c0954866168cc410a29bd646c2da03"
-    },
-    {
       "path": "frontend/src/views/WorkbenchView.test.ts",
       "sourceBlob": null,
       "adaptedBlob": "44f37f3678801786150cd7041fa60c70677fb373"
     },
     {
-      "path": "frontend/e2e/light-theme.spec.ts",
+      "path": "frontend/src/views/WorkbenchView.vue",
       "sourceBlob": null,
-      "adaptedBlob": "c5e84fcfd205b6caa4033e349dc6e7db382e7a40"
+      "adaptedBlob": "73ec607ce6e2830cf987c43c4bfc12f41e8debc6"
     },
     {
-      "path": "frontend/public/images/campus-banner.png",
-      "sourceBlob": null,
-      "adaptedBlob": "e8817df4ab96922433932dc21ff0fec80841929e"
-    },
-    {
-      "path": "frontend/src/components/EChartCanvas.vue",
-      "sourceBlob": "783e29a92f996d541302fa011420a1836875b797",
-      "adaptedBlob": "3caf741937e5280d9d2762e5be0109d0c84a1c0f"
-    },
-    {
-      "path": "backend/src/main/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzCleanup.java",
-      "sourceBlob": null,
-      "adaptedBlob": "df89c1d13a4483b3be78b44d37b35294fdb2c857"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/authororcid/infrastructure/OrcidQuartzCleanupTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "c44451e227c1693feb0e85669a5e545ce649dc3b"
-    },
-    {
-      "path": "backend/src/test/java/com/aacv/system/shared/domain/OrcidIdTests.java",
-      "sourceBlob": null,
-      "adaptedBlob": "6442c13d81f9e1bb48128df97dae186acf87843c"
-    },
-    {
-      "path": "frontend/public/images/login-campus-background.png",
-      "sourceBlob": null,
-      "adaptedBlob": "e7ab1ab51844089043d1a581775d6537e5395de3"
+      "path": "tools/stage8/Invoke-Stage8RealSourceAcceptance.ps1",
+      "sourceBlob": "5d8e9204b8dabef75fe11e89e392c481fc033c32",
+      "adaptedBlob": null
     }
   ]
 }

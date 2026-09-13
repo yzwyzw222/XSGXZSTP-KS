@@ -50,7 +50,7 @@ class FlywayMigrationTests {
         }
         Flyway upgraded = Flyway.configure().dataSource(PROFILE_MYSQL.getJdbcUrl(), PROFILE_MYSQL.getUsername(),
                 PROFILE_MYSQL.getPassword()).locations("classpath:db/migration").load();
-        assertEquals(4, upgraded.migrate().migrationsExecuted);
+        assertEquals(5, upgraded.migrate().migrationsExecuted);
         assertTrue(upgraded.validateWithResult().validationSuccessful);
         try (Connection connection = PROFILE_MYSQL.createConnection(""); Statement statement = connection.createStatement()) {
             assertEquals(1, scalarCount(statement, "SELECT COUNT(*) FROM sys_user WHERE id=99 AND username='legacy-user' AND version=7 AND security_version=0 AND real_name IS NULL AND email IS NULL"));
@@ -66,7 +66,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(17, flyway.migrate().migrationsExecuted);
+        assertEquals(18, flyway.migrate().migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
 
         try (Connection connection = MYSQL.createConnection("");
@@ -191,7 +191,7 @@ class FlywayMigrationTests {
                 .dataSource(UPGRADE_MYSQL.getJdbcUrl(), UPGRADE_MYSQL.getUsername(), UPGRADE_MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .load();
-        assertEquals(14, stageThree.migrate().migrationsExecuted);
+        assertEquals(15, stageThree.migrate().migrationsExecuted);
         assertTrue(stageThree.validateWithResult().validationSuccessful);
     }
 
@@ -252,7 +252,7 @@ class FlywayMigrationTests {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(10, stageFour.migrate().migrationsExecuted);
+        assertEquals(11, stageFour.migrate().migrationsExecuted);
         assertTrue(stageFour.validateWithResult().validationSuccessful);
         try (Connection connection = STAGE_THREE_MYSQL.createConnection("");
                 Statement statement = connection.createStatement()) {

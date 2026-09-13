@@ -19,7 +19,7 @@ class CatalogExportFilterSqlTests {
     @BeforeEach
     void loadActualMappers() throws Exception {
         configuration = new Configuration();
-        for (String resource : new String[] {"mapper/catalog/CatalogMapper.xml", "mapper/export/ExportMapper.xml", "mapper/crawl/CrawlMapper.xml"}) {
+        for (String resource : new String[] {"mapper/catalog/CatalogMapper.xml", "mapper/export/ExportMapper.xml"}) {
             try (var stream = getClass().getClassLoader().getResourceAsStream(resource)) {
                 assertNotNull(stream);
                 new XMLMapperBuilder(stream, configuration, resource, configuration.getSqlFragments()).parse();
@@ -55,18 +55,6 @@ class CatalogExportFilterSqlTests {
         var bound = export(new ExportFilter(null, null, null, 2020, 2026, null, SourceType.OPENALEX, null, null));
         assertTrue(properties(bound).containsAll(java.util.List.of("query.publicationYearFrom", "query.publicationYearTo", "query.sourceType")));
         assertTrue(where(bound).contains("source_value.source_type"));
-    }
-
-    @Test
-    void batchActivityQueriesBindIdsAndSelectLatestRunPerTask() {
-        var runs = configuration.getMappedStatement("com.aacv.system.crawl.infrastructure.persistence.CrawlMapper.findLatestRuns")
-                .getBoundSql(Map.of("taskIds", java.util.List.of(1L, 2L)));
-        assertTrue(runs.getSql().contains("MAX(id)"));
-        assertTrue(runs.getSql().contains("GROUP BY task_id"));
-        assertEquals(2, runs.getParameterMappings().size());
-        var schedules = configuration.getMappedStatement("com.aacv.system.crawl.infrastructure.persistence.CrawlMapper.findSchedules")
-                .getBoundSql(Map.of("taskIds", java.util.List.of(1L, 2L)));
-        assertEquals(2, schedules.getParameterMappings().size());
     }
 
     private BoundSql catalog(CatalogQuery query) {

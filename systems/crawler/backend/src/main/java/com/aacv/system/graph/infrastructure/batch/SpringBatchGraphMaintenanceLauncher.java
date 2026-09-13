@@ -27,7 +27,7 @@ class SpringBatchGraphMaintenanceLauncher implements GraphMaintenanceLaunchPort 
     private final TransactionTemplate withoutTransaction;
 
     SpringBatchGraphMaintenanceLauncher(
-            @Qualifier("crawlJobOperator") JobOperator jobOperator,
+            @Qualifier("batchJobOperator") JobOperator jobOperator,
             @Qualifier("graphMaintenanceJob") Job job,
             ObjectProvider<GraphMaintenanceStateService> stateServiceProvider,
             PlatformTransactionManager transactionManager) {

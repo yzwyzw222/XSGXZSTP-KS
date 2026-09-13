@@ -1,6 +1,7 @@
 package com.aacv.system;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.flywaydb.core.Flyway;
 import org.neo4j.driver.Driver;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -53,17 +56,26 @@ class AacvSystemApplicationTests {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
+    @Autowired
+    private ApplicationContext applicationContext;
+
     @LocalServerPort
     private int port;
 
     @Test
     void startsWithIsolatedInfrastructureAndExposesHealthGroups() throws Exception {
         assertEquals(1, databaseProbeMapper.selectOne());
-        assertEquals(17, flyway.info().applied().length);
+        assertEquals(18, flyway.info().applied().length);
         assertEquals(0, flyway.info().pending().length);
         assertTrue(flyway.validateWithResult().validationSuccessful);
         neo4jDriver.verifyConnectivity();
         assertInstanceOf(JdbcTransactionManager.class, transactionManager);
+        assertNotNull(applicationContext.getBean("batchJobOperator", JobOperator.class));
+        for (String retiredBean : java.util.List.of(
+                "crawlTaskService", "dataSourceAdapterRegistry", "ingestionPageService",
+                "governanceService", "qualityMetricService")) {
+            assertFalse(applicationContext.containsBean(retiredBean), retiredBean);
+        }
 
         HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
