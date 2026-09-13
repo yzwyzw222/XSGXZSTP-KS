@@ -265,6 +265,6 @@ docker compose -f .local/integration-runtime/compose.json stop
 | admin 无法登录 | 核对 `course_crawler.sys_user` 的用户名、`ACTIVE` 状态、带 `{bcrypt}` 前缀的哈希与 `ADMIN` 角色；修改凭据文件本身不会更新数据库密码 |
 | 论文列表或图谱为空 | 新库无预置业务数据；确认已导入，并检查图投影同步状态 |
 
-更多说明见 [开发与运行配置](docs/development.md)、[统一登录与权限映射](docs/unified-login.md)、[集成基线与来源约束](docs/integration-baseline.md)、[本地运行验收记录](docs/local-runtime-acceptance.md)。验收记录描述对应阶段实际执行的检查，不代表每次拉取后的自动验证结果。
+更多说明从[项目文档索引](docs/README.md)进入，包括当前开发配置、认证权限、架构基线、作者导入、图谱规则和验证方式。来源与必要恢复位置见[历史索引](docs/history.md)，旧阶段验收不代表当前版本已经验证。
 
-当前访问网关面向本机开发与演示。公网部署、HTTPS、Nginx 运行不属于本轮验证范围。单系统改造、归档位置及最新验证见 [单系统调整记录](docs/single-system.md)。
+当前访问网关面向本机开发与演示。公网部署、HTTPS、Nginx 运行不属于本轮验证范围。当前检查范围见[验证指南](docs/crawler-acceptance.md)。

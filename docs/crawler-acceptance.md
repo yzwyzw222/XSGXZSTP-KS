@@ -1,21 +1,19 @@
-# 学术成果爬虫及可视化系统本地接入验收
+# 当前系统验证指南
 
-> 历史范围说明：本文保留对应阶段的设计或验收记录。2026-09-10 已删除 extraction、scholar，当前仅保留 relation、crawler；原四系统描述、已删除文件和历史命令不代表当前运行范围。当前配置与说明见 `deploy/systems.json`、`docs/development.md`。
+当前有效系统为 crawler，来源 `feature/Luo` 的固定 SHA 为 `3a0127019052c182962d6630981e0acec2d66d53`，集成路径 `/crawler/`。此文件保留运行配置要求的验收文档入口，描述当前检查范围，不把旧多系统验收当作当前版本通过证据。
 
-核对日期：2026-09-09。来源：`feature/Luo`，SHA：`3a0127019052c182962d6630981e0acec2d66d53`。运行范围为本机隔离环境，接入路径 `/crawler/`。
+## 自动化验证
 
-> 以下为统一登录改造前的接入验收记录。独立登录及退出隔离描述属于历史状态；当前认证与验收见 [统一登录说明](unified-login.md)。
+- 前端：Vitest 单元测试、TypeScript/Vite 构建、Playwright 登录及业务路由回归。
+- 后端：普通单元测试、OpenAPI 契约、Flyway V1～V18 及历史版本升级；Testcontainers 隔离 MySQL/Neo4j 验证作者导入、导师编目、图投影、导出和权限。
+- 兼容清理：共享 Batch/Quartz 配置仍可使用，旧采集和 ORCID Job 仅清理原调度；Payload 清理保持有界、保留证据，不重新启用采集。
+- 网关：`node --test scripts/tests/*.test.mjs scripts/lib/source-adaptations.test.mjs`。
+- 来源：`node scripts/check-source.mjs`，未提交的其他源码变化需要单独核对。
 
-## 已执行的后端预验收
+命令及环境要求见[开发说明](development.md#测试与检查)。Docker 不可用、依赖不足或权限受限时应报告阻塞，不能跳过有效测试后声称全部通过。
 
-- `node scripts/Test-IntegratedSystems.mjs --direct`：四个系统全部通过。
-- 就绪检查连接该系统的真实 MySQL；relation、extraction、crawler 同时检查独立 Neo4j。
-- 登录、业务查询、未知 API、缺少 CSRF 的退出拒绝、正常退出后会话失效均通过。
-- 同一客户端同时登录四个系统，各自 Cookie 为独立名称与路径；退出一个系统不会影响其他系统。
-- 前端 35 个文件、167 项测试通过；后端认证、图查询和统计接口已通过本轮真实 HTTP 验证。
+## 运行验收
 
-统一门户及浏览器最终证据、准确命令和失败重跑记录统一维护于 [本地运行验收](local-runtime-acceptance.md)。
+启动授权范围内的组件后，检查网关与后端 readiness、图数据库健康，使用真实账号验证登录、权限、导入、检索和三类图谱。确认网关实际返回的前端文件与预期产物一致，运行 JAR 与构建版本一致。
 
-## 范围与限制
-
-使用新建隔离数据库，未迁移任何旧业务数据。管理员凭据由初始化脚本随机生成并存放在仅当前 Windows 用户可读取的忽略目录，文档及启动参数不包含凭据。未调用收费 LLM，也未执行外部全量采集；这些依赖的真实业务效果不包含在本地接入验收中。
+前端模拟接口测试不证明真实数据库行为；匿名登录跳转不证明图谱已绘制；构建成功不等于服务已经更新。构建脚本使用 `-DskipTests`，测试需独立执行。公网、HTTPS 及 Nginx 模板必须另行验收，当前默认入口是本机 Node/Vite 网关。

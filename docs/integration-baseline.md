@@ -1,79 +1,56 @@
-# 项目基线与已验证状态
+# 项目基线
 
-核对日期：2026-09-12。本文件与 `development.md` 是仓库指定的项目记忆。当前系统范围由 `deploy/systems.json` 定义；历史验收文档只描述其对应阶段。
+核对日期：2026-09-13。本文件与 [development.md](development.md) 是仓库指定项目记忆，记录当前源码约定；运行状态必须另行验证。
 
-## 当前唯一系统
+## 系统范围与结构
 
-项目为“学术成果信息采集及可视化系统”。`systems/relation/` 和 `portal/` 已删除，构建、启动、初始化、样例导入均只覆盖 crawler。成果系统中的学术关系、学术成果、学术背景图谱仍保留，不属于被删除的独立 relation 平台。
+当前唯一业务系统为“学术成果信息采集及可视化系统”，目录 `systems/crawler`。运行清单由 [deploy/systems.json](../deploy/systems.json) 定义。一个 Vue 前端、一个 Java 21 / Spring Boot 后端构成业务应用；根目录 `scripts/server.mjs` 复用前端 Vite 依赖提供本机访问网关。
 
-原 relation 来源 SHA `184f651b223efe9a07ea6d352146e5df34a537da` 标记 retired，历史导入证据保留；crawler 来源仍为 feature/Luo 的 `3a0127019052c182962d6630981e0acec2d66d53`。`source-adaptations.json` 仅记录当前有效 crawler。当前工作分支为 dev，本次未提交、推送或改写 Git 历史。
+`relation`、`extraction`、`scholar` 和独立门户均已退役。`portalPort`、网关进程标识 `portal`、`PORTAL_SESSION` 及 `/__integration/*` 是兼容名称，不代表其他业务系统。
 
-删除前的目录归档在本机 Git 忽略的 `.local/single-system-review-20260912/removed/`；已有未提交的 ORCID 相关文件也保留原件快照。为解除文件锁，使用原启停脚本及进程归属校验停止旧 relation、门户进程。该阶段未删除数据库、容器、数据卷、账号、运行凭据和历史日志，也未替换 crawler 后端；后续作者内部标识与导师显示验收已更新后端，见下文。
+前端按页面、组件、路由、services、stores 和 composables 组织。后端主要模块为 `authorimport`、`catalog`、`graph`、`analytics`、`export`、`identity`、`operations`、`shared`、`infrastructure`，通常按 api、application、domain、infrastructure 分层。
 
-## 运行与认证约定
+通用 Batch 和 Quartz 配置位于 `infrastructure/batch`、`infrastructure/quartz`。图谱维护使用 `batchJobOperator`；线程池大小、队列和关闭等待沿用原设置。不能删除通用调度配置来清理旧采集功能。
 
-- 根地址 `http://127.0.0.1:18000/` 转入 `/crawler/`；未登录时由成果前端转入 `/crawler/login`。没有门户系统卡片、iframe 工作区或返回门户按钮。
-- 旧 `/crawler/overview/activity` 返回 `/crawler/` 工作台；`/crawler/operations` 及兼容子路径进入日志页并检查审计权限。2026-09-12 修正两份浏览器用例对工作台旧地址的过期日志页预期，补充已登录与未登录路由断言，未改变实际路由或权限。
-- 一个 Vue 前端、一个 Java 21 后端，继续使用 MySQL `course_crawler`、Neo4j 和原有 Flyway 迁移。业务目录、上下文 `/crawler`、后端 18083、Vite 5176 保持兼容。
-- 网关位于 `scripts/server.mjs`，复用 crawler 前端的现有 Vite 依赖。`portalPort`、进程标识 `portal`、`PORTAL_SESSION` 和 `/__integration/*` 保留为内部兼容字段，不代表独立门户。
-- 登录与退出通过成果系统自己的页面和会话 store；网关复用已有认证代理及根路径 HttpOnly Cookie。CSRF、Origin 校验、会话轮换、数据库账号状态和权限不变。
-- 账号管理 `/crawler/users`、日志管理 `/crawler/logs` 均位于成果系统内；日志管理仅保留操作日志、登录日志。旧 `/management/logs`、`/management/audits` 和 `/crawler/request-logs` 转到日志管理并保留查询参数；数据 API 继续检查 USER_LIST / AUDIT_READ。
-- 2026-09-12 移除请求日志页面、专用 API 及网关记录模块；`/__integration/platform/logs` 返回 404，网关不再为请求日志额外查询身份或写文件。磁盘历史 `platform-audit.jsonl` 不清理，MySQL 操作与登录审计及原查询、权限、详情契约保持。
-- 日志页沿用成果目录右上角紧凑搜索，账号最多 64 字符，保留重置和刷新；时间、事件类型、结果收进对应表头。时间范围在本地时间编辑后转为 UTC，结束时间不包含且非法区间不提交；分类切换清除事件类型，分页和刷新使用已提交筛选条件。
-- 日志调整已完成前端构建、模拟浏览器及网关验证；未重启当前访问网关或业务后端。现有网关需按原模式重启后加载移除请求日志的代码，历史数据不作清理；操作见 `development.md` 的日志章节。
-- 顶部全屏使用原生浏览器能力，业务路由切换继续保持全屏。登录和列表仍沿用成果系统现有蓝色样式。
-- 账号列表、角色选择和顶部账户菜单共用中文角色名称：`ADMIN` 为“管理员”、`DATA_OPERATOR` 为“数据运营人员”、`RESEARCHER` 为“科研用户”；只转换展示文字，提交的角色编码和权限判断保持原状。
-- `start.bat`、`stop.bat` 继续复用 PowerShell 7 启停及进程归属校验。新初始化仅声明 crawler MySQL、Neo4j 两项服务和两个数据卷；默认不自动建号，不导入样例。当前本机 `.local/Start-LocalProject.ps1` 也只依赖 crawler。
-- 本机 BAT 启动与 IDEA 共用固定外部配置，只有配置仍引用密码环境变量时才走原安全输入流程；BAT 依赖现有前端产物和后端 JAR，不自动构建。停止入口只管理其登记的应用进程，IDEA 启动的 JVM 需在切换前单独停止，避免 18083 端口冲突。具体操作见 `development.md`。
-- 2026-09-12 本机 IDEA 调试改为读取 Git 忽略的固定 `application.properties`，无需后端密码环境变量；管理员初始化关闭。仓库 `.run/CrawlerBackend.run.xml` 指定正式 Maven 模块、后端工作目录、JDK 21 和配置文件路径，不包含凭据。必须从仓库根目录导入 `systems/crawler/backend/pom.xml`，不得运行 `.local/` 备份中的同名模块；新克隆仍需单独准备本机配置，操作见 `development.md`。
-- 本机清理备份 Maven 关联后，正式模块名为 `system (1)`。共享 `CrawlerBackend` 与当前选中的本机 `AacvSystemApplication` 已对齐模块和启动参数；本机配置位于 Git 忽略的 `.idea/workspace.xml`。新环境按正式 POM 的实际模块名选择，不能仅凭配置名称判断是否加载了集成配置。
+## 业务数据与保留边界
 
-## 浅色研究页面（2026-09-12）
+MySQL 保存权威业务数据，Neo4j 保存可重建的图投影。作者导入在同一 MySQL 事务写入业务记录与 Outbox；Quartz 消费 Outbox 后投影到 Neo4j。图谱可能稍后反映刚提交的数据。
 
-本次页面调整仅涉及 crawler 前端，保留现有业务 API、后端实现、数据库与数据、认证和权限契约。全系统固定 `light`：`frontend/index.html` 静态根节点及浏览器颜色方案保证首帧浅色，旧 `aacv-theme` 本地偏好统一迁移为 `light`；存储不可用时仍保持浅色。共享颜色变量用于页面、图表与图谱，采用浅蓝背景、白色卡片/表格/弹层、深色正文和蓝色主操作。校园插画只作装饰背景，不承载业务数据。
+Flyway 迁移完整保留 V1～V18，不改写已执行迁移、不删除历史业务表、账号或数据。现有治理合并结果、来源证据、来源统计及运维查询继续读取历史表。
 
-同日登录页进一步按用户提供的校园山水参考图还原，使用独立 `login-campus-background.png` 和 `LoginView.vue` 局部样式；共享校园横幅和业务页面样式保持原状。宽屏保留左右布局，小于 1100px 显示单列表单，密码显隐按钮常显且支持键盘操作。登录校验、会话与路由沿用现有实现。此次登录、会话及路由 50 项单测和 `/crawler/` 生产构建通过，已在实际本机网关以 1672/1440/768/390/320 宽度检查页面与表单提示；没有使用真实账号重新验证后端登录。详细证据及可接受的素材、字体差异见根目录 `design-qa.md`。
+已删除数据源管理、OpenAlex/Crossref 网络适配、采集调度与解析入库、治理和质量服务的退役实现及专用测试；当前路由、Controller 和 OpenAPI 均不提供这些入口。仅保留以下有当前用途的代码：
 
-工作台与可视化大屏共用顶部主导航，按既有权限显示十个主模块；窄屏隐藏横向导航，通过抽屉访问模块。工作台的平台数据概览从现有 `/api/v1/analytics/overview` 读取成果、作者、机构和摘要覆盖数量，仅在有 `ANALYTICS_READ` 时发起请求；统计与导入记录独立加载、显示失败原因并可分别重试。最近导入表展示现有作者导入接口返回的最多六次成功记录，仅呈现接口已有字段与新增/已存在数量。
+- `source/domain/SourceType`、`ScholarlyMetadata`：目录、统计、导出及已有来源指标的数据类型。
+- `crawl/infrastructure/quartz/QuartzCrawlTriggerJob`、`QuartzQuotaResumeJob`：兼容数据库持久化类名，仅删除自己的旧调度。
+- `ingestion`：只保留原始 Payload 到期清理服务、最小 MyBatis 接口及既有 Quartz 任务；每日 UTC 03:15、每批 500 条，清空过期 Payload，保留原始记录、哈希和成果证据链接。
+- `authororcid`：只清理旧 ORCID 调度。V18、历史候选、已有外部编号及相关审计仍保留。
 
-三类图谱继续使用真实作者和成果关系，不根据参考图补造头像、教育或任职履历。学术背景按真实成果日期排序，每项成果展示“发布时间”和该篇成果的机构；作者图谱接口从本篇成果的托管 `PRODUCED_AT` 及对应同篇成果的署名机构关系读取、去重，最多返回 100 家并提示截断。机构以成果属性返回，沿用 `GRAPH_READ`，不额外占用图谱节点或改变分页；未收录资料明确标注，不将作者其他成果的机构作为本篇机构。独立学术图谱中的普通 `AUTHORED`、`SUPERVISED` 连线文字在悬停或选中时显示，`COAUTHORED` 合作边保留“共同创作”文字及证据入口。大屏作者与机构合作网络均使用现有合作统计返回的节点和合作对，机构网络采用 `circular` 布局，不增加虚拟机构或中心节点。
+数据库中的旧权限编码和审计动作可用于读取历史记录，不因页面退役而删除。源码清理不改变现有认证与授权规则。
 
-同日背景页运行修复：当前 BAT/Demo 网关使用正式 `frontend/dist`，不能以源码或 `.local/` 内构建通过作为页面已更新的证据。已确认运行 JAR 有机构字段，而正式前端仍是旧产物；更新并核对 108 个前端文件后，实际网关资源在桌面与手机端均能显示逐篇机构、发布时间，浏览器业务响应为模拟数据。后端与数据库未重启，用户刷新页面即可加载新资源。后续按实际运行模式检查源码、正式产物和网关返回文件三者是否一致。
+## 当前页面与交互
 
-大屏合作网络使用已安装 ECharts 的标签避让能力隐藏重叠名称，节点、关系和悬停详情完整保留。
+工作台、大屏、成果目录、实体编目、作者导入、统计、三类学术图谱、账号和日志位于同一前端。页面固定浅色：`index.html` 提供首帧浅色，`useTheme.ts` 统一迁移旧主题偏好为 `light`；共享样式位于 `src/styles`。工作台与大屏数据读取受权限约束，统计与导入记录分别处理加载失败。
 
-## 硕博论文导师编目
+学术关系、成果和背景使用独立路径 `/academic-relations`、`/academic-achievements`、`/academic-background`，共享作者条件与画布。合作只依据同篇成果真实 `AUTHORED`，指导使用 `SUPERVISED`，成果机构使用 `PRODUCED_AT`，不从指导推断合作或从机构推断当前任职。
 
-`GET /api/v1/catalog/master-theses` 和 `/doctoral-theses` 继续要求真实 `achievement_advisor` 记录。新增 `advisors: string[]`；其他编目返回空数组。
+作者图谱先按作品分页再补共同作者；最多 300 节点、Neo4j 查询超时 3 秒。背景按真实发表日期排序，空日期末尾；机构来自本篇成果及对应本篇的署名关系，最多 100 家并提示截断。详细口径见 [academic-graphs.md](academic-graphs.md)。
 
-查询先按原规范成果分页，再一次性读取本页所有导师。成果及导师均通过 `canonical_entity_link` 合并到规范记录，按规范导师 ID 去重、排序；成员与规范成果重复指导不会增加行数。同名但身份不同的作者仍是不同导师，不按名字强行合并。仅使用导师关系，不从论文作者推断导师。
+成果目录采用右上角紧凑字段搜索与发表年份筛选，CSV/JSON 导出沿用已提交查询条件。实体编目包含作者、机构、期刊、主题、专利和指导硕博；指导硕博必须存在 `achievement_advisor`，`advisors` 按规范作者身份去重，多人姓名并列展示，不从论文署名推断导师。
 
-前端仅在指导硕论、指导博论中显示“导师”列，多人以顿号分隔，缺少姓名时显示占位符。没有新增迁移、依赖或修改历史指导数据。后端隔离测试覆盖多人指导、合并成果、合并作者、署名排除、空页、权限及 OpenAPI。
+作者导入支持 XLSX、XLS 和 CSV，多文件同批提交、校验预览、幂等去重及原始列留存。身份识别与关系规则见 [author-import.md](author-import.md)。ORCID 后台获取和绑定 API 已移除，作者内部标识及已有 ORCID 保留。
 
-2026-09-12 实际核对博士论文 486、487，两者在 MySQL 中均已关联作者 9“席酉民”。页面原来显示空导师，是运行中的旧 JAR 尚不包含 `advisors` 字段；旧真实接口的两条记录没有导师值。重新构建当前后端后，同一接口均返回 `advisors: ["席酉民"]`，未重复写入指导关系，也未增加导师署名。更新前后均为 211 位作者、476 项成果、2 条指导关系，Flyway 保持 V18。
+## 运行、认证与管理
 
-## 保留的成果系统能力
+网关 `18000` 的根地址转入 `/crawler/`，未登录由业务前端进入 `/crawler/login`。后端为 `18083 /crawler`；Development 额外使用 `5176` 的业务 Vite。Demo 使用正式 `frontend/dist` 和后端 JAR，不自动构建。
 
-知网 XLSX/XLS/CSV 作者导入沿用 V17、18 列原始值留存、预览/确认和幂等批次。同批多文件识别共同作者；明确确认的硕博导师建立 SUPERVISED，本人署名建立 AUTHORED，成果机构使用 PRODUCED_AT；不据此推断当前任职。MySQL 事务与 Outbox 向 Neo4j 投影保持不变。
+登录会话、CSRF、Origin 校验、会话轮换和后端权限判断保留。账号管理位于 `/crawler/users`；日志管理位于 `/crawler/logs`，仅保留操作与登录日志。旧管理、请求日志和运维书签安全跳转，`/__integration/platform/logs` 已移除；磁盘旧日志不自动删除。
 
-三类学术图谱为独立主模块 `/academic-relations`、`/academic-achievements`、`/academic-background`，按作者分页查询并保留跨模块作者条件。合作只依据真实共同署名，不从指导关系推断；背景按出版日期升序、空日期末尾显示，查询最多 300 节点且有 3 秒限制。高级概览在 `/graph/overview`；关系样式使用 `/graph/settings/edges`，旧业务图谱地址兼容跳转。
+角色编码为 `ADMIN`、`DATA_OPERATOR`、`RESEARCHER`，展示为管理员、数据运营人员、科研用户。新环境仅初始化表结构、角色和字典，不自动创建应用账号或导入业务数据。
 
-成果目录保留右上角紧凑字段搜索、发表年份日历和 CSV/JSON 导出；统计页继续使用规范机构/主题 ID 和已加载聚合结果导出。共享图谱使用 Cytoscape，动效时间读取区分 ms 和 s。图谱验收须核对真实绘制，不能把接口计数或匿名登录页作为图谱交互通过证据。
+IDEA 配置不随仓库提供；按 [开发说明](development.md#idea-调试)从正式 POM 创建本机运行配置。`.idea/` 是用户本机工作区，不把固定模块名或不存在的 `.run/CrawlerBackend.run.xml` 当成共享配置。
 
-2026-09-12 按用户要求进一步移除 ORCID 后台获取：删除查询、重试、回填与绑定 API、专用客户端和处理器，作者导入不再入队，前端残留补全面板和服务已删除。启动时通过原 JDBC 事务清理 `aacv-author-orcid.author-orcid` 的 Quartz 任务与触发器；旧持久化类名只保留自清理兼容实现，不再发起查询。V18、`author_orcid_task` 历史记录、`author_external_id` 已有编号、导入权限及 Outbox 保留；作者导入结果继续显示 `authorId`。不修改业务数据库或自动重启当前 IDEA JVM，需重新编译并启动后生效。说明见 [ORCID 获取停用说明](author-orcid.md)。
+## 来源、文档与验证
 
-## 历史数据与验证边界
+有效来源仍为 feature/Luo 的 `3a0127019052c182962d6630981e0acec2d66d53`。[import-records.json](import-records.json) 保留不可变来源证据；[source-adaptations.json](source-adaptations.json) 记录当前 crawler 的修改、新增和删除。源码删除也必须同步适配记录，不能通过跳过来源校验掩盖差异。
 
-2026-09-11 的真实文件替换记录为 479 条来源、476 项成果、211 位作者和195家成果机构；两篇博士论文按指导关系关联。该计数未在本轮重新查询。恢复材料位于 `.local/cnki-replacement-20260911/`；不得重复运行已完成的数据替换。对应证据见 [作者导入](author-import.md)。
-
-2026-09-12 较早的 ORCID 启用记录和备份位于 `.local/orcid-review-20260912-104302/`，只代表当时版本。后续作者内部标识与导师显示验收已发布新的前后端产物，当前服务就绪及图谱健康均为 `UP`，运行包与独立构建的 SHA256 相符，108 个前端文件逐一校验通过。实际状态以 `.local/author-id-advisor-review-20260912/recovery-status.json` 为准；原查询/历史数组校验脚本失败及恢复过程保留在该目录的 `verification.md` 和各次状态文件中。未重启访问网关，前述网关代码更新边界仍适用。
-
-作者导入页 6 项单测、导师编目 5 项隔离集成测试、OpenAPI 1 项及相关浏览器回归 4 项通过；浏览器使用模拟接口。真实数据库与导师接口另行核对，最终访问网关返回新版作者导入脚本，匿名编目请求仍为 401。用户当前浏览器连接工具不可用，真实页面的视觉验收需刷新确认。
-
-2026-09-12 已精确补回已退役 scholar 原提交 `f11b0b8d99f37e8e971aa86661d0ba59a21fbd9d`，来源树 `8c060254a4ddd2fd485c3bbe2824bdd2c9af1353` 与不可变导入记录一致。`node scripts/check-source.mjs` 完整通过，Git 引用与补取前一致，未改写来源 SHA、校验规则或提交历史。旧 `Li` 分支已不存在；新克隆或清理不可达对象后可能需要按 [来源同步](development.md#来源同步) 的固定 SHA 命令恢复。
-
-本次旧入口修复已通过路由单测 35 项及相关浏览器回归 5 项（含桌面、移动端和明暗配色），测试使用模拟后端。此前 [单系统调整记录](single-system.md) 等验收中的缺失对象结果保留为历史证据，不代表当前仍受阻。
-
-## 项目记忆同步
-
-本轮读取原基线、development.md、README、认证与管理说明，并与配置、路由、SQL、构建及启停脚本对照。原两系统/门户描述与新需求冲突，已按当前源码同步为单系统，迁移管理入口并记录 advisors 契约。旧多系统验收添加历史标记，未创建新的项目记忆体系。后续按用户要求移除 ORCID 获取流程，并同步更正“后台查询、导入入队、绑定 API 保留”的旧描述；保留数据与旧调度清理的边界以上文为准，未将旧运行状态当作本轮验收。
+当前文档从 [文档索引](README.md)进入。多阶段过程已从现行说明移除，必要恢复材料见 [历史索引](history.md)。本机凭据、数据与验收产物留在被忽略的 `.local/`，不放入项目记忆。测试方式见 [验证指南](crawler-acceptance.md)，历史结果不能替代当前验证。

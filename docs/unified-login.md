@@ -27,4 +27,4 @@
 
 旧 `/?workspace=...` 书签只接受现有业务或管理路径，外站、编码路径逃逸、API 地址和登录循环被拒绝。relation、extraction、scholar 的页面及 API 均为 404。成果系统本身的学术关系图谱继续保留。
 
-原多系统统一登录浏览器脚本已由 `scripts/Test-SingleSystemBrowser.mjs` 的完整单系统生产页面验证替代。该测试使用模拟账号和后端；真实账号、真实数据运行验收未在本轮执行。更多结果见 [单系统调整](single-system.md)。
+单系统页面可使用 `scripts/Test-SingleSystemBrowser.mjs` 验证。该测试使用模拟账号和后端；真实账号、真实数据需要另行运行验收。检查范围见[验证指南](crawler-acceptance.md)，执行命令见[开发说明](development.md)。
